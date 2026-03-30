@@ -61,7 +61,7 @@
 
 #ifndef LORAMAC_VERSION
 /*!
- * LoRaWAN version definition.
+ * LoRaWAN version definition. 0x01000300
  */
 #define LORAMAC_VERSION                             0x01000300
 #endif

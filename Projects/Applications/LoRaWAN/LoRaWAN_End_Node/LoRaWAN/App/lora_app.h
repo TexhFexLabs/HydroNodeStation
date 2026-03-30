@@ -84,7 +84,7 @@ extern "C" {
  * LoRaWAN Default data Rate Data Rate
  * @note Please note that LORAWAN_DEFAULT_DATA_RATE is used only when LORAWAN_ADR_STATE is disabled
  */
-#define LORAWAN_DEFAULT_DATA_RATE                   DR_3
+#define LORAWAN_DEFAULT_DATA_RATE                   DR_0
 
 /*!
  * LoRaWAN default activation type
@@ -100,7 +100,7 @@ extern "C" {
  * Default Unicast ping slots periodicity
  *
  * \remark periodicity is equal to 2^LORAWAN_DEFAULT_PING_SLOT_PERIODICITY seconds
- *         example: 2^3 = 8 seconds. The end-device will open an Rx slot every 8 seconds.
+ *         example: 2^3 = 8 seconds. The end-device will o	pen an Rx slot every 8 seconds.
  */
 #define LORAWAN_DEFAULT_PING_SLOT_PERIODICITY       4
 

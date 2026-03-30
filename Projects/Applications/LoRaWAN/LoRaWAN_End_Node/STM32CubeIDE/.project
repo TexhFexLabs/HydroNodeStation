@@ -438,11 +438,6 @@
 			<locationURI>PARENT-5-PROJECT_LOC/Drivers/BSP/STM32WLxx_LoRa_E5_mini/stm32wlxx_LoRa_E5_mini_radio.c</locationURI>
 		</link>
 		<link>
-			<name>Application/User/LoRaWAN/App/CayenneLpp.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/LoRaWAN/App/CayenneLpp.c</locationURI>
-		</link>
-		<link>
 			<name>Application/User/LoRaWAN/App/app_lorawan.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/LoRaWAN/App/app_lorawan.c</locationURI>
