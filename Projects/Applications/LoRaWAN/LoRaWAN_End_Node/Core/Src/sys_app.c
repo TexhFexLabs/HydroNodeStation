@@ -124,6 +124,9 @@ void SystemApp_Init(void)
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 1)
   /* Disable Stop Mode */
   UTIL_LPM_SetStopMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_DISABLE);
+#elif defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
+  /* Enable Stop Mode */
+  UTIL_LPM_SetStopMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_ENABLE);
 #elif !defined (LOW_POWER_DISABLE)
 #error LOW_POWER_DISABLE not defined
 #endif /* LOW_POWER_DISABLE */
