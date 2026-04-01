@@ -22,14 +22,3 @@
 
 # Standalone make build directory
 build/
-
-# CubeIDE generated build directories
-**/Debug/
-**/Release/
-
-# Common generated files inside CubeIDE build folders
-**/objects.list
-**/sources.mk
-**/subdir.mk
-**/makefile
-**/*.log
