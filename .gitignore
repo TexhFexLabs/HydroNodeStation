@@ -20,6 +20,9 @@
 *.d
 *.su
 
+# Standalone make build directory
+build/
+
 # CubeIDE generated build directories
 **/Debug/
 **/Release/
