@@ -79,6 +79,17 @@ int32_t EnvSensors_Init(void);
   */
 int32_t EnvSensors_Read(sensor_t *sensor_data);
 
+/**
+  * @brief  start SCD41 single-shot measurement (CO2 + RH + T)
+  */
+int32_t EnvSensors_StartCo2SingleShot(void);
+
+/**
+  * @brief  read result of SCD41 single-shot measurement
+  * @param  sensor_data pointer to sensor data struct
+  */
+int32_t EnvSensors_ReadCo2SingleShot(sensor_t *sensor_data);
+
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

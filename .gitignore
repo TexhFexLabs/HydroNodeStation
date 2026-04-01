@@ -1,4 +1,32 @@
-.settings
-DEBUG
-*.hex
+.DS_Store
+
+# VS Code / IDE workspace metadata
+.metadata/
+.vscode/
+
+# STM32CubeIDE user settings
+.settings/
+
+# STM32CubeMX metadata
 .mxproject
+
+# Build outputs
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+*.o
+*.d
+*.su
+
+# CubeIDE generated build directories
+**/Debug/
+**/Release/
+
+# Common generated files inside CubeIDE build folders
+**/objects.list
+**/sources.mk
+**/subdir.mk
+**/makefile
+**/*.log

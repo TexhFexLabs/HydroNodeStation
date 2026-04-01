@@ -71,7 +71,40 @@ extern "C" {
   */
 #define LOW_POWER_DISABLE           0
 
+/**
+  * @brief Keep LED on whenever MCU is awake, and off while in STOP2
+  * @note  1: enabled, 0: disabled
+  */
+#define LPM_AWAKE_LED_ENABLED       1
+
 /* USER CODE BEGIN EC */
+
+/* SCD41 sensor support -----------------------------------------------------*/
+#define SCD41_ENABLED                      1
+
+/* I2C bus and pin mapping for LoRa-E5 mini */
+#define SCD41_I2C_INSTANCE                 I2C2
+#define SCD41_I2C_SCL_GPIO_PORT            GPIOB
+#define SCD41_I2C_SCL_PIN                  GPIO_PIN_15
+#define SCD41_I2C_SDA_GPIO_PORT            GPIOB
+#define SCD41_I2C_SDA_PIN                  GPIO_PIN_14
+#define SCD41_I2C_GPIO_AF                  GPIO_AF4_I2C2
+
+/* Default timing for MSI=4MHz and standard mode I2C operation */
+#define SCD41_I2C_TIMING                   0x00420F13U
+#define SCD41_I2C_TIMEOUT_MS               100U
+
+/* Single-shot timing from SCD41 datasheet */
+#define SCD41_WAKEUP_DELAY_MS              30U
+#define SCD41_SINGLE_SHOT_WAIT_MS          5000U
+#define SCD41_SINGLE_SHOT_RHT_WAIT_MS      50U
+
+/* SCD41 runtime configuration */
+#define SCD41_TEMPERATURE_OFFSET_C_X100    0U
+#define SCD41_SENSOR_ALTITUDE_M            0U
+#define SCD41_AMBIENT_PRESSURE_MBAR        0U
+#define SCD41_ASC_ENABLED                  1U
+#define SCD41_PERSIST_SETTINGS             1U
 
 /* USER CODE END EC */
 

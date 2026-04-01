@@ -136,6 +136,12 @@ static void OnRxTimerLedEvent(void *context);
   */
 static void OnJoinTimerLedEvent(void *context);
 
+/**
+  * @brief  SCD41 single-shot completion callback
+  * @param  context ptr of timer context
+  */
+static void OnCo2SingleShotTimerEvent(void *context);
+
 /* USER CODE END PFP */
 
 /* Private variables ---------------------------------------------------------*/
@@ -209,6 +215,32 @@ static UTIL_TIMER_Object_t RxLedTimer;
   */
 static UTIL_TIMER_Object_t JoinLedTimer;
 
+/**
+  * @brief Timer used to wait for SCD41 single-shot CO2 conversion
+  */
+static UTIL_TIMER_Object_t Co2SingleShotTimer;
+
+/**
+  * @brief Tx cycle index: 0,1 -> short payload on FPort 2, 2 -> full payload on FPort 3
+  */
+static uint8_t TxSensorCycle = 0;
+
+/**
+  * @brief Indicates that a CO2 single-shot measurement is in progress
+  */
+static uint8_t TxCo2Pending = 0U;
+
+/**
+  * @brief Indicates that CO2 single-shot wait time has elapsed
+  */
+static uint8_t TxCo2Ready = 0U;
+
+/**
+  * @brief Cached values to keep payload consistency while waiting for CO2 single-shot
+  */
+static uint16_t TxPendingTemperatureRaw = 0U;
+static uint16_t TxPendingHumidity = 0U;
+
 /* USER CODE END PV */
 
 /* Exported functions ---------------------------------------------------------*/
@@ -221,6 +253,9 @@ void LoRaWAN_Init(void)
   /* USER CODE BEGIN LoRaWAN_Init_1 */
 
   BSP_LED_Init(LED_RED);
+#if defined (LPM_AWAKE_LED_ENABLED) && (LPM_AWAKE_LED_ENABLED == 1)
+  BSP_LED_On(LED_RED);
+#endif
 
   /* Get LoRa APP version*/
   APP_LOG(TS_OFF, VLEVEL_M, "APP_VERSION:        V%X.%X.%X\r\n",
@@ -243,9 +278,11 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Create(&TxLedTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnTxTimerLedEvent, NULL);
   UTIL_TIMER_Create(&RxLedTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
   UTIL_TIMER_Create(&JoinLedTimer, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
+  UTIL_TIMER_Create(&Co2SingleShotTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnCo2SingleShotTimerEvent, NULL);
   UTIL_TIMER_SetPeriod(&TxLedTimer, 500);
   UTIL_TIMER_SetPeriod(&RxLedTimer, 500);
   UTIL_TIMER_SetPeriod(&JoinLedTimer, 500);
+  UTIL_TIMER_SetPeriod(&Co2SingleShotTimer, SCD41_SINGLE_SHOT_WAIT_MS);
 
   /* USER CODE BEGIN LoRaWAN_Init_debug_delay */
   /* Debug delay: 10 seconds after power-on to allow serial monitor to connect */
@@ -364,6 +401,7 @@ static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
         if (appData->BufferSize == 1)
         {
           AppLedStateOn = appData->Buffer[0] & 0x01;
+#if !defined (LPM_AWAKE_LED_ENABLED) || (LPM_AWAKE_LED_ENABLED == 0)
           if (AppLedStateOn == RESET)
           {
             APP_LOG(TS_OFF, VLEVEL_H,   "LED OFF\r\n");
@@ -374,6 +412,7 @@ static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
             APP_LOG(TS_OFF, VLEVEL_H, "LED ON\r\n");
             BSP_LED_On(LED_RED) ;
           }
+#endif
         }
         break;
 
@@ -388,61 +427,87 @@ static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
 static void SendTxData(void)
 {
   /* USER CODE BEGIN SendTxData_1 */
-  uint16_t pressure = 0;
   int16_t temperature = 0;
   sensor_t sensor_data;
   UTIL_TIMER_Time_t nextTxIn = 0;
 
   uint16_t humidity = 0;
+  uint16_t co2 = 0;
   uint32_t i = 0;
-  int32_t latitude = 0;
-  int32_t longitude = 0;
-  uint16_t altitudeGps = 0;
+  uint16_t temperatureRaw = 0;
+  uint8_t sendFullPayload = 0;
+  int32_t sensor_status = 0;
 
-  EnvSensors_Read(&sensor_data);
+  sensor_status = EnvSensors_Read(&sensor_data);
   temperature = (SYS_GetTemperatureLevel() >> 8);
-  pressure    = 0;      /* in hPa / 10 */
+  temperatureRaw = (uint16_t)temperature;
 
-  AppData.Port = LORAWAN_USER_APP_PORT;
+  humidity = (sensor_status == 0) ? (uint16_t)(sensor_data.humidity * 10.0f) : 0U; /* in %*10 */
 
-  humidity    = (uint16_t)(sensor_data.humidity * 10);            /* in %*10     */
+  sendFullPayload = (TxSensorCycle == 2U) ? 1U : 0U;
 
-  AppData.Buffer[i++] = AppLedStateOn;
-  AppData.Buffer[i++] = (uint8_t)((pressure >> 8) & 0xFF);
-  AppData.Buffer[i++] = (uint8_t)(pressure & 0xFF);
-  AppData.Buffer[i++] = (uint8_t)(temperature & 0xFF);
+  if ((sendFullPayload != 0U) && (TxCo2Pending == 0U))
+  {
+    TxPendingTemperatureRaw = temperatureRaw;
+    TxPendingHumidity = humidity;
+
+    if (EnvSensors_StartCo2SingleShot() == 0)
+    {
+      TxCo2Pending = 1U;
+      TxCo2Ready = 0U;
+      UTIL_TIMER_Start(&Co2SingleShotTimer);
+      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 single-shot started\r\n");
+      return;
+    }
+
+    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 single-shot start failed, sending CO2=0\r\n");
+    co2 = 0U;
+  }
+
+  if ((sendFullPayload != 0U) && (TxCo2Pending != 0U))
+  {
+    if (TxCo2Ready == 0U)
+    {
+      return;
+    }
+
+    if (EnvSensors_ReadCo2SingleShot(&sensor_data) == 0)
+    {
+      co2 = sensor_data.co2;
+      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 CO2: %u ppm\r\n", co2);
+    }
+    else
+    {
+      co2 = 0U;
+      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 single-shot read failed, sending CO2=0\r\n");
+    }
+
+    temperatureRaw = TxPendingTemperatureRaw;
+    humidity = TxPendingHumidity;
+    TxCo2Pending = 0U;
+    TxCo2Ready = 0U;
+  }
+
+  AppData.Port = (sendFullPayload != 0U) ? 3 : 2;
+
+  /* Short payload (FPort 2): Temp + Humi. Full payload (FPort 3): Temp + Humi + CO2 */
+  AppData.Buffer[i++] = (uint8_t)((temperatureRaw >> 8) & 0xFF);
+  AppData.Buffer[i++] = (uint8_t)(temperatureRaw & 0xFF);
   AppData.Buffer[i++] = (uint8_t)((humidity >> 8) & 0xFF);
   AppData.Buffer[i++] = (uint8_t)(humidity & 0xFF);
 
-  if ((LmHandlerParams.ActiveRegion == LORAMAC_REGION_US915) || (LmHandlerParams.ActiveRegion == LORAMAC_REGION_AU915)
-      || (LmHandlerParams.ActiveRegion == LORAMAC_REGION_AS923))
+  if (sendFullPayload != 0U)
   {
-    AppData.Buffer[i++] = 0;
-    AppData.Buffer[i++] = 0;
-    AppData.Buffer[i++] = 0;
-    AppData.Buffer[i++] = 0;
-  }
-  else
-  {
-    latitude = 0;
-    longitude = 0;
-
-    AppData.Buffer[i++] = GetBatteryLevel();        /* 1 (very low) to 254 (fully charged) */
-    AppData.Buffer[i++] = (uint8_t)((latitude >> 16) & 0xFF);
-    AppData.Buffer[i++] = (uint8_t)((latitude >> 8) & 0xFF);
-    AppData.Buffer[i++] = (uint8_t)(latitude & 0xFF);
-    AppData.Buffer[i++] = (uint8_t)((longitude >> 16) & 0xFF);
-    AppData.Buffer[i++] = (uint8_t)((longitude >> 8) & 0xFF);
-    AppData.Buffer[i++] = (uint8_t)(longitude & 0xFF);
-    AppData.Buffer[i++] = (uint8_t)((altitudeGps >> 8) & 0xFF);
-    AppData.Buffer[i++] = (uint8_t)(altitudeGps & 0xFF);
+    AppData.Buffer[i++] = (uint8_t)((co2 >> 8) & 0xFF);
+    AppData.Buffer[i++] = (uint8_t)(co2 & 0xFF);
   }
 
   AppData.BufferSize = i;
 
   if (LORAMAC_HANDLER_SUCCESS == LmHandlerSend(&AppData, LORAWAN_DEFAULT_CONFIRMED_MSG_STATE, &nextTxIn, false))
   {
-    APP_LOG(TS_ON, VLEVEL_L, "SEND REQUEST\r\n");
+    APP_LOG(TS_ON, VLEVEL_L, "SEND REQUEST | FPORT:%d | SIZE:%d\r\n", AppData.Port, AppData.BufferSize);
+    TxSensorCycle = (uint8_t)((TxSensorCycle + 1U) % 3U);
   }
   else if (nextTxIn > 0)
   {
@@ -485,7 +550,16 @@ static void OnRxTimerLedEvent(void *context)
 
 static void OnJoinTimerLedEvent(void *context)
 {
+#if !defined (LPM_AWAKE_LED_ENABLED) || (LPM_AWAKE_LED_ENABLED == 0)
   BSP_LED_Toggle(LED_RED) ;
+#endif
+}
+
+static void OnCo2SingleShotTimerEvent(void *context)
+{
+  (void)context;
+  TxCo2Ready = 1U;
+  UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_LoRaSendOnTxTimerOrButtonEvent), CFG_SEQ_Prio_0);
 }
 
 /* USER CODE END PrFD_LedEvents */
@@ -527,7 +601,9 @@ static void OnJoinRequest(LmHandlerJoinParams_t *joinParams)
     if (joinParams->Status == LORAMAC_HANDLER_SUCCESS)
     {
       UTIL_TIMER_Stop(&JoinLedTimer);
+#if !defined (LPM_AWAKE_LED_ENABLED) || (LPM_AWAKE_LED_ENABLED == 0)
       BSP_LED_Off(LED_RED);
+#endif
 
       APP_LOG(TS_OFF, VLEVEL_M, "\r\n###### = JOINED = ");
       if (joinParams->Mode == ACTIVATION_TYPE_ABP)

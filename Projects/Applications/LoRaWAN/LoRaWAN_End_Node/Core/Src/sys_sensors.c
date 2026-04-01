@@ -25,6 +25,8 @@
 #include "sys_sensors.h"
 
 /* USER CODE BEGIN Includes */
+#include "sys_app.h"
+#include "scd41.h"
 
 /* USER CODE END Includes */
 
@@ -50,6 +52,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+static uint8_t EnvSensorAvailable = 0U;
 
 /* USER CODE END PV */
 
@@ -62,17 +65,79 @@
 int32_t EnvSensors_Read(sensor_t *sensor_data)
 {
   /* USER CODE BEGIN EnvSensors_Read */
+  if (sensor_data == NULL)
+  {
+    return -1;
+  }
+
   sensor_data->temperature = 0.0f;
   sensor_data->humidity    = 0.0f;
   sensor_data->co2         = 0;
+
+#if (SCD41_ENABLED == 1)
+  if (EnvSensorAvailable != 0U)
+  {
+    if (SCD41_ReadRhtSingleShot(&sensor_data->temperature, &sensor_data->humidity) != SCD41_STATUS_OK)
+    {
+      return -1;
+    }
+  }
+#endif
 
   return 0;
   /* USER CODE END EnvSensors_Read */
 }
 
+int32_t EnvSensors_StartCo2SingleShot(void)
+{
+  /* USER CODE BEGIN EnvSensors_StartCo2SingleShot */
+#if (SCD41_ENABLED == 1)
+  if (EnvSensorAvailable == 0U)
+  {
+    return -1;
+  }
+  return (SCD41_StartCo2SingleShot() == SCD41_STATUS_OK) ? 0 : -1;
+#else
+  return -1;
+#endif
+  /* USER CODE END EnvSensors_StartCo2SingleShot */
+}
+
+int32_t EnvSensors_ReadCo2SingleShot(sensor_t *sensor_data)
+{
+  /* USER CODE BEGIN EnvSensors_ReadCo2SingleShot */
+#if (SCD41_ENABLED == 1)
+  if ((sensor_data == NULL) || (EnvSensorAvailable == 0U))
+  {
+    return -1;
+  }
+
+  return (SCD41_ReadCo2SingleShot(&sensor_data->co2, &sensor_data->temperature, &sensor_data->humidity) == SCD41_STATUS_OK) ? 0 : -1;
+#else
+  (void)sensor_data;
+  return -1;
+#endif
+  /* USER CODE END EnvSensors_ReadCo2SingleShot */
+}
+
 int32_t EnvSensors_Init(void)
 {
   /* USER CODE BEGIN EnvSensors_Init */
+#if (SCD41_ENABLED == 1)
+  if (SCD41_Init() == SCD41_STATUS_OK)
+  {
+    EnvSensorAvailable = 1U;
+    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 init OK\r\n");
+  }
+  else
+  {
+    EnvSensorAvailable = 0U;
+    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 init failed, sensor data disabled\r\n");
+    return -1;
+  }
+#else
+  EnvSensorAvailable = 0U;
+#endif
 
   return 0;
   /* USER CODE END EnvSensors_Init */

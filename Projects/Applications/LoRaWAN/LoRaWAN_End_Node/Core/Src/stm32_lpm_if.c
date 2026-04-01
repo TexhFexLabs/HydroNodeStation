@@ -24,6 +24,7 @@
 #include "stm32_lpm.h"
 #include "stm32_lpm_if.h"
 #include "usart_if.h"
+#include "sys_conf.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -94,6 +95,10 @@ void PWR_EnterStopMode(void)
 {
   /* USER CODE BEGIN EnterStopMode_1 */
 
+#if defined (LPM_AWAKE_LED_ENABLED) && (LPM_AWAKE_LED_ENABLED == 1)
+  BSP_LED_Off(LED_RED);
+#endif
+
   /* USER CODE END EnterStopMode_1 */
   HAL_SuspendTick();
   /* Clear Status Flag before entering STOP/STANDBY Mode */
@@ -111,6 +116,10 @@ void PWR_EnterStopMode(void)
 void PWR_ExitStopMode(void)
 {
   /* USER CODE BEGIN ExitStopMode_1 */
+
+#if defined (LPM_AWAKE_LED_ENABLED) && (LPM_AWAKE_LED_ENABLED == 1)
+  BSP_LED_On(LED_RED);
+#endif
 
   /* USER CODE END ExitStopMode_1 */
   /* Resume sysTick : work around for debugger problem in dual core */
