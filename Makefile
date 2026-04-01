@@ -7,11 +7,12 @@ ifeq ($(APP),lorawan)
 PROJECT_NAME := LoRaWAN_End_Node
 PROJECT_DIR := Projects/Applications/LoRaWAN/LoRaWAN_End_Node
 CORE_INC := $(PROJECT_DIR)/Core/Inc
+CORE_INC_DIRS := $(shell find $(CORE_INC) -type d | LC_ALL=C sort)
 APP_DEFS := -DDEBUG
 LDSCRIPT := toolchain/ldscripts/STM32WLE5JCIX_FLASH.ld
 
 INCLUDES := \
-	-I$(CORE_INC) \
+	$(foreach d,$(CORE_INC_DIRS),-I$(d)) \
 	-I$(PROJECT_DIR)/LoRaWAN/App \
 	-I$(PROJECT_DIR)/LoRaWAN/Target \
 	-IDrivers/STM32WLxx_HAL_Driver/Inc \
@@ -33,26 +34,7 @@ INCLUDES := \
 	-IDrivers/CMSIS/Include \
 	-IDrivers/BSP/STM32WLxx_LoRa_E5_mini
 
-APP_CORE_SRCS := \
-	$(PROJECT_DIR)/Core/Src/adc.c \
-	$(PROJECT_DIR)/Core/Src/adc_if.c \
-	$(PROJECT_DIR)/Core/Src/dma.c \
-	$(PROJECT_DIR)/Core/Src/main.c \
-	$(PROJECT_DIR)/Core/Src/rtc.c \
-	$(PROJECT_DIR)/Core/Src/scd41.c \
-	$(PROJECT_DIR)/Core/Src/stm32_lpm_if.c \
-	$(PROJECT_DIR)/Core/Src/stm32wlxx_hal_msp.c \
-	$(PROJECT_DIR)/Core/Src/stm32wlxx_it.c \
-	$(PROJECT_DIR)/Core/Src/subghz.c \
-	$(PROJECT_DIR)/Core/Src/sys_app.c \
-	$(PROJECT_DIR)/Core/Src/sys_debug.c \
-	$(PROJECT_DIR)/Core/Src/sys_sensors.c \
-	$(PROJECT_DIR)/Core/Src/syscalls.c \
-	$(PROJECT_DIR)/Core/Src/sysmem.c \
-	$(PROJECT_DIR)/Core/Src/system_stm32wlxx.c \
-	$(PROJECT_DIR)/Core/Src/timer_if.c \
-	$(PROJECT_DIR)/Core/Src/usart.c \
-	$(PROJECT_DIR)/Core/Src/usart_if.c
+APP_CORE_SRCS := $(shell find $(PROJECT_DIR)/Core/Src -type f -name '*.c' | LC_ALL=C sort)
 
 APP_SPECIFIC_SRCS := \
 	$(PROJECT_DIR)/LoRaWAN/App/app_lorawan.c \
@@ -134,23 +116,18 @@ else ifeq ($(APP),lowpower)
 PROJECT_NAME := LowPower
 PROJECT_DIR := Projects/Applications/LowPower
 CORE_INC := $(PROJECT_DIR)/Core/Inc
+CORE_INC_DIRS := $(shell find $(CORE_INC) -type d | LC_ALL=C sort)
 APP_DEFS := -DDEBUG -DHAL_RTC_MODULE_ENABLED
 LDSCRIPT := $(PROJECT_DIR)/STM32WLE5JCIX_FLASH.ld
 
 INCLUDES := \
-	-I$(CORE_INC) \
+	$(foreach d,$(CORE_INC_DIRS),-I$(d)) \
 	-IDrivers/STM32WLxx_HAL_Driver/Inc \
 	-IDrivers/STM32WLxx_HAL_Driver/Inc/Legacy \
 	-IDrivers/CMSIS/Include \
 	-IDrivers/CMSIS/Device/ST/STM32WLxx/Include
 
-APP_CORE_SRCS := \
-	$(PROJECT_DIR)/Core/Src/main.c \
-	$(PROJECT_DIR)/Core/Src/stm32wlxx_hal_msp.c \
-	$(PROJECT_DIR)/Core/Src/stm32wlxx_it.c \
-	$(PROJECT_DIR)/Core/Src/syscalls.c \
-	$(PROJECT_DIR)/Core/Src/sysmem.c \
-	$(PROJECT_DIR)/Core/Src/system_stm32wlxx.c
+APP_CORE_SRCS := $(shell find $(PROJECT_DIR)/Core/Src -type f -name '*.c' | LC_ALL=C sort)
 
 APP_SPECIFIC_SRCS :=
 
