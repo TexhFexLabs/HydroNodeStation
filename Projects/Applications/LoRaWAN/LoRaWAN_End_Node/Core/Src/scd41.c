@@ -11,6 +11,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "platform.h"
 #include "sys_conf.h"
+#include "i2c.h"
 #include "scd41.h"
 
 /* Private define ------------------------------------------------------------*/
@@ -23,21 +24,24 @@
 #define SCD41_CMD_SET_ASC                       0x2416U
 #define SCD41_CMD_PERSIST_SETTINGS             0x3615U
 #define SCD41_CMD_READ_MEASUREMENT             0xEC05U
+#define SCD41_CMD_GET_DATA_READY_STATUS        0xE4B8U
 #define SCD41_CMD_MEASURE_SINGLE_SHOT          0x219DU
 #define SCD41_CMD_MEASURE_SINGLE_SHOT_RHT      0x2196U
 #define SCD41_CMD_POWER_DOWN                   0x36E0U
 #define SCD41_CMD_WAKE_UP                      0x36F6U
 
-/* Private variables ---------------------------------------------------------*/
-static I2C_HandleTypeDef hscd41_i2c;
+#define SCD41_DATA_READY_MASK                  0x07FFU
+#define SCD41_DATA_READY_POLL_MS               50U
+#define SCD41_DATA_READY_TIMEOUT_MS            1500U
 
 /* Private function prototypes -----------------------------------------------*/
 static uint8_t SCD41_CalculateCrc(const uint8_t *data, uint8_t length);
 static int32_t SCD41_BusInit(void);
 static void SCD41_BusDeInit(void);
-static void SCD41_EnableGpioClock(GPIO_TypeDef *port);
 static int32_t SCD41_WriteCommand(uint16_t command);
 static int32_t SCD41_WriteCommandWithWord(uint16_t command, uint16_t data);
+static int32_t SCD41_GetDataReadyStatus(uint16_t *status_word);
+static int32_t SCD41_WaitDataReady(uint32_t timeout_ms);
 static int32_t SCD41_ReadMeasurementWords(uint16_t *co2_raw, uint16_t *temperature_raw, uint16_t *humidity_raw);
 static float SCD41_ConvertTemperature(uint16_t temperature_raw);
 static float SCD41_ConvertHumidity(uint16_t humidity_raw);
@@ -68,92 +72,15 @@ static uint8_t SCD41_CalculateCrc(const uint8_t *data, uint8_t length)
   return crc;
 }
 
-static void SCD41_EnableGpioClock(GPIO_TypeDef *port)
-{
-  if (port == GPIOA)
-  {
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-  }
-  else if (port == GPIOB)
-  {
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-  }
-  else if (port == GPIOC)
-  {
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-  }
-  else if (port == GPIOH)
-  {
-    __HAL_RCC_GPIOH_CLK_ENABLE();
-  }
-  else
-  {
-    /* Not supported in this project */
-  }
-}
-
 static int32_t SCD41_BusInit(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-
-  SCD41_EnableGpioClock(SCD41_I2C_SCL_GPIO_PORT);
-  SCD41_EnableGpioClock(SCD41_I2C_SDA_GPIO_PORT);
-
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = SCD41_I2C_GPIO_AF;
-
-  GPIO_InitStruct.Pin = SCD41_I2C_SCL_PIN;
-  HAL_GPIO_Init(SCD41_I2C_SCL_GPIO_PORT, &GPIO_InitStruct);
-
-  GPIO_InitStruct.Pin = SCD41_I2C_SDA_PIN;
-  HAL_GPIO_Init(SCD41_I2C_SDA_GPIO_PORT, &GPIO_InitStruct);
-
-  if (SCD41_I2C_INSTANCE == I2C2)
+  /* Use CubeMX-generated I2C2 configuration from i2c.c */
+  if ((hi2c2.Instance != I2C2) || (HAL_I2C_GetState(&hi2c2) == HAL_I2C_STATE_RESET))
   {
-    __HAL_RCC_I2C2_CLK_ENABLE();
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C2;
-    PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
-  }
-  else if (SCD41_I2C_INSTANCE == I2C1)
-  {
-    __HAL_RCC_I2C1_CLK_ENABLE();
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
-    PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
-  }
-  else
-  {
-    return SCD41_STATUS_ERROR;
+    MX_I2C2_Init();
   }
 
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    return SCD41_STATUS_ERROR;
-  }
-
-  hscd41_i2c.Instance = SCD41_I2C_INSTANCE;
-  hscd41_i2c.Init.Timing = SCD41_I2C_TIMING;
-  hscd41_i2c.Init.OwnAddress1 = 0;
-  hscd41_i2c.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hscd41_i2c.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hscd41_i2c.Init.OwnAddress2 = 0;
-  hscd41_i2c.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hscd41_i2c.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hscd41_i2c.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-
-  if (HAL_I2C_Init(&hscd41_i2c) != HAL_OK)
-  {
-    return SCD41_STATUS_ERROR;
-  }
-
-  if (HAL_I2CEx_ConfigAnalogFilter(&hscd41_i2c, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    return SCD41_STATUS_ERROR;
-  }
-
-  if (HAL_I2CEx_ConfigDigitalFilter(&hscd41_i2c, 0) != HAL_OK)
+  if (hi2c2.Instance != I2C2)
   {
     return SCD41_STATUS_ERROR;
   }
@@ -163,19 +90,7 @@ static int32_t SCD41_BusInit(void)
 
 static void SCD41_BusDeInit(void)
 {
-  HAL_I2C_DeInit(&hscd41_i2c);
-
-  if (SCD41_I2C_INSTANCE == I2C2)
-  {
-    __HAL_RCC_I2C2_CLK_DISABLE();
-  }
-  else if (SCD41_I2C_INSTANCE == I2C1)
-  {
-    __HAL_RCC_I2C1_CLK_DISABLE();
-  }
-
-  HAL_GPIO_DeInit(SCD41_I2C_SCL_GPIO_PORT, SCD41_I2C_SCL_PIN);
-  HAL_GPIO_DeInit(SCD41_I2C_SDA_GPIO_PORT, SCD41_I2C_SDA_PIN);
+  (void)HAL_I2C_DeInit(&hi2c2);
 }
 
 static int32_t SCD41_WriteCommand(uint16_t command)
@@ -185,7 +100,7 @@ static int32_t SCD41_WriteCommand(uint16_t command)
   tx[0] = (uint8_t)(command >> 8);
   tx[1] = (uint8_t)(command & 0xFFU);
 
-  if (HAL_I2C_Master_Transmit(&hscd41_i2c, SCD41_I2C_ADDR_8BIT, tx, sizeof(tx), SCD41_I2C_TIMEOUT_MS) != HAL_OK)
+  if (HAL_I2C_Master_Transmit(&hi2c2, SCD41_I2C_ADDR_8BIT, tx, sizeof(tx), SCD41_I2C_TIMEOUT_MS) != HAL_OK)
   {
     return SCD41_STATUS_ERROR;
   }
@@ -203,12 +118,69 @@ static int32_t SCD41_WriteCommandWithWord(uint16_t command, uint16_t data)
   tx[3] = (uint8_t)(data & 0xFFU);
   tx[4] = SCD41_CalculateCrc(&tx[2], 2U);
 
-  if (HAL_I2C_Master_Transmit(&hscd41_i2c, SCD41_I2C_ADDR_8BIT, tx, sizeof(tx), SCD41_I2C_TIMEOUT_MS) != HAL_OK)
+  if (HAL_I2C_Master_Transmit(&hi2c2, SCD41_I2C_ADDR_8BIT, tx, sizeof(tx), SCD41_I2C_TIMEOUT_MS) != HAL_OK)
   {
     return SCD41_STATUS_ERROR;
   }
 
   return SCD41_STATUS_OK;
+}
+
+static int32_t SCD41_GetDataReadyStatus(uint16_t *status_word)
+{
+  uint8_t rx[3];
+
+  if (status_word == NULL)
+  {
+    return SCD41_STATUS_ERROR;
+  }
+
+  if (SCD41_WriteCommand(SCD41_CMD_GET_DATA_READY_STATUS) != SCD41_STATUS_OK)
+  {
+    return SCD41_STATUS_ERROR;
+  }
+
+  HAL_Delay(1U);
+
+  if (HAL_I2C_Master_Receive(&hi2c2, SCD41_I2C_ADDR_8BIT, rx, sizeof(rx), SCD41_I2C_TIMEOUT_MS) != HAL_OK)
+  {
+    return SCD41_STATUS_ERROR;
+  }
+
+  if (SCD41_CalculateCrc(&rx[0], 2U) != rx[2])
+  {
+    return SCD41_STATUS_CRC_ERROR;
+  }
+
+  *status_word = (uint16_t)(((uint16_t)rx[0] << 8) | rx[1]);
+
+  return SCD41_STATUS_OK;
+}
+
+static int32_t SCD41_WaitDataReady(uint32_t timeout_ms)
+{
+  uint32_t waited_ms = 0U;
+  uint16_t status_word = 0U;
+  int32_t status;
+
+  while (waited_ms <= timeout_ms)
+  {
+    status = SCD41_GetDataReadyStatus(&status_word);
+    if (status != SCD41_STATUS_OK)
+    {
+      return status;
+    }
+
+    if ((status_word & SCD41_DATA_READY_MASK) != 0U)
+    {
+      return SCD41_STATUS_OK;
+    }
+
+    HAL_Delay(SCD41_DATA_READY_POLL_MS);
+    waited_ms += SCD41_DATA_READY_POLL_MS;
+  }
+
+  return SCD41_STATUS_ERROR;
 }
 
 static int32_t SCD41_ReadMeasurementWords(uint16_t *co2_raw, uint16_t *temperature_raw, uint16_t *humidity_raw)
@@ -222,7 +194,7 @@ static int32_t SCD41_ReadMeasurementWords(uint16_t *co2_raw, uint16_t *temperatu
 
   HAL_Delay(1U);
 
-  if (HAL_I2C_Master_Receive(&hscd41_i2c, SCD41_I2C_ADDR_8BIT, rx, sizeof(rx), SCD41_I2C_TIMEOUT_MS) != HAL_OK)
+  if (HAL_I2C_Master_Receive(&hi2c2, SCD41_I2C_ADDR_8BIT, rx, sizeof(rx), SCD41_I2C_TIMEOUT_MS) != HAL_OK)
   {
     return SCD41_STATUS_ERROR;
   }
@@ -402,6 +374,14 @@ int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, float *temperature, float *hu
 
   (void)SCD41_WriteCommand(SCD41_CMD_WAKE_UP);
   HAL_Delay(SCD41_WAKEUP_DELAY_MS);
+
+  status = SCD41_WaitDataReady(SCD41_DATA_READY_TIMEOUT_MS);
+  if (status != SCD41_STATUS_OK)
+  {
+    (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN);
+    SCD41_BusDeInit();
+    return status;
+  }
 
   status = SCD41_ReadMeasurementWords(&co2_raw, &temperature_raw, &humidity_raw);
 

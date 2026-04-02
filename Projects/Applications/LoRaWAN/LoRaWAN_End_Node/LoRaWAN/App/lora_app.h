@@ -42,15 +42,11 @@ extern "C" {
 /* LoraWAN application configuration (Mw is configured by lorawan_conf.h) */
 #define ACTIVE_REGION                               LORAMAC_REGION_EU868
 
-/*!
- * CAYENNE_LPP is myDevices Application server.
+/*!\
+ * Defines the application data transmission duty cycle in [ms].
+ * 5 minutes base period -> full SCD41 payload every 15 minutes (cycle 2).
  */
-/*#define CAYENNE_LPP*/
-
-/*!
- * Defines the application data transmission duty cycle. 10s, value in [ms].
- */
-#define APP_TX_DUTYCYCLE                            60000
+#define APP_TX_DUTYCYCLE                            300000
 
 /*!
  * LoRaWAN User application port
