@@ -163,7 +163,7 @@ static int32_t SCD41_WaitDataReady(uint32_t timeout_ms)
   uint16_t status_word = 0U;
   int32_t status;
 
-  while (waited_ms <= timeout_ms)
+  while (waited_ms < timeout_ms)
   {
     status = SCD41_GetDataReadyStatus(&status_word);
     if (status != SCD41_STATUS_OK)
@@ -372,8 +372,9 @@ int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, float *temperature, float *hu
     return SCD41_STATUS_ERROR;
   }
 
-  (void)SCD41_WriteCommand(SCD41_CMD_WAKE_UP);
-  HAL_Delay(SCD41_WAKEUP_DELAY_MS);
+  /* No WAKE_UP needed: sensor is already measuring after StartCo2SingleShot().
+   * SCD41 ignores all commands except get_data_ready_status and read_measurement
+   * while a measurement is in progress. */
 
   status = SCD41_WaitDataReady(SCD41_DATA_READY_TIMEOUT_MS);
   if (status != SCD41_STATUS_OK)

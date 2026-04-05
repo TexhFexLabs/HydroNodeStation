@@ -284,12 +284,14 @@ void LoRaWAN_Init(void)
           (uint8_t)(__SUBGHZ_PHY_VERSION >> __APP_VERSION_SUB1_SHIFT),
           (uint8_t)(__SUBGHZ_PHY_VERSION >> __APP_VERSION_SUB2_SHIFT));
 
+#if defined(TX_RX_LED_ENABLED) && (TX_RX_LED_ENABLED == 1)
   UTIL_TIMER_Create(&TxLedTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnTxTimerLedEvent, NULL);
   UTIL_TIMER_Create(&RxLedTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
-  UTIL_TIMER_Create(&JoinLedTimer, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
-  UTIL_TIMER_Create(&PreWakeTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnPreWakeTimerEvent, NULL);
   UTIL_TIMER_SetPeriod(&TxLedTimer, 500);
   UTIL_TIMER_SetPeriod(&RxLedTimer, 500);
+#endif
+  UTIL_TIMER_Create(&JoinLedTimer, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
+  UTIL_TIMER_Create(&PreWakeTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnPreWakeTimerEvent, NULL);
   UTIL_TIMER_SetPeriod(&JoinLedTimer, 500);
   if (APP_TX_DUTYCYCLE > (SCD41_SINGLE_SHOT_WAIT_MS + TX_PREWAKE_GUARD_MS))
   {
@@ -377,7 +379,9 @@ static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
   if ((appData != NULL) && (params != NULL))
   {
 
+#if defined(TX_RX_LED_ENABLED) && (TX_RX_LED_ENABLED == 1)
     UTIL_TIMER_Start(&RxLedTimer);
+#endif
 
     static const char *slotStrings[] = { "1", "2", "C", "C Multicast", "B Ping-Slot", "B Multicast Ping-Slot" };
 
@@ -645,7 +649,9 @@ static void OnTxData(LmHandlerTxParams_t *params)
     if (params->IsMcpsConfirm != 0)
     {
 
+#if defined(TX_RX_LED_ENABLED) && (TX_RX_LED_ENABLED == 1)
       UTIL_TIMER_Start(&TxLedTimer);
+#endif
 
       APP_LOG(TS_OFF, VLEVEL_M, "\r\n###### ========== MCPS-Confirm =============\r\n");
       APP_LOG(TS_OFF, VLEVEL_H, "###### U/L FRAME:%04d | PORT:%d | DR:%d | PWR:%d", params->UplinkCounter,

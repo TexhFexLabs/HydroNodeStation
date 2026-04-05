@@ -77,6 +77,12 @@ extern "C" {
   */
 #define LPM_AWAKE_LED_ENABLED       1
 
+/**
+  * @brief Enable TX/RX LED blink timers (wakes MCU from STOP2 for each blink)
+  * @note  1: enabled, 0: disabled – disable to avoid unnecessary wakeups
+  */
+#define TX_RX_LED_ENABLED           0
+
 /* USER CODE BEGIN EC */
 
 /* SCD41 sensor support -----------------------------------------------------*/

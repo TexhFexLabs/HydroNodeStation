@@ -146,7 +146,6 @@ static int32_t LC709203F_SetPowerMode(uint16_t mode)
 /* Exported functions --------------------------------------------------------*/
 int32_t LC709203F_Init(void)
 {
-  uint16_t ic_version = 0U;
   int32_t status;
 
   if (LC709203F_BusInit() != LC709203F_STATUS_OK)
@@ -162,9 +161,6 @@ int32_t LC709203F_Init(void)
   }
 
   HAL_Delay(LC709203F_WAKEUP_DELAY_MS);
-
-  status = LC709203F_ReadWord(LC709203F_CMD_ICVERSION, &ic_version);
-  (void)ic_version;
 
   (void)LC709203F_SetPowerMode(LC709203F_POWERMODE_SLEEP);
   LC709203F_BusDeInit();
