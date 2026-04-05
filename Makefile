@@ -178,7 +178,7 @@ endif
 
 MCU_FLAGS := -mcpu=cortex-m4 -mthumb -mfloat-abi=soft
 DEFS := $(APP_DEFS) -DCORE_CM4 -DSTM32WLE5xx -DUSE_HAL_DRIVER
-COMMON_FLAGS := -Og -g3 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity
+COMMON_FLAGS := -Og -g3 -ffunction-sections -fdata-sections -Wall -fstack-usage
 
 CFLAGS := $(MCU_FLAGS) -std=gnu11 $(DEFS) $(COMMON_FLAGS)
 ASFLAGS := $(MCU_FLAGS) $(DEFS) $(COMMON_FLAGS) -x assembler-with-cpp
