@@ -19,13 +19,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "app_lorawan.h"
 #include "dma.h"
 #include "i2c.h"
 #include "usart.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "app_lorawan.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -90,17 +89,17 @@ int main(void)
   MX_DMA_Init();
   MX_I2C2_Init();
   MX_USART1_UART_Init();
-  MX_LoRaWAN_Init();
   /* USER CODE BEGIN 2 */
-
+  MX_LoRaWAN_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
+    /* USER CODE BEGIN WHILE */
     MX_LoRaWAN_Process();
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }

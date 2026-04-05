@@ -154,9 +154,20 @@ endif
 
 BUILD_DIR ?= $(BUILD_ROOT)/$(APP)
 
-# Optional override. If empty, toolchain is searched in PATH.
-TOOLCHAIN_BIN ?=
+# Optional override. If empty, toolchain is searched in PATH or auto-detected.
+MACOS_ARM_TOOLCHAIN := /Applications/ArmGNUToolchain/15.2.rel1/arm-none-eabi/bin
 CUBEIDE_TOOLCHAIN := /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin
+
+ifeq ($(OS),Windows_NT)
+TOOLCHAIN_BIN ?=
+else
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+TOOLCHAIN_BIN ?= $(MACOS_ARM_TOOLCHAIN)
+else
+TOOLCHAIN_BIN ?=
+endif
+endif
 
 ifeq ($(strip $(TOOLCHAIN_BIN)),)
 ifneq ($(wildcard $(CUBEIDE_TOOLCHAIN)/arm-none-eabi-gcc),)
