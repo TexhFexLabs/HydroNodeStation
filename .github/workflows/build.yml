@@ -3,10 +3,15 @@ name: Build
 on:
   pull_request:
     branches: [main]
+    paths:
+      - software/**
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: software
     steps:
       - uses: actions/checkout@v4
 
