@@ -84,8 +84,37 @@ CO2 is measured with SCD41 single-shot mode and a wait time of 5 s before readin
 
 ## Prerequisites
 
-- `arm-none-eabi-gcc` toolchain available in `PATH`, or
-- STM32CubeIDE toolchain installed in the default path used by `Makefile`
+### macOS
+
+Install the official ARM GNU Embedded Toolchain via Homebrew:
+
+```bash
+brew install --cask gcc-arm-embedded
+```
+
+The cask downloads the installer but does not run it automatically. Install it manually:
+
+```bash
+sudo installer -pkg /opt/homebrew/Caskroom/gcc-arm-embedded/15.2.rel1/arm-gnu-toolchain-15.2.rel1-darwin-arm64-arm-none-eabi.pkg -target /
+```
+
+The toolchain is then available at `/Applications/ArmGNUToolchain/15.2.rel1/arm-none-eabi/bin/` and the Makefile picks it up automatically on macOS.
+
+### Linux (and GitHub Actions)
+
+```bash
+sudo apt-get install -y gcc-arm-none-eabi
+```
+
+The Makefile falls back to `PATH` on Linux automatically.
+
+### Custom toolchain path
+
+Override the toolchain path at build time if needed:
+
+```bash
+make TOOLCHAIN_BIN=/your/custom/path/bin
+```
 
 ## Common Commands
 
