@@ -53,7 +53,7 @@ extern "C" {
 /**
   * @brief Enable trace logs
   */
-#define APP_LOG_ENABLED             1
+#define APP_LOG_ENABLED             0
 
 /**
   * @brief Enable MCU Debugger pins (dbg serial wires, sbg spi, etc)
@@ -96,6 +96,13 @@ extern "C" {
 #define SCD41_AMBIENT_PRESSURE_MBAR        0U
 #define SCD41_ASC_ENABLED                  0U
 #define SCD41_PERSIST_SETTINGS             0U
+
+/* LC709203F battery monitor support --------------------------------------*/
+#define LC709203F_ENABLED                  1
+#define LC709203F_I2C_TIMEOUT_MS           100U
+#define LC709203F_WAKEUP_DELAY_MS          3U
+#define LC709203F_VOLTAGE_MIN_MV           2600U
+#define LC709203F_VOLTAGE_MAX_MV           4500U
 
 /* USER CODE END EC */
 

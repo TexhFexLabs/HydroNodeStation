@@ -75,6 +75,7 @@ typedef enum TxEventType_e
 #define TX_SENSOR_CYCLE_LENGTH      3U
 #define TX_SENSOR_CYCLE_FULL_INDEX  2U
 #define TX_PREWAKE_GUARD_MS         2000U
+#define TX_VOLTAGE_INVALID_CODE     0xFFFFU
 
 /* USER CODE END PD */
 
@@ -225,7 +226,7 @@ static UTIL_TIMER_Object_t RxLedTimer;
 static UTIL_TIMER_Object_t JoinLedTimer;
 
 /**
-  * @brief Tx cycle index: 0,1 -> short keepalive payload (zeros) on FPort 2, 2 -> full sensor payload on FPort 3
+  * @brief Tx cycle index: 0,1 -> Temp/Humi/Voltage on FPort 2, 2 -> Temp/Humi/Voltage/CO2 on FPort 3
   */
 static uint8_t TxSensorCycle = 2U;
 
@@ -373,7 +374,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
 {
   /* USER CODE BEGIN OnRxData_1 */
-  if ((appData != NULL) || (params != NULL))
+  if ((appData != NULL) && (params != NULL))
   {
 
     UTIL_TIMER_Start(&RxLedTimer);
@@ -445,17 +446,34 @@ static void SendTxData(void)
   sensor_t sensor_data = {0};
   UTIL_TIMER_Time_t nextTxIn = 0;
 
+  float rhtTemperature = 0.0f;
+  float rhtHumidity = 0.0f;
   uint16_t humidity = 0;
   uint16_t co2 = 0;
   uint32_t i = 0;
   uint16_t temperatureRaw = 0;
+  uint16_t voltageMv = 0U;
+  uint16_t voltageCode = TX_VOLTAGE_INVALID_CODE;
   uint8_t sendFullPayload = (TxSensorCycle == TX_SENSOR_CYCLE_FULL_INDEX) ? 1U : 0U;
 
   if (sendFullPayload == 0U)
   {
-    /* SHORT payload path: keepalive values (extension point for non-full sensors). */
-    temperatureRaw = 0U;
-    humidity = 0U;
+    /* SHORT payload path: always measure temperature and humidity. */
+    if (EnvSensors_ReadRhtSingleShot(&rhtTemperature, &rhtHumidity) == 0)
+    {
+      temperatureRaw = (uint16_t)((rhtTemperature >= 0.0f) ?
+                                  (rhtTemperature + 0.5f) :
+                                  0.0f);
+      humidity = (uint16_t)((rhtHumidity >= 0.0f) ?
+                            (rhtHumidity * 10.0f + 0.5f) :
+                            0.0f);
+    }
+    else
+    {
+      temperatureRaw = 0U;
+      humidity = 0U;
+      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 RHT read failed, sending T/H=0\r\n");
+    }
   }
 
   else
@@ -499,13 +517,28 @@ static void SendTxData(void)
     TxCo2Pending = 0U;
   }
 
+  /* Read battery voltage right before sending and immediately return gauge to sleep. */
+  if (EnvSensors_ReadBatteryVoltageMv(&voltageMv) == 0)
+  {
+    voltageCode = (uint16_t)(voltageMv - LC709203F_VOLTAGE_MIN_MV);
+    APP_LOG(TS_OFF, VLEVEL_M, "LC709203F voltage: %u mV\r\n", voltageMv);
+  }
+  else
+  {
+    voltageCode = TX_VOLTAGE_INVALID_CODE;
+    APP_LOG(TS_OFF, VLEVEL_M, "LC709203F read failed, sending voltage invalid\r\n");
+  }
+
   AppData.Port = (sendFullPayload != 0U) ? 3 : 2;
 
-  /* Short payload (FPort 2): Temp + Humi. Full payload (FPort 3): Temp + Humi + CO2 */
+  /* Vbat code is encoded as (mV - LC709203F_VOLTAGE_MIN_MV); 0xFFFF means invalid read. */
+  /* Short payload (FPort 2): Temp + Humi + Vbat. Full payload (FPort 3): Temp + Humi + Vbat + CO2 */
   AppData.Buffer[i++] = (uint8_t)((temperatureRaw >> 8) & 0xFF);
   AppData.Buffer[i++] = (uint8_t)(temperatureRaw & 0xFF);
   AppData.Buffer[i++] = (uint8_t)((humidity >> 8) & 0xFF);
   AppData.Buffer[i++] = (uint8_t)(humidity & 0xFF);
+  AppData.Buffer[i++] = (uint8_t)((voltageCode >> 8) & 0xFF);
+  AppData.Buffer[i++] = (uint8_t)(voltageCode & 0xFF);
 
   if (sendFullPayload != 0U)
   {
