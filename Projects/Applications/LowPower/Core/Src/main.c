@@ -100,7 +100,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
 	LED_control(1);
-	HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 300, RTC_WAKEUPCLOCK_CK_SPRE_16BITS); // 300 Sekunden = 5 Minuten
+  HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 300, RTC_WAKEUPCLOCK_CK_SPRE_16BITS, 0); // 300 Sekunden = 5 Minuten
     HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
     LED_control(0);
     HAL_Delay(2000);

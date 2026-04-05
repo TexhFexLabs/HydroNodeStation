@@ -56,7 +56,9 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+#if defined(HAL_LPTIM_MODULE_ENABLED) && defined(LOWPOWER_USE_LPTIM1_IRQ)
 extern LPTIM_HandleTypeDef hlptim1;
+#endif
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -207,7 +209,9 @@ void LPTIM1_IRQHandler(void)
   /* USER CODE BEGIN LPTIM1_IRQn 0 */
 
   /* USER CODE END LPTIM1_IRQn 0 */
+#if defined(HAL_LPTIM_MODULE_ENABLED) && defined(LOWPOWER_USE_LPTIM1_IRQ)
   HAL_LPTIM_IRQHandler(&hlptim1);
+#endif
   /* USER CODE BEGIN LPTIM1_IRQn 1 */
 
   /* USER CODE END LPTIM1_IRQn 1 */

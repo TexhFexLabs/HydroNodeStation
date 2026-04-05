@@ -74,10 +74,9 @@ typedef struct
 int32_t EnvSensors_Init(void);
 
 /**
-  * @brief  read environmental sensor data
-  * @param  sensor_data pointer to sensor data struct
+  * @brief  read SCD41 single-shot temperature and humidity
   */
-int32_t EnvSensors_Read(sensor_t *sensor_data);
+int32_t EnvSensors_ReadRhtSingleShot(float *temperature, float *humidity);
 
 /**
   * @brief  start SCD41 single-shot measurement (CO2 + RH + T)
@@ -89,6 +88,11 @@ int32_t EnvSensors_StartCo2SingleShot(void);
   * @param  sensor_data pointer to sensor data struct
   */
 int32_t EnvSensors_ReadCo2SingleShot(sensor_t *sensor_data);
+
+/**
+  * @brief  read battery voltage from LC709203F in mV
+  */
+int32_t EnvSensors_ReadBatteryVoltageMv(uint16_t *voltage_mv);
 
 /* USER CODE BEGIN EFP */
 

@@ -1,5 +1,6 @@
 .DS_Store
 
+
 # VS Code / IDE workspace metadata
 .metadata/
 .vscode/
@@ -20,13 +21,5 @@
 *.d
 *.su
 
-# CubeIDE generated build directories
-**/Debug/
-**/Release/
-
-# Common generated files inside CubeIDE build folders
-**/objects.list
-**/sources.mk
-**/subdir.mk
-**/makefile
-**/*.log
+# Standalone make build directory
+build/

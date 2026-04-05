@@ -72,6 +72,11 @@ typedef enum TxEventType_e
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+#define TX_SENSOR_CYCLE_LENGTH      3U
+#define TX_SENSOR_CYCLE_FULL_INDEX  2U
+#define TX_PREWAKE_GUARD_MS         2000U
+#define TX_VOLTAGE_INVALID_CODE     0xFFFFU
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -137,10 +142,15 @@ static void OnRxTimerLedEvent(void *context);
 static void OnJoinTimerLedEvent(void *context);
 
 /**
-  * @brief  SCD41 single-shot completion callback
+  * @brief  SCD41 pre-wake callback
   * @param  context ptr of timer context
   */
-static void OnCo2SingleShotTimerEvent(void *context);
+static void OnPreWakeTimerEvent(void *context);
+
+/**
+  * @brief  Arm/disarm pre-wake for the next scheduled TX slot
+  */
+static void SchedulePreWakeForCurrentCycle(void);
 
 /* USER CODE END PFP */
 
@@ -216,14 +226,9 @@ static UTIL_TIMER_Object_t RxLedTimer;
 static UTIL_TIMER_Object_t JoinLedTimer;
 
 /**
-  * @brief Timer used to wait for SCD41 single-shot CO2 conversion
+  * @brief Tx cycle index: 0,1 -> Temp/Humi/Voltage on FPort 2, 2 -> Temp/Humi/Voltage/CO2 on FPort 3
   */
-static UTIL_TIMER_Object_t Co2SingleShotTimer;
-
-/**
-  * @brief Tx cycle index: 0,1 -> short payload on FPort 2, 2 -> full payload on FPort 3
-  */
-static uint8_t TxSensorCycle = 0;
+static uint8_t TxSensorCycle = 2U;
 
 /**
   * @brief Indicates that a CO2 single-shot measurement is in progress
@@ -231,15 +236,19 @@ static uint8_t TxSensorCycle = 0;
 static uint8_t TxCo2Pending = 0U;
 
 /**
-  * @brief Indicates that CO2 single-shot wait time has elapsed
+  * @brief First CO2 sample after startup is discarded in power-cycled mode
   */
-static uint8_t TxCo2Ready = 0U;
+static uint8_t TxDiscardFirstCo2 = 1U;
 
 /**
-  * @brief Cached values to keep payload consistency while waiting for CO2 single-shot
+  * @brief Pre-wake timer: fires before TX to start SCD41 single-shot
   */
-static uint16_t TxPendingTemperatureRaw = 0U;
-static uint16_t TxPendingHumidity = 0U;
+static UTIL_TIMER_Object_t PreWakeTimer;
+
+/**
+  * @brief Ensure TX scheduler is started once after join
+  */
+static uint8_t TxSchedulerStarted = 0U;
 
 /* USER CODE END PV */
 
@@ -275,14 +284,23 @@ void LoRaWAN_Init(void)
           (uint8_t)(__SUBGHZ_PHY_VERSION >> __APP_VERSION_SUB1_SHIFT),
           (uint8_t)(__SUBGHZ_PHY_VERSION >> __APP_VERSION_SUB2_SHIFT));
 
+#if defined(TX_RX_LED_ENABLED) && (TX_RX_LED_ENABLED == 1)
   UTIL_TIMER_Create(&TxLedTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnTxTimerLedEvent, NULL);
   UTIL_TIMER_Create(&RxLedTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
-  UTIL_TIMER_Create(&JoinLedTimer, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
-  UTIL_TIMER_Create(&Co2SingleShotTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnCo2SingleShotTimerEvent, NULL);
   UTIL_TIMER_SetPeriod(&TxLedTimer, 500);
   UTIL_TIMER_SetPeriod(&RxLedTimer, 500);
+#endif
+  UTIL_TIMER_Create(&JoinLedTimer, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
+  UTIL_TIMER_Create(&PreWakeTimer, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnPreWakeTimerEvent, NULL);
   UTIL_TIMER_SetPeriod(&JoinLedTimer, 500);
-  UTIL_TIMER_SetPeriod(&Co2SingleShotTimer, SCD41_SINGLE_SHOT_WAIT_MS);
+  if (APP_TX_DUTYCYCLE > (SCD41_SINGLE_SHOT_WAIT_MS + TX_PREWAKE_GUARD_MS))
+  {
+    UTIL_TIMER_SetPeriod(&PreWakeTimer, APP_TX_DUTYCYCLE - SCD41_SINGLE_SHOT_WAIT_MS - TX_PREWAKE_GUARD_MS);
+  }
+  else
+  {
+    UTIL_TIMER_SetPeriod(&PreWakeTimer, 1000U);
+  }
 
   /* USER CODE BEGIN LoRaWAN_Init_debug_delay */
   /* Debug delay: 10 seconds after power-on to allow serial monitor to connect */
@@ -316,10 +334,9 @@ void LoRaWAN_Init(void)
 
   if (EventType == TX_ON_TIMER)
   {
-    /* send every time timer elapses */
-    UTIL_TIMER_Create(&TxTimer,  0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnTxTimerEvent, NULL);
+    /* send every fixed period, independent from pre-wake completion */
+    UTIL_TIMER_Create(&TxTimer,  0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnTxTimerEvent, NULL);
     UTIL_TIMER_SetPeriod(&TxTimer,  APP_TX_DUTYCYCLE);
-    UTIL_TIMER_Start(&TxTimer);
   }
   else
   {
@@ -359,10 +376,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
 {
   /* USER CODE BEGIN OnRxData_1 */
-  if ((appData != NULL) || (params != NULL))
+  if ((appData != NULL) && (params != NULL))
   {
 
+#if defined(TX_RX_LED_ENABLED) && (TX_RX_LED_ENABLED == 1)
     UTIL_TIMER_Start(&RxLedTimer);
+#endif
 
     static const char *slotStrings[] = { "1", "2", "C", "C Multicast", "B Ping-Slot", "B Multicast Ping-Slot" };
 
@@ -427,74 +446,103 @@ static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
 static void SendTxData(void)
 {
   /* USER CODE BEGIN SendTxData_1 */
-  int16_t temperature = 0;
-  sensor_t sensor_data;
+  APP_LOG(TS_OFF, VLEVEL_M, "SendTxData func:\r\n");
+  sensor_t sensor_data = {0};
   UTIL_TIMER_Time_t nextTxIn = 0;
 
+  float rhtTemperature = 0.0f;
+  float rhtHumidity = 0.0f;
   uint16_t humidity = 0;
   uint16_t co2 = 0;
   uint32_t i = 0;
   uint16_t temperatureRaw = 0;
-  uint8_t sendFullPayload = 0;
-  int32_t sensor_status = 0;
+  uint16_t voltageMv = 0U;
+  uint16_t voltageCode = TX_VOLTAGE_INVALID_CODE;
+  uint8_t sendFullPayload = (TxSensorCycle == TX_SENSOR_CYCLE_FULL_INDEX) ? 1U : 0U;
 
-  sensor_status = EnvSensors_Read(&sensor_data);
-  temperature = (SYS_GetTemperatureLevel() >> 8);
-  temperatureRaw = (uint16_t)temperature;
-
-  humidity = (sensor_status == 0) ? (uint16_t)(sensor_data.humidity * 10.0f) : 0U; /* in %*10 */
-
-  sendFullPayload = (TxSensorCycle == 2U) ? 1U : 0U;
-
-  if ((sendFullPayload != 0U) && (TxCo2Pending == 0U))
+  if (sendFullPayload == 0U)
   {
-    TxPendingTemperatureRaw = temperatureRaw;
-    TxPendingHumidity = humidity;
-
-    if (EnvSensors_StartCo2SingleShot() == 0)
+    /* SHORT payload path: always measure temperature and humidity. */
+    if (EnvSensors_ReadRhtSingleShot(&rhtTemperature, &rhtHumidity) == 0)
     {
-      TxCo2Pending = 1U;
-      TxCo2Ready = 0U;
-      UTIL_TIMER_Start(&Co2SingleShotTimer);
-      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 single-shot started\r\n");
-      return;
+      temperatureRaw = (uint16_t)((rhtTemperature >= 0.0f) ?
+                                  (rhtTemperature + 0.5f) :
+                                  0.0f);
+      humidity = (uint16_t)((rhtHumidity >= 0.0f) ?
+                            (rhtHumidity * 10.0f + 0.5f) :
+                            0.0f);
     }
-
-    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 single-shot start failed, sending CO2=0\r\n");
-    co2 = 0U;
+    else
+    {
+      temperatureRaw = 0U;
+      humidity = 0U;
+      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 RHT read failed, sending T/H=0\r\n");
+    }
   }
 
-  if ((sendFullPayload != 0U) && (TxCo2Pending != 0U))
+  else
   {
-    if (TxCo2Ready == 0U)
+    /* FULL payload path: use sample prepared by pre-wake. */
+    if (TxCo2Pending != 0U)
     {
-      return;
-    }
-
-    if (EnvSensors_ReadCo2SingleShot(&sensor_data) == 0)
-    {
-      co2 = sensor_data.co2;
-      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 CO2: %u ppm\r\n", co2);
+      if (EnvSensors_ReadCo2SingleShot(&sensor_data) == 0)
+      {
+        co2 = sensor_data.co2;
+        if (TxDiscardFirstCo2 != 0U)
+        {
+          co2 = 0U;
+          TxDiscardFirstCo2 = 0U;
+          APP_LOG(TS_OFF, VLEVEL_M, "SCD41 warm-up sample discarded\r\n");
+        }
+        temperatureRaw = (uint16_t)((sensor_data.temperature >= 0.0f) ?
+                                    (sensor_data.temperature + 0.5f) :
+                                    0.0f);
+        humidity = (uint16_t)((sensor_data.humidity >= 0.0f) ?
+                              (sensor_data.humidity * 10.0f + 0.5f) :
+                              0.0f);
+        APP_LOG(TS_OFF, VLEVEL_M, "SCD41 CO2: %u ppm\r\n", co2);
+      }
+      else
+      {
+        co2 = 0U;
+        temperatureRaw = 0U;
+        humidity = 0U;
+        APP_LOG(TS_OFF, VLEVEL_M, "SCD41 single-shot read failed, sending CO2=0\r\n");
+      }
     }
     else
     {
       co2 = 0U;
-      APP_LOG(TS_OFF, VLEVEL_M, "SCD41 single-shot read failed, sending CO2=0\r\n");
+      temperatureRaw = 0U;
+      humidity = 0U;
+      APP_LOG(TS_OFF, VLEVEL_M, "PreWake missing, sending CO2=0\r\n");
     }
 
-    temperatureRaw = TxPendingTemperatureRaw;
-    humidity = TxPendingHumidity;
     TxCo2Pending = 0U;
-    TxCo2Ready = 0U;
+  }
+
+  /* Read battery voltage right before sending and immediately return gauge to sleep. */
+  if (EnvSensors_ReadBatteryVoltageMv(&voltageMv) == 0)
+  {
+    voltageCode = (uint16_t)(voltageMv - LC709203F_VOLTAGE_MIN_MV);
+    APP_LOG(TS_OFF, VLEVEL_M, "LC709203F voltage: %u mV\r\n", voltageMv);
+  }
+  else
+  {
+    voltageCode = TX_VOLTAGE_INVALID_CODE;
+    APP_LOG(TS_OFF, VLEVEL_M, "LC709203F read failed, sending voltage invalid\r\n");
   }
 
   AppData.Port = (sendFullPayload != 0U) ? 3 : 2;
 
-  /* Short payload (FPort 2): Temp + Humi. Full payload (FPort 3): Temp + Humi + CO2 */
+  /* Vbat code is encoded as (mV - LC709203F_VOLTAGE_MIN_MV); 0xFFFF means invalid read. */
+  /* Short payload (FPort 2): Temp + Humi + Vbat. Full payload (FPort 3): Temp + Humi + Vbat + CO2 */
   AppData.Buffer[i++] = (uint8_t)((temperatureRaw >> 8) & 0xFF);
   AppData.Buffer[i++] = (uint8_t)(temperatureRaw & 0xFF);
   AppData.Buffer[i++] = (uint8_t)((humidity >> 8) & 0xFF);
   AppData.Buffer[i++] = (uint8_t)(humidity & 0xFF);
+  AppData.Buffer[i++] = (uint8_t)((voltageCode >> 8) & 0xFF);
+  AppData.Buffer[i++] = (uint8_t)(voltageCode & 0xFF);
 
   if (sendFullPayload != 0U)
   {
@@ -507,11 +555,16 @@ static void SendTxData(void)
   if (LORAMAC_HANDLER_SUCCESS == LmHandlerSend(&AppData, LORAWAN_DEFAULT_CONFIRMED_MSG_STATE, &nextTxIn, false))
   {
     APP_LOG(TS_ON, VLEVEL_L, "SEND REQUEST | FPORT:%d | SIZE:%d\r\n", AppData.Port, AppData.BufferSize);
-    TxSensorCycle = (uint8_t)((TxSensorCycle + 1U) % 3U);
+    TxSensorCycle = (uint8_t)((TxSensorCycle + 1U) % TX_SENSOR_CYCLE_LENGTH);
   }
   else if (nextTxIn > 0)
   {
     APP_LOG(TS_ON, VLEVEL_L, "Next Tx in  : ~%d second(s)\r\n", (nextTxIn / 1000));
+  }
+
+  if (EventType == TX_ON_TIMER)
+  {
+    SchedulePreWakeForCurrentCycle();
   }
 
   /* USER CODE BEGIN SendTxData_sleep */
@@ -525,16 +578,11 @@ static void SendTxData(void)
 
 static void OnTxTimerEvent(void *context)
 {
+  (void)context;
   /* USER CODE BEGIN OnTxTimerEvent_1 */
 
   /* USER CODE END OnTxTimerEvent_1 */
   UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_LoRaSendOnTxTimerOrButtonEvent), CFG_SEQ_Prio_0);
-
-  /*Wait for next tx slot*/
-  UTIL_TIMER_Start(&TxTimer);
-  /* USER CODE BEGIN OnTxTimerEvent_2 */
-
-  /* USER CODE END OnTxTimerEvent_2 */
 }
 
 /* USER CODE BEGIN PrFD_LedEvents */
@@ -555,11 +603,39 @@ static void OnJoinTimerLedEvent(void *context)
 #endif
 }
 
-static void OnCo2SingleShotTimerEvent(void *context)
+static void OnPreWakeTimerEvent(void *context)
 {
   (void)context;
-  TxCo2Ready = 1U;
-  UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_LoRaSendOnTxTimerOrButtonEvent), CFG_SEQ_Prio_0);
+
+  if (TxSensorCycle != TX_SENSOR_CYCLE_FULL_INDEX)
+  {
+    return;
+  }
+
+  if (TxCo2Pending != 0U)
+  {
+    return;
+  }
+
+  if (EnvSensors_StartCo2SingleShot() == 0)
+  {
+    TxCo2Pending = 1U;
+    APP_LOG(TS_OFF, VLEVEL_M, "PreWake: SCD41 single-shot started\r\n");
+  }
+  else
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "PreWake: SCD41 start failed\r\n");
+  }
+}
+
+static void SchedulePreWakeForCurrentCycle(void)
+{
+  UTIL_TIMER_Stop(&PreWakeTimer);
+
+  if (TxSensorCycle == TX_SENSOR_CYCLE_FULL_INDEX)
+  {
+    UTIL_TIMER_Start(&PreWakeTimer);
+  }
 }
 
 /* USER CODE END PrFD_LedEvents */
@@ -573,7 +649,9 @@ static void OnTxData(LmHandlerTxParams_t *params)
     if (params->IsMcpsConfirm != 0)
     {
 
+#if defined(TX_RX_LED_ENABLED) && (TX_RX_LED_ENABLED == 1)
       UTIL_TIMER_Start(&TxLedTimer);
+#endif
 
       APP_LOG(TS_OFF, VLEVEL_M, "\r\n###### ========== MCPS-Confirm =============\r\n");
       APP_LOG(TS_OFF, VLEVEL_H, "###### U/L FRAME:%04d | PORT:%d | DR:%d | PWR:%d", params->UplinkCounter,
@@ -620,8 +698,12 @@ static void OnJoinRequest(LmHandlerJoinParams_t *joinParams)
       UTIL_LPM_SetOffMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_DISABLE);
       APP_LOG(TS_OFF, VLEVEL_M, "###### Low power mode enabled\r\n");
 
-      // Ersten TX direkt nach Join anstoßen
-      UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_LoRaSendOnTxTimerOrButtonEvent), CFG_SEQ_Prio_0);
+      if ((EventType == TX_ON_TIMER) && (TxSchedulerStarted == 0U))
+      {
+        TxSchedulerStarted = 1U;
+        UTIL_TIMER_Start(&TxTimer);
+        SchedulePreWakeForCurrentCycle();
+      }
       /* USER CODE END OnJoinRequest_sleep */
     }
     else
