@@ -95,7 +95,9 @@ int main(void)
   MX_RNG_Init();
   MX_LoRaWAN_Init();
   /* USER CODE BEGIN 2 */
-
+#if defined(STATUS_LED_ENABLED) && (STATUS_LED_ENABLED == 1)
+  MX_StatusLed_Init();
+#endif /* STATUS_LED_ENABLED */
   /* USER CODE END 2 */
 
   /* Infinite loop */

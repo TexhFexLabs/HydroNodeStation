@@ -39,7 +39,10 @@ extern "C" {
 void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+#include "sys_conf.h"
+#if defined(STATUS_LED_ENABLED) && (STATUS_LED_ENABLED == 1)
+void MX_StatusLed_Init(void);
+#endif /* STATUS_LED_ENABLED */
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

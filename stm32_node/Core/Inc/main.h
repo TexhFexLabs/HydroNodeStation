@@ -62,7 +62,9 @@ void Error_Handler(void);
 #define RTC_PREDIV_A ((1<<(15-RTC_N_PREDIV_S))-1)
 
 /* USER CODE BEGIN Private defines */
-
+/* Status LED: LED1 ueber U7 (SMQS-04R-TP) an PB5, aktiv-HIGH */
+#define STATUS_LED_Pin        GPIO_PIN_5
+#define STATUS_LED_GPIO_Port  GPIOB
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

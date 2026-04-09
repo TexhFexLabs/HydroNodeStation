@@ -25,7 +25,8 @@
 #include "usart_if.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "sys_conf.h"
+#include "main.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -92,7 +93,9 @@ void PWR_ExitOffMode(void)
 void PWR_EnterStopMode(void)
 {
   /* USER CODE BEGIN EnterStopMode_1 */
-
+#if defined(STATUS_LED_ENABLED) && (STATUS_LED_ENABLED == 1)
+  HAL_GPIO_WritePin(STATUS_LED_GPIO_Port, STATUS_LED_Pin, GPIO_PIN_RESET);
+#endif /* STATUS_LED_ENABLED */
   /* USER CODE END EnterStopMode_1 */
   HAL_SuspendTick();
   /* Clear Status Flag before entering STOP/STANDBY Mode */
@@ -110,7 +113,9 @@ void PWR_EnterStopMode(void)
 void PWR_ExitStopMode(void)
 {
   /* USER CODE BEGIN ExitStopMode_1 */
-
+#if defined(STATUS_LED_ENABLED) && (STATUS_LED_ENABLED == 1)
+  HAL_GPIO_WritePin(STATUS_LED_GPIO_Port, STATUS_LED_Pin, GPIO_PIN_SET);
+#endif /* STATUS_LED_ENABLED */
   /* USER CODE END ExitStopMode_1 */
   /* Resume sysTick : work around for debugger problem in dual core */
   HAL_ResumeTick();
@@ -129,7 +134,7 @@ void PWR_ExitStopMode(void)
 void PWR_EnterSleepMode(void)
 {
   /* USER CODE BEGIN EnterSleepMode_1 */
-
+  /* LED bleibt AN: Sleep-Mode verbraucht noch signifikant Strom, kein STOP2 */
   /* USER CODE END EnterSleepMode_1 */
   /* Suspend sysTick */
   HAL_SuspendTick();
@@ -145,7 +150,7 @@ void PWR_EnterSleepMode(void)
 void PWR_ExitSleepMode(void)
 {
   /* USER CODE BEGIN ExitSleepMode_1 */
-
+  /* Kein LED-Handling: Sleep-Exit entspricht nicht STOP2-Wakeup */
   /* USER CODE END ExitSleepMode_1 */
   /* Resume sysTick */
   HAL_ResumeTick();

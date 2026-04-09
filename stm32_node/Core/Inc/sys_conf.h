@@ -86,6 +86,15 @@ extern "C" {
  *               Für Produktion auf 0 lassen (Stop2 aktiv, maximale Energieeinsparung). */
 #define LOW_POWER_DISABLE                    0
 
+/**
+  * @brief Enable/Disable the status LED (LED1 on PB5 via U7)
+  * @note  1: LED1 leuchtet wenn MCU aktiv, geht aus beim Einschlafen (STOP2/Sleep)
+  *        0: LED deaktiviert (Standard fuer Produktion, spart Strom)
+  */
+/* TODO [DEBUG]: Fuer Entwicklung auf 1 setzen (LED zeigt Aktivitaet an).
+ *               Fuer Produktion auf 0 lassen (kein Stromverbrauch durch LED). */
+#define STATUS_LED_ENABLED                   0
+
 /* USER CODE BEGIN EC */
 
 /* USER CODE END EC */

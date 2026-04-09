@@ -22,7 +22,7 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "sys_conf.h"
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/
@@ -44,5 +44,22 @@ void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 2 */
+#if defined(STATUS_LED_ENABLED) && (STATUS_LED_ENABLED == 1)
+void MX_StatusLed_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
+  /* LED aus bevor als Output konfiguriert (verhindert Glitch) */
+  HAL_GPIO_WritePin(STATUS_LED_GPIO_Port, STATUS_LED_Pin, GPIO_PIN_RESET);
+
+  GPIO_InitStruct.Pin   = STATUS_LED_Pin;
+  GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull  = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(STATUS_LED_GPIO_Port, &GPIO_InitStruct);
+
+  /* MCU ist aktiv -> LED an */
+  HAL_GPIO_WritePin(STATUS_LED_GPIO_Port, STATUS_LED_Pin, GPIO_PIN_SET);
+}
+#endif /* STATUS_LED_ENABLED */
 /* USER CODE END 2 */
