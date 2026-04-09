@@ -70,8 +70,9 @@ extern "C" {
  * 0: TCXO not supported
  * 1: TCXO supported
  */
-/* TODO [PCB]: Wio-E5 = 1U (hat TCXO). Custom PCB prüfen ob TCXO verbaut ist */
-#define IS_TCXO_SUPPORTED                   1U
+/* TODO [PCB]: Wio-E5 / LoRa-E5 = 1U (TCXO intern via DIO3 gesteuert, kein GPIO noetig).
+ *             Custom PCB = 0U (kein TCXO verbaut). */
+#define IS_TCXO_SUPPORTED                   1U  /* Wio-E5 aktiv */
 
 /* Indicates whether or not DCDC is supported by the board
  * 0: DCDC not supported

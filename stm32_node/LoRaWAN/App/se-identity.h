@@ -107,7 +107,7 @@ extern "C" {
 /*!
  * Application root key
  */
-/* TODO [KEYS]: Für LoRaWAN 1.0.x: LORAWAN_GEN_APP_KEY = LORAWAN_APP_KEY setzen (beide gleich) */
+/* LoRaWAN 1.0.x: GenAppKey = AppKey (beide identisch). NUR fuer 1.1.x waeren sie unterschiedlich. */
 #define LORAWAN_GEN_APP_KEY                                00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
 
 /*!

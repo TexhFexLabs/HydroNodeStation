@@ -76,7 +76,7 @@ extern "C" {
   * @note  by HW serial wires are ON by default, need to put them OFF to save power
   */
 /* TODO [DEBUG]: Für Entwicklung auf 1 setzen (SWD aktiv), für Produktion auf 0 lassen (spart Strom) */
-#define DEBUGGER_ENABLED                     0
+#define DEBUGGER_ENABLED                     1  /* Wio-E5 Entwicklung: SWD aktiv */
 
 /**
   * @brief Disable Low Power mode

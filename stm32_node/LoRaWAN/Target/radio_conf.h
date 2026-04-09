@@ -81,8 +81,11 @@ extern "C" {
 /**
   * @brief Radio maximum wakeup time (in ms)
   * @note override the default configuration of radio_driver.c
+  * @note Wio-E5 / LoRa-E5: 5ms fuer TCXO-Einschwingzeit benoetigt
+  *       Custom PCB (kein TCXO): 1ms reicht
   */
-#define RF_WAKEUP_TIME              ( 1UL )
+/* TODO [PCB]: Fuer Custom PCB (kein TCXO) auf 1UL zuruecksetzen */
+#define RF_WAKEUP_TIME              ( 5UL )
 
 /**
   * @brief DCDC is enabled
