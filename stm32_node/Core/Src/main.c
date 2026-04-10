@@ -26,7 +26,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usart.h"
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,7 +59,13 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+/* Minimal polling-mode UART print used only for early boot diagnostics,
+ * before the trace library (UTIL_ADV_TRACE_Init) is initialized by
+ * SystemApp_Init. Relies only on MX_USART1_UART_Init() having been called. */
+void boot_print(const char *s)
+{
+  HAL_UART_Transmit(&huart1, (uint8_t *)s, (uint16_t)strlen(s), 1000);
+}
 /* USER CODE END 0 */
 
 /**
@@ -91,9 +98,20 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
+  /* USER CODE BEGIN SysInit_2 */
+  /* Early USART1 init so boot diagnostics are visible BEFORE the
+   * LoRaWAN middleware starts initializing. MX_USART1_UART_Init is
+   * idempotent and will also be called by vcom_Init() later. */
+  MX_USART1_UART_Init();
+  boot_print("\r\n\r\n[BOOT] stm32_node: clocks + GPIO + DMA + USART1 OK\r\n");
+  /* USER CODE END SysInit_2 */
   MX_I2C2_Init();
+  boot_print("[BOOT] I2C2 OK\r\n");
   MX_RNG_Init();
+  boot_print("[BOOT] RNG OK\r\n");
+  boot_print("[BOOT] calling MX_LoRaWAN_Init...\r\n");
   MX_LoRaWAN_Init();
+  boot_print("[BOOT] MX_LoRaWAN_Init returned\r\n");
   /* USER CODE BEGIN 2 */
 #if defined(STATUS_LED_ENABLED) && (STATUS_LED_ENABLED == 1)
   MX_StatusLed_Init();
@@ -121,18 +139,31 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
+  /** Configure LSE Drive Capability
+  */
+  HAL_PWR_EnableBkUpAccess();
+  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
+
+  /* Force a Backup Domain reset. Needed so that the RTC BinMode
+   * (BINARY_ONLY) can actually be applied by HAL_RTC_Init() — otherwise
+   * HAL_RTC_Init() skips configuration whenever the calendar is already
+   * initialized (as left behind by any previous firmware). Resetting the
+   * backup domain clears that sticky state and gets the RTC into a known
+   * state on every boot. */
+  __HAL_RCC_BACKUPRESET_FORCE();
+  __HAL_RCC_BACKUPRESET_RELEASE();
+
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE|RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
-  RCC_OscInitStruct.LSIDiv = RCC_LSI_DIV1;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
+  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_11;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -150,7 +181,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.AHBCLK3Divider = RCC_SYSCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }

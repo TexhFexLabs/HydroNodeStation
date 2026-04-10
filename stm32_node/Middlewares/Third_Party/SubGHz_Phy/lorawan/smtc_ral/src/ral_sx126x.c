@@ -57,6 +57,9 @@
 #include "ral_sx126x.h"
 #include "ral_sx126x_bsp.h"
 
+/* Debug: polling-mode UART boot print to find hangs in init */
+#include "main.h"
+
 /*
  * -----------------------------------------------------------------------------
  * --- PRIVATE MACROS-----------------------------------------------------------
@@ -375,13 +378,18 @@ ral_status_t ral_sx126x_init( const void* context )
 //    uint32_t                    startup_time_in_tick = 0;
     bool                        rx_boost_is_activated;
 
+    boot_print("          [BOOT]           ral_sx126x_init: sx126x_init_retention_list...\r\n");
     status = ( ral_status_t ) sx126x_init_retention_list( context );
+    boot_print("          [BOOT]           ral_sx126x_init: sx126x_init_retention_list returned\r\n");
     if( status != RAL_STATUS_OK )
     {
+        boot_print("          [BOOT]           ral_sx126x_init: retention_list FAIL, return\r\n");
         return status;
     }
 
+    boot_print("          [BOOT]           ral_sx126x_init: sx126x_init...\r\n");
     sx126x_init(NULL);
+    boot_print("          [BOOT]           ral_sx126x_init: sx126x_init returned\r\n");
 
     ral_sx126x_bsp_get_reg_mode( context, &reg_mode );
     status = ( ral_status_t ) sx126x_set_reg_mode( context, reg_mode );

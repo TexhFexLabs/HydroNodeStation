@@ -127,6 +127,9 @@
 #include "aes.h"
 #endif  // USE_LR11XX_CE && ( ADD_FUOTA == 2 )
 
+/* Debug: polling-mode UART boot print to find hangs in init */
+#include "main.h"
+
 /*
  * -----------------------------------------------------------------------------
  * --- PRIVATE MACROS-----------------------------------------------------------
@@ -257,24 +260,35 @@ static void modem_load_appkey_context( void );
 
 void smtc_modem_init( Callbacks_t *handlerCallbacks )
 {
+    boot_print("        [BOOT]         smtc_modem_init: enter\r\n");
     SMTC_MODEM_HAL_TRACE_INFO( "Modem Initialization\n" );
 
     HandlerCallbacks = handlerCallbacks;
     // init radio and put it in sleep mode
+    boot_print("        [BOOT]         smtc_modem_init: ral_reset...\r\n");
     SMTC_MODEM_HAL_PANIC_ON_FAILURE( ral_reset( &( modem_radio.ral ) ) == RAL_STATUS_OK );
+    boot_print("        [BOOT]         smtc_modem_init: ral_init...\r\n");
     SMTC_MODEM_HAL_PANIC_ON_FAILURE( ral_init( &( modem_radio.ral ) ) == RAL_STATUS_OK );
+    boot_print("        [BOOT]         smtc_modem_init: ral_set_sleep...\r\n");
     SMTC_MODEM_HAL_PANIC_ON_FAILURE( ral_set_sleep( &( modem_radio.ral ), true ) == RAL_STATUS_OK );
+    boot_print("        [BOOT]         smtc_modem_init: ral_set_ant_switch...\r\n");
     ral_set_ant_switch( &( modem_radio.ral ), false );
     // init radio planner and attach corresponding radio irq
+    boot_print("        [BOOT]         smtc_modem_init: rp_init...\r\n");
     rp_init( &modem_radio_planner, &modem_radio );
 
+    boot_print("        [BOOT]         smtc_modem_init: rp_hook_init...\r\n");
     rp_hook_init( &modem_radio_planner, RP_HOOK_ID_SUSPEND, ( void ( * )( void* ) )( empty_callback ),
                   &modem_radio_planner );
 
+    boot_print("        [BOOT]         smtc_modem_init: smtc_secure_element_init...\r\n");
     smtc_secure_element_init( );
+    boot_print("        [BOOT]         smtc_modem_init: modem_supervisor_init...\r\n");
     modem_supervisor_init( );
+    boot_print("        [BOOT]         smtc_modem_init: modem_context_init_light...\r\n");
     modem_context_init_light( handlerCallbacks->EventCallback, &modem_radio_planner );
 #if defined (ENDNODE) || defined (ENDNODE_RELAY)
+    boot_print("        [BOOT]         smtc_modem_init: modem_tx_protocol_manager_init...\r\n");
     modem_tx_protocol_manager_init( &modem_radio_planner );
 #endif
     // If lr11xx crypto engine is used for crypto
@@ -282,7 +296,9 @@ void smtc_modem_init( Callbacks_t *handlerCallbacks )
     modem_load_appkey_context( );
 #endif
     // Event EVENT_RESET must be done at the end of init !!
+    boot_print("        [BOOT]         smtc_modem_init: increment_asynchronous_msgnumber...\r\n");
     increment_asynchronous_msgnumber( SMTC_MODEM_EVENT_RESET, 0, 0xFF );
+    boot_print("        [BOOT]         smtc_modem_init: done\r\n");
 }
 
 uint32_t smtc_modem_run_engine( void )

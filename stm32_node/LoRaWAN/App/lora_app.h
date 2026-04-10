@@ -39,7 +39,6 @@ extern "C" {
 /* Exported constants --------------------------------------------------------*/
 
 /* LoraWAN application configuration (Mw is configured by lorawan_conf.h) */
-/* TODO [REGION]: Frequenzband für Zielregion anpassen (z.B. LORAMAC_REGION_EU868 für Europa) */
 #define ACTIVE_REGION                               LORAMAC_REGION_EU868
 
 /* USER CODE BEGIN EC_CAYENNE_LPP */
@@ -52,7 +51,6 @@ extern "C" {
 /*!
  * Defines the application data transmission duty cycle. 10s, value in [s].
  */
-/* TODO [APP]: Sendeintervall für Produktionsbetrieb anpassen (LoRaWAN Fair Use Policy beachten, mind. ~60s) */
 #define APP_TX_DUTYCYCLE                            10
 
 /*!

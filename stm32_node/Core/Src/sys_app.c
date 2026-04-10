@@ -90,7 +90,7 @@ static void tiny_snprintf_like(char *buf, uint32_t maxsize, const char *strForma
 void SystemApp_Init(void)
 {
   /* USER CODE BEGIN SystemApp_Init_1 */
-
+  boot_print("    [BOOT]     UTIL_TIMER_Init...\r\n");
   /* USER CODE END SystemApp_Init_1 */
 
   /* Ensure that MSI is wake-up system clock */
@@ -99,12 +99,15 @@ void SystemApp_Init(void)
   /*Initialize timer and RTC*/
   UTIL_TIMER_Init();
   SYS_TimerInitialisedFlag = 1;
+  boot_print("    [BOOT]     UTIL_TIMER_Init OK -> DBG_Init...\r\n");
   /* Initializes the SW probes pins and the monitor RF pins via Alternate Function */
   DBG_Init();
+  boot_print("    [BOOT]     DBG_Init OK -> UTIL_ADV_TRACE_Init...\r\n");
 
   /*Initialize the terminal */
   UTIL_ADV_TRACE_Init();
   UTIL_ADV_TRACE_RegisterTimeStampFunction(TimestampNow);
+  boot_print("    [BOOT]     UTIL_ADV_TRACE_Init OK\r\n");
 
   /* #warning "should be removed when proper obl is done" */
   __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPTVERR);
@@ -114,14 +117,17 @@ void SystemApp_Init(void)
 
   /*Initialize the temperature and Battery measurement services */
   SYS_InitMeasurement();
+  boot_print("    [BOOT]     SYS_InitMeasurement OK -> EnvSensors_Init...\r\n");
 
   /*Initialize the Sensors */
   EnvSensors_Init();
+  boot_print("    [BOOT]     EnvSensors_Init OK -> UTIL_LPM_Init...\r\n");
 
   /*Init low power manager*/
   UTIL_LPM_Init();
   /* Disable Stand-by mode */
   UTIL_LPM_SetOffMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_DISABLE);
+  boot_print("    [BOOT]     UTIL_LPM_Init OK\r\n");
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 1)
   /* Disable Stop Mode */

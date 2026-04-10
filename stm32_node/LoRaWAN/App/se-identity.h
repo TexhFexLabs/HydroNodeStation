@@ -89,13 +89,11 @@ extern "C" {
  * End-device IEEE EUI (big endian)
  * When set to 00,00,00,00,00,00,00,00 DevEui is automatically set with a value provided by MCU platform
  */
-/* TODO [KEYS]: DevEUI vom LoRaWAN-Server (TTN/ChirpStack) übernehmen oder auf 00,..,00 lassen für auto-derive aus UID */
 #define LORAWAN_DEVICE_EUI                                 00,00,00,00,00,00,00,00
 
 /*!
  * App/Join server IEEE EUI (big endian)
  */
-/* TODO [KEYS]: JoinEUI (AppEUI) vom LoRaWAN-Server übernehmen */
 #define LORAWAN_JOIN_EUI                                   00,00,00,00,00,00,00,00
 
 /*!
@@ -107,13 +105,11 @@ extern "C" {
 /*!
  * Application root key
  */
-/* LoRaWAN 1.0.x: GenAppKey = AppKey (beide identisch). NUR fuer 1.1.x waeren sie unterschiedlich. */
 #define LORAWAN_GEN_APP_KEY                                00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
 
 /*!
  * Network root key
  */
-/* TODO [KEYS]: AppKey vom LoRaWAN-Server übernehmen (OTAA). Niemals in Git committen für Produktion! */
 #define LORAWAN_APP_KEY                                    00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
 
 /*!

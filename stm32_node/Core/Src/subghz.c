@@ -56,6 +56,9 @@ void HAL_SUBGHZ_MspInit(SUBGHZ_HandleTypeDef* subghzHandle)
   /* USER CODE END SUBGHZ_MspInit 0 */
     /* SUBGHZ clock enable */
     __HAL_RCC_SUBGHZSPI_CLK_ENABLE();
+    /* SUBGHZ interrupt init */
+    HAL_NVIC_SetPriority(SUBGHZ_Radio_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(SUBGHZ_Radio_IRQn);
   /* USER CODE BEGIN SUBGHZ_MspInit 1 */
 
   /* USER CODE END SUBGHZ_MspInit 1 */

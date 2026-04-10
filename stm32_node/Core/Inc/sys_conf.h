@@ -75,25 +75,13 @@ extern "C" {
   * @brief Enable/Disable MCU Debugger pins (dbg serial wires)
   * @note  by HW serial wires are ON by default, need to put them OFF to save power
   */
-/* TODO [DEBUG]: Für Entwicklung auf 1 setzen (SWD aktiv), für Produktion auf 0 lassen (spart Strom) */
-#define DEBUGGER_ENABLED                     1  /* Wio-E5 Entwicklung: SWD aktiv */
+#define DEBUGGER_ENABLED                     0
 
 /**
   * @brief Disable Low Power mode
   * @note  0: LowPowerMode enabled. MCU enters stop2 mode, 1: LowPowerMode disabled. MCU enters sleep mode only
   */
-/* TODO [DEBUG]: Für Entwicklung/Debugging auf 1 setzen (kein Stop2, einfacheres Debugging).
- *               Für Produktion auf 0 lassen (Stop2 aktiv, maximale Energieeinsparung). */
 #define LOW_POWER_DISABLE                    0
-
-/**
-  * @brief Enable/Disable the status LED (LED1 on PB5 via U7)
-  * @note  1: LED1 leuchtet wenn MCU aktiv, geht aus beim Einschlafen (STOP2/Sleep)
-  *        0: LED deaktiviert (Standard fuer Produktion, spart Strom)
-  */
-/* TODO [DEBUG]: Fuer Entwicklung auf 1 setzen (LED zeigt Aktivitaet an).
- *               Fuer Produktion auf 0 lassen (kein Stromverbrauch durch LED). */
-#define STATUS_LED_ENABLED                   0
 
 /* USER CODE BEGIN EC */
 

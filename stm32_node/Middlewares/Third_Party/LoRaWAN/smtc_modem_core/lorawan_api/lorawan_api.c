@@ -71,6 +71,7 @@
 #include "smtc_secure_element.h"
 #include "smtc_modem_crypto.h"
 #include "lorawan_api.h"
+#include "main.h"   /* Debug: boot_print for init tracing */
 
 static struct
 {
@@ -113,6 +114,7 @@ void lorawan_api_init( radio_planner_t* rp, uint8_t stack_id,
                        void ( *lr1mac_downlink_callback )( lr1_stack_mac_down_data_t* push_context ) )
 {
     PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    boot_print("            [BOOT]             lorawan_api_init: lr1mac_core_init...\r\n");
 #if defined (ENDNODE) || defined (ENDNODE_RELAY)
     lr1mac_core_init( &lr1_mac_obj[stack_id], &real_obj[stack_id], rp, ACTIVATION_MODE_OTAA, lr1mac_downlink_callback,
                       &stack_id );
@@ -121,6 +123,7 @@ void lorawan_api_init( radio_planner_t* rp, uint8_t stack_id,
     lr1mac_core_init( &lr1_mac_obj[stack_id], &real_obj[stack_id], &lbt_obj, &cad_obj[stack_id], rp,
                       ACTIVATION_MODE_OTAA, lr1mac_downlink_callback, &stack_id );
 #endif
+    boot_print("            [BOOT]             lorawan_api_init: lr1mac_core_init OK\r\n");
 
     lr1mac_rx_session_param_t* multicast_rx_sessions    = NULL;
     uint8_t                    nb_multicast_rx_sessions = 0;
@@ -131,10 +134,12 @@ void lorawan_api_init( radio_planner_t* rp, uint8_t stack_id,
     smtc_multicast_init( &multicast_obj[stack_id], stack_id );
 #endif
 
+    boot_print("            [BOOT]             lorawan_api_init: lr1mac_class_c_init...\r\n");
     lr1mac_class_c_init( &class_c_obj[stack_id], &lr1_mac_obj[stack_id], multicast_rx_sessions,
                          nb_multicast_rx_sessions, rp, RP_HOOK_ID_CLASS_C + stack_id,
                          ( void ( * )( void* ) ) lr1mac_class_c_mac_rp_callback, &class_c_obj[stack_id],
                          lr1mac_downlink_callback );
+    boot_print("            [BOOT]             lorawan_api_init: lr1mac_class_c_init OK\r\n");
 
 #if defined( ADD_CLASS_B )
     smtc_ping_slot_init( &ping_slot_obj[stack_id], &lr1_mac_obj[stack_id], multicast_rx_sessions,
@@ -144,6 +149,7 @@ void lorawan_api_init( radio_planner_t* rp, uint8_t stack_id,
     smtc_beacon_sniff_init( &lr1_beacon_obj[stack_id], &ping_slot_obj[stack_id], &lr1_mac_obj[stack_id], rp,
                             RP_HOOK_ID_CLASS_B_BEACON + stack_id, lr1mac_downlink_callback );
 #endif
+    boot_print("            [BOOT]             lorawan_api_init: done\r\n");
 }
 
 smtc_real_region_types_t lorawan_api_get_region( uint8_t stack_id )

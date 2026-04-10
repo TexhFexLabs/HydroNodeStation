@@ -53,6 +53,7 @@
 
 #include "modem_core.h"
 #include "modem_event_utilities.h"
+#include "main.h"   /* Debug: boot_print for init tracing */
 
 #include "smtc_modem_hal_dbg_trace.h"
 #include "smtc_real.h"
@@ -182,25 +183,34 @@ void modem_context_init_light( void ( *callback )( void ), radio_planner_t* rp )
     void  ( *callback_on_update_temp )( void* );
     void* context_callback_tmp;
 
+    boot_print("          [BOOT]           modem_context_init_light: modem_event_init...\r\n");
     modem_rp = rp;
     modem_event_init( callback );
 
     // Init duty-cycle object to 0
+    boot_print("          [BOOT]           modem_context_init_light: smtc_duty_cycle_init...\r\n");
     smtc_duty_cycle_init( );
 
+    boot_print("          [BOOT]           modem_context_init_light: lorawan_api_init...\r\n");
     for( uint8_t stack_id = 0; stack_id < NUMBER_OF_STACKS; stack_id++ )
     {
         lorawan_api_init( rp, stack_id, ( void ( * )( lr1_stack_mac_down_data_t* ) ) modem_downlink_callback );
-
+        boot_print("          [BOOT]           modem_context_init_light: dr_strategy_set...\r\n");
         lorawan_api_dr_strategy_set( STATIC_ADR_MODE, stack_id );
+        boot_print("          [BOOT]           modem_context_init_light: join_status_clear...\r\n");
         lorawan_api_join_status_clear( stack_id );
 
         // to init duty cycle
+        boot_print("          [BOOT]           modem_context_init_light: get_region...\r\n");
         smtc_real_region_types_t region = lorawan_api_get_region( stack_id );
+        boot_print("          [BOOT]           modem_context_init_light: set_region...\r\n");
         lorawan_api_set_region( region, stack_id );
+        boot_print("          [BOOT]           modem_context_init_light: stack loop done\r\n");
     }
+    boot_print("          [BOOT]           modem_context_init_light: lorawan_api_init OK\r\n");
 
     uint8_t index_tmp = 0;
+    boot_print("          [BOOT]           modem_context_init_light: service inits...\r\n");
     lorawan_send_management_services_init( ( uint8_t* ) UNUSED_VALUE, UNUSED_VALUE,
                                            &downlink_services_callback[index_tmp++], &callback_on_launch_temp,
                                            &callback_on_update_temp, &context_callback_tmp );
@@ -229,6 +239,7 @@ void modem_context_init_light( void ( *callback )( void ), radio_planner_t* rp )
 
     task_id_t task_id_tmp;
     uint8_t   cpt_of_services_init = SERVICE_ID0_TASK;
+    boot_print("          [BOOT]           modem_context_init_light: modem_service_config loop...\r\n");
     for( uint8_t i = 0; i < NUMBER_OF_SERVICES; i++ )
     {
         task_id_tmp = (task_id_t)(cpt_of_services_init + ( NUMBER_OF_TASKS * modem_service_config[i].stack_id ) );
@@ -247,12 +258,15 @@ void modem_context_init_light( void ( *callback )( void ), radio_planner_t* rp )
 
     is_modem_in_test_mode = false;
     user_alarm            = 0x7FFFFFFF;
+    boot_print("          [BOOT]           modem_context_init_light: fifo_ctrl_init...\r\n");
     fifo_ctrl_init( &fifo_ctrl_obj, fifo_buffer, FIFO_LORAWAN_SIZE );
 
     // load modem context
+    boot_print("          [BOOT]           modem_context_init_light: modem_load_modem_context...\r\n");
     modem_load_modem_context( );
     // Increment reset counter
     modem_reset_counter++;
+    boot_print("          [BOOT]           modem_context_init_light: done\r\n");
 }
 
 fifo_ctrl_t* modem_context_get_fifo_obj( void )

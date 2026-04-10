@@ -33,6 +33,7 @@
 #include "smtc_modem_hal.h"
 #include "smtc_modem_relay_api.h"
 #include "adc_if.h"
+#include "CayenneLpp.h"
 #include "sys_sensors.h"
 #include "flash_if.h"
 #include "rng.h"
@@ -40,7 +41,7 @@
 #include "stm32_lpm.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "subghz.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -323,7 +324,7 @@ void LoRaWAN_Init(void)
   /* USER CODE END LoRaWAN_Init_LV */
 
   /* USER CODE BEGIN LoRaWAN_Init_1 */
-
+  boot_print("      [BOOT]       FLASH_IF_Init...\r\n");
   /* USER CODE END LoRaWAN_Init_1 */
 
   if (FLASH_IF_Init(FLASH_RAM_buffer) != FLASH_IF_OK)
@@ -337,7 +338,16 @@ void LoRaWAN_Init(void)
   /* Init the Lora Stack*/
   /* Init the modem and use EventCallback as event callback, please note that the callback will be */
   /* called immediately after the first call to smtc_modem_run_engine because of the reset detection */
+  /* IMPORTANT: SUBGHZ peripheral must be initialized BEFORE smtc_modem_init(),
+   * because the SMTC modem's ral_sx126x_init() calls sx126x_init_retention_list()
+   * which reads from the radio registers before sx126x_init() runs RADIO_INIT.
+   * In the classic LoRaMAC-node stack, SUBGHZ_Init is always called first inside
+   * SUBGRF_Init(), so this wasn't needed there. */
+  boot_print("      [BOOT]       MX_SUBGHZ_Init...\r\n");
+  MX_SUBGHZ_Init();
+  boot_print("      [BOOT]       smtc_modem_init...\r\n");
   smtc_modem_init(&Callbacks);
+  boot_print("      [BOOT]       smtc_modem_init OK\r\n");
 
   /* Certification mode is disabled by default. It can be enabled setting LORAWAN_CERTIFICATION_MODE to true */
   smtc_modem_set_certification_mode(STACK_ID, CertMode);

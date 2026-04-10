@@ -53,18 +53,24 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+/* Polling-mode UART print for early boot diagnostics (pre-trace lib).
+ * Implemented in main.c. Safe to call from any init code after
+ * MX_USART1_UART_Init has run. */
+void boot_print(const char *s);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define RF_SW_CTRL1_Pin GPIO_PIN_4
+#define RF_SW_CTRL1_GPIO_Port GPIOA
+#define RF_SW_CTRL2_Pin GPIO_PIN_5
+#define RF_SW_CTRL2_GPIO_Port GPIOA
+#define STATUS_LED_Pin GPIO_PIN_5
+#define STATUS_LED_GPIO_Port GPIOB
 #define RTC_N_PREDIV_S 10
 #define RTC_PREDIV_S ((1<<RTC_N_PREDIV_S)-1)
 #define RTC_PREDIV_A ((1<<(15-RTC_N_PREDIV_S))-1)
 
 /* USER CODE BEGIN Private defines */
-/* Status LED: LED1 ueber U7 (SMQS-04R-TP) an PB5, aktiv-HIGH */
-#define STATUS_LED_Pin        GPIO_PIN_5
-#define STATUS_LED_GPIO_Port  GPIOB
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

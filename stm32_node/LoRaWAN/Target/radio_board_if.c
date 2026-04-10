@@ -76,16 +76,12 @@ int32_t RBI_Init(void)
   /* 2/ Or implement RBI_Init here */
   int32_t retcode = 0;
   /* USER CODE BEGIN RBI_Init_2 */
-  /* TODO [PCB]: GPIO-Clock und Pins an Custom-PCB anpassen (z.B. __HAL_RCC_GPIOC_CLK_ENABLE() für PC13).
-   *             Bei BGS12SN6E (1-Pin) nur einen CTRL-Pin initialisieren, RF_SW_CTRL2 entfernen. */
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  HAL_GPIO_WritePin(RF_SW_CTRL1_PORT, RF_SW_CTRL1_PIN | RF_SW_CTRL2_PIN, GPIO_PIN_RESET);
-  GPIO_InitStruct.Pin   = RF_SW_CTRL1_PIN | RF_SW_CTRL2_PIN;
-  GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull  = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  /* GPIOs for RF_SW_CTRL1/CTRL2 are already configured as outputs by
+   * MX_GPIO_Init() (generated from the .ioc pin labels). Here we just
+   * ensure the switch starts in the OFF state.
+   */
+  HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_Port, RF_SW_CTRL1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_Port, RF_SW_CTRL2_Pin, GPIO_PIN_RESET);
   /* USER CODE END RBI_Init_2 */
   return retcode;
 #endif  /* USE_BSP_DRIVER  */
@@ -111,7 +107,9 @@ int32_t RBI_DeInit(void)
   /* 2/ Or implement RBI_DeInit here */
   int32_t retcode = 0;
   /* USER CODE BEGIN RBI_DeInit_2 */
-  HAL_GPIO_DeInit(RF_SW_CTRL1_PORT, RF_SW_CTRL1_PIN | RF_SW_CTRL2_PIN);
+  /* Drive RF switch lines low; keep them configured as outputs. */
+  HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_Port, RF_SW_CTRL1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_Port, RF_SW_CTRL2_Pin, GPIO_PIN_RESET);
   /* USER CODE END RBI_DeInit_2 */
   return retcode;
 #endif  /* USE_BSP_DRIVER */
@@ -138,23 +136,32 @@ int32_t RBI_ConfigRFSwitch(RBI_Switch_TypeDef Config)
   /* 2/ Or implement RBI_ConfigRFSwitch here */
   int32_t retcode = 0;
   /* USER CODE BEGIN RBI_ConfigRFSwitch_2 */
-  /* TODO [PCB]: Switch-Logik für Custom-PCB mit BGS12SN6E anpassen (1 Pin, SPDT):
-   *             OFF/RX/TX je nach Datenblatt auf HIGH oder LOW setzen.
-   *             RF_SW_CTRL2 entfernen, da BGS12SN6E nur einen Steuerpin hat. */
+  /* Wio-E5 Mini RF switch truth table (same as ST BSP driver):
+   *   OFF    : CTRL1=0, CTRL2=0
+   *   RX     : CTRL1=1, CTRL2=0
+   *   RFO_LP : CTRL1=1, CTRL2=1
+   *   RFO_HP : CTRL1=0, CTRL2=1
+   */
   switch (Config)
   {
     case RBI_SWITCH_OFF:
-      HAL_GPIO_WritePin(RF_SW_CTRL1_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(RF_SW_CTRL2_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_Port, RF_SW_CTRL1_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_Port, RF_SW_CTRL2_Pin, GPIO_PIN_RESET);
       break;
     case RBI_SWITCH_RX:
-      HAL_GPIO_WritePin(RF_SW_CTRL1_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(RF_SW_CTRL2_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_Port, RF_SW_CTRL1_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_Port, RF_SW_CTRL2_Pin, GPIO_PIN_RESET);
+      break;
+    case RBI_SWITCH_RFO_LP:
+      HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_Port, RF_SW_CTRL1_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_Port, RF_SW_CTRL2_Pin, GPIO_PIN_SET);
       break;
     case RBI_SWITCH_RFO_HP:
+      HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_Port, RF_SW_CTRL1_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_Port, RF_SW_CTRL2_Pin, GPIO_PIN_SET);
+      break;
     default:
-      HAL_GPIO_WritePin(RF_SW_CTRL1_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(RF_SW_CTRL2_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_SET);
+      retcode = -1;
       break;
   }
   /* USER CODE END RBI_ConfigRFSwitch_2 */

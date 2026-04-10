@@ -65,7 +65,8 @@ set(MX_Include_Dirs
 set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../LoRaWAN/Target/radio_board_if.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../LoRaWAN/App/app_lorawan.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../LoRaWAN/App/lora_app.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../LoRaWAN/App/CayenneLpp.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../LoRaWAN/App/lora_app.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/gpio.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/adc.c
@@ -207,10 +208,7 @@ set(MX_LINK_DIRS
 set(MX_LINK_LIBS 
     STM32_Drivers
     ${TOOLCHAIN_LINK_LIBRARIES}
-    Utilities
-	LoRaWAN
-	SubGHz_Phy
-	
+    Utilities	LoRaWAN	SubGHz_Phy	
 )
 # Interface library for includes and symbols
 add_library(stm32cubemx INTERFACE)

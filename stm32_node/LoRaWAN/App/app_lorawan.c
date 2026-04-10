@@ -25,7 +25,7 @@
 #include "stm32_seq.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "main.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -65,15 +65,15 @@
 void MX_LoRaWAN_Init(void)
 {
   /* USER CODE BEGIN MX_LoRaWAN_Init_1 */
-
+  boot_print("  [BOOT]   SystemApp_Init()...\r\n");
   /* USER CODE END MX_LoRaWAN_Init_1 */
   SystemApp_Init();
   /* USER CODE BEGIN MX_LoRaWAN_Init_2 */
-
+  boot_print("  [BOOT]   SystemApp_Init() OK, LoRaWAN_Init()...\r\n");
   /* USER CODE END MX_LoRaWAN_Init_2 */
   LoRaWAN_Init();
   /* USER CODE BEGIN MX_LoRaWAN_Init_3 */
-
+  boot_print("  [BOOT]   LoRaWAN_Init() OK\r\n");
   /* USER CODE END MX_LoRaWAN_Init_3 */
 }
 
