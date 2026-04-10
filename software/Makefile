@@ -3,9 +3,8 @@
 APP ?= lorawan
 BUILD_ROOT ?= build
 
-ifeq ($(APP),lorawan)
 PROJECT_NAME := LoRaWAN_End_Node
-PROJECT_DIR := Projects/Applications/LoRaWAN/LoRaWAN_End_Node
+PROJECT_DIR := .
 CORE_INC := $(PROJECT_DIR)/Core/Inc
 CORE_INC_DIRS := $(shell find $(CORE_INC) -type d | LC_ALL=C sort)
 APP_DEFS := -DDEBUG
@@ -112,44 +111,8 @@ HAL_SRCS := \
 	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_uart_ex.c \
 	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_ll_adc.c
 
-else ifeq ($(APP),lowpower)
-PROJECT_NAME := LowPower
-PROJECT_DIR := Projects/Applications/LowPower
-CORE_INC := $(PROJECT_DIR)/Core/Inc
-CORE_INC_DIRS := $(shell find $(CORE_INC) -type d | LC_ALL=C sort)
-APP_DEFS := -DDEBUG -DHAL_RTC_MODULE_ENABLED
-LDSCRIPT := $(PROJECT_DIR)/STM32WLE5JCIX_FLASH.ld
-
-INCLUDES := \
-	$(foreach d,$(CORE_INC_DIRS),-I$(d)) \
-	-IDrivers/STM32WLxx_HAL_Driver/Inc \
-	-IDrivers/STM32WLxx_HAL_Driver/Inc/Legacy \
-	-IDrivers/CMSIS/Include \
-	-IDrivers/CMSIS/Device/ST/STM32WLxx/Include
-
-APP_CORE_SRCS := $(shell find $(PROJECT_DIR)/Core/Src -type f -name '*.c' | LC_ALL=C sort)
-
-APP_SPECIFIC_SRCS :=
-
-STARTUP_SRCS := \
-	$(PROJECT_DIR)/Core/Startup/startup_stm32wle5jcix.s
-
-HAL_SRCS := \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_cortex.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_exti.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_flash.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_flash_ex.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_gpio.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_pwr.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_pwr_ex.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_rcc.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_rcc_ex.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_rtc.c \
-	Drivers/STM32WLxx_HAL_Driver/Src/stm32wlxx_hal_rtc_ex.c
-
-else
-$(error Unsupported APP='$(APP)'. Use APP=lorawan or APP=lowpower)
+ifneq ($(APP),lorawan)
+$(error Unsupported APP='$(APP)'. Use APP=lorawan)
 endif
 
 BUILD_DIR ?= $(BUILD_ROOT)/$(APP)
@@ -211,7 +174,7 @@ HEX_BUILD := $(BUILD_DIR)/$(PROJECT_NAME).hex
 BIN_BUILD := $(BUILD_DIR)/$(PROJECT_NAME).bin
 HEX_ROOT := $(PROJECT_NAME).hex
 
-.PHONY: all build hex clean rebuild size list bin help print-vars purge-cubeide lorawan lowpower
+.PHONY: all build hex clean rebuild size list bin help print-vars purge-cubeide lorawan
 
 all: build
 
@@ -219,9 +182,6 @@ build: $(HEX_ROOT)
 
 lorawan:
 	$(MAKE) APP=lorawan build
-
-lowpower:
-	$(MAKE) APP=lowpower build
 
 hex: $(HEX_ROOT)
 
@@ -258,8 +218,8 @@ $(HEX_ROOT): $(HEX_BUILD)
 	@echo "HEX ready: $(HEX_ROOT)"
 
 clean:
-	rm -rf "$(BUILD_ROOT)/lorawan" "$(BUILD_ROOT)/lowpower"
-	rm -f "LoRaWAN_End_Node.hex" "LowPower.hex"
+	rm -rf "$(BUILD_ROOT)/lorawan"
+	rm -f "LoRaWAN_End_Node.hex"
 
 rebuild: clean build
 
@@ -286,9 +246,7 @@ help:
 	@echo "Standalone targets:"
 	@echo "  make / make build                    Build selected APP and create $(HEX_ROOT)"
 	@echo "  make APP=lorawan build               Build LoRaWAN_End_Node.hex"
-	@echo "  make APP=lowpower build              Build LowPower.hex"
 	@echo "  make lorawan                         Shortcut for APP=lorawan build"
-	@echo "  make lowpower                        Shortcut for APP=lowpower build"
 	@echo "  make hex            Same as build"
 	@echo "  make clean          Remove standalone build artifacts"
 	@echo "  make rebuild        Clean and build"
@@ -299,6 +257,6 @@ help:
 	@echo ""
 	@echo "Optional override:"
 	@echo "  make TOOLCHAIN_BIN=<path-to-bin>"
-	@echo "  make BUILD_ROOT=build_custom APP=lowpower build"
+	@echo "  make BUILD_ROOT=build_custom APP=lorawan build"
 
 -include $(DEPS)

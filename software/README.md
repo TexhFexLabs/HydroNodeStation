@@ -4,12 +4,11 @@ LoRaWAN end-node firmware for STM32WLE5 (Seeed LoRa-E5 mini target) with low-pow
 
 ## Project Scope
 
-This repository currently contains two buildable applications:
+This repository contains one buildable application:
 
 - `APP=lorawan`: Full LoRaWAN end-node firmware (`LoRaWAN_End_Node`)
-- `APP=lowpower`: Low-power reference firmware (`LowPower`)
 
-The LoRaWAN application is the active project and includes sensor acquisition, payload packing, and network uplink logic.
+The LoRaWAN project includes sensor acquisition, payload packing, and network uplink logic.
 
 ## Hardware and Runtime Architecture
 
@@ -24,8 +23,7 @@ The LoRaWAN application is the active project and includes sensor acquisition, p
 Key paths:
 
 - `Makefile`: standalone build orchestration and source discovery
-- `Projects/Applications/LoRaWAN/LoRaWAN_End_Node/`: main firmware
-- `Projects/Applications/LowPower/`: low-power reference app
+- `Core/` + `LoRaWAN/`: main firmware
 - `Drivers/`: STM32 HAL, CMSIS, BSP
 - `Middlewares/Third_Party/`: LoRaWAN and SubGHz PHY middleware
 - `Utilities/`: timers, sequencer, trace, low-power helpers
@@ -121,9 +119,7 @@ make TOOLCHAIN_BIN=/your/custom/path/bin
 ```bash
 make                         # default build (APP=lorawan)
 make APP=lorawan build       # build LoRaWAN app
-make APP=lowpower build      # build LowPower app
 make lorawan                 # shortcut
-make lowpower                # shortcut
 make size                    # print ELF size
 make list                    # generate disassembly list
 make bin                     # generate BIN
@@ -134,7 +130,6 @@ make rebuild                 # clean + build
 ## Build Artifacts
 
 - LoRaWAN HEX: `LoRaWAN_End_Node.hex`
-- LowPower HEX: `LowPower.hex`
 - Intermediate outputs: `build/`
 
 ## Source Auto-Discovery
@@ -151,20 +146,20 @@ This means adding a new sensor module in `Core/Src` and `Core/Inc` is automatic 
 Edit these files before deployment:
 
 1. Network and app behavior
-- `Projects/Applications/LoRaWAN/LoRaWAN_End_Node/LoRaWAN/App/lora_app.h`
+- `LoRaWAN/App/lora_app.h`
   - `ACTIVE_REGION`
   - `APP_TX_DUTYCYCLE`
   - LoRaWAN class and ADR defaults
 
 2. Device identity and keys
-- `Projects/Applications/LoRaWAN/LoRaWAN_End_Node/LoRaWAN/App/se-identity.h`
+- `LoRaWAN/App/se-identity.h`
   - `LORAWAN_JOIN_EUI`
   - `LORAWAN_DEVICE_EUI`
   - `LORAWAN_APP_KEY`
   - `LORAWAN_NWK_KEY`
 
 3. Sensor and low-level runtime config
-- `Projects/Applications/LoRaWAN/LoRaWAN_End_Node/Core/Inc/sys_conf.h`
+- `Core/Inc/sys_conf.h`
   - `SCD41_ENABLED`
   - I2C instance and pins
   - SCD41 timing and calibration options
