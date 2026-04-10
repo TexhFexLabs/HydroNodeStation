@@ -22,4 +22,3 @@
 *.su
 
 # Standalone make build directory
-build/
