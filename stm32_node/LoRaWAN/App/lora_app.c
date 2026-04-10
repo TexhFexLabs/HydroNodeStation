@@ -691,13 +691,22 @@ static void EventCallback(void)
 static void SendTxData(uint8_t port)
 {
   /* USER CODE BEGIN SendTxData_1 */
-  /* TODO [SENSOR]: Dummy-Payload durch echte Sensordaten ersetzen (z.B. Wasserstand, Temperatur).
-   *                Payload-Format mit TTN/ChirpStack Decoder abstimmen. */
-  uint8_t payload[2] = { 0xDE, 0xAD };
+  sensor_t sensor_data;
+  EnvSensors_Read(&sensor_data);
 
-  APP_LOG(TS_ON, VLEVEL_M, "Sending %d bytes on port %d\r\n", sizeof(payload), port);
+  CayenneLppReset();
+  /* Channel 1: internal MCU temperature (°C, resolution 0.1) */
+  CayenneLppAddTemperature(1, sensor_data.temperature);
+  /* TODO [SENSOR]: weitere Kanäle hier hinzufügen, z.B.:
+   *   CayenneLppAddAnalogInput(2, water_level_m);   // Wasserstand in m
+   *   CayenneLppAddRelativeHumidity(3, humidity);   // Luftfeuchtigkeit */
 
-  ASSERT_SMTC_MODEM_RC(smtc_modem_request_uplink(STACK_ID, port, false, payload, sizeof(payload)));
+  uint8_t  size   = CayenneLppGetSize();
+  uint8_t *buffer = CayenneLppGetBuffer();
+
+  APP_LOG(TS_ON, VLEVEL_M, "Sending %d bytes on port %d\r\n", size, port);
+
+  ASSERT_SMTC_MODEM_RC(smtc_modem_request_uplink(STACK_ID, port, false, buffer, size));
 
   /* Schedule next uplink */
   ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(APP_TX_DUTYCYCLE));

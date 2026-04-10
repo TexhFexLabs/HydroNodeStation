@@ -46,8 +46,10 @@ extern "C" {
 
 /**
   * @brief  Verbose level for all trace logs
+  * @note   VLEVEL_M: verbose (many modem-internal logs, UART DMA almost always busy → STOP2 blocked)
+  *         VLEVEL_L: only key events printed, UART idle between cycles → STOP2 works
   */
-#define VERBOSE_LEVEL                        VLEVEL_M
+#define VERBOSE_LEVEL                        VLEVEL_L
 
 /**
   * @brief Enable trace logs
@@ -82,6 +84,11 @@ extern "C" {
   * @note  0: LowPowerMode enabled. MCU enters stop2 mode, 1: LowPowerMode disabled. MCU enters sleep mode only
   */
 #define LOW_POWER_DISABLE                    0
+
+/**
+  * @brief Enable status LED (PB5): ON when active, OFF in STOP2
+  */
+#define STATUS_LED_ENABLED                   1
 
 /* USER CODE BEGIN EC */
 

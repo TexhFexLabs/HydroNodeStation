@@ -49,9 +49,9 @@ extern "C" {
 /* USER CODE END EC_CAYENNE_LPP */
 
 /*!
- * Defines the application data transmission duty cycle. 10s, value in [s].
+ * Defines the application data transmission duty cycle. 30s, value in [s].
  */
-#define APP_TX_DUTYCYCLE                            10
+#define APP_TX_DUTYCYCLE                            30
 
 /*!
  * LoRaWAN User application port
