@@ -65,13 +65,13 @@ extern "C" {
  * --- PUBLIC CONSTANTS --------------------------------------------------------
  */
 #ifndef MIN_RX_WINDOW_SYMB
-#define MIN_RX_WINDOW_SYMB 6  // default RX symbol window keeps RX2 scheduling intact
+#define MIN_RX_WINDOW_SYMB 6  // open rx window at least 6 symbols
 #endif
 
 #define MAX_RX_WINDOW_SYMB 248  // open rx window at max 248 symbol hardware limitation
 
 #ifndef MIN_RX_WINDOW_DURATION_MS
-#define MIN_RX_WINDOW_DURATION_MS 16  // default minimum duration avoids RX1 overlapping RX2
+#define MIN_RX_WINDOW_DURATION_MS 16  // open rx window at least 16ms
 #endif
 /*
  *-----------------------------------------------------------------------------------

@@ -228,11 +228,7 @@ int32_t RBI_GetRFOMaxPowerConfig(RBI_RFOMaxPowerConfig_TypeDef Config)
    *       on TCXO configuration
    *       on DC/DC configuration
    *       on maximum output power that the board can deliver*/
-  if (Config == RBI_RFO_LP_MAXPOWER)
-  {
-    return 15; /* dBm */
-  }
-  return 22; /* dBm */
+  return BSP_RADIO_GetRFOMaxPowerConfig((BSP_RADIO_RFOMaxPowerConfig_TypeDef) Config);
 #else
   /* 2/ Or implement RBI_RBI_GetRFOMaxPowerConfig here */
   int32_t ret = 0;

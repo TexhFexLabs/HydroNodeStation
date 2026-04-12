@@ -602,21 +602,9 @@ static void EventCallback(void)
     switch (current_event.event_type)
     {
       case SMTC_MODEM_EVENT_RESET:
-      {
-        bool network_type_public = false;
-        smtc_modem_region_t current_region = LORAMAC_REGION_EU868;
-        static const uint8_t join_dr_distribution[SMTC_MODEM_CUSTOM_ADR_DATA_LENGTH] =
-        {
-          0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0
-        };
         APP_LOG(TS_OFF, VLEVEL_M, "Event received: RESET\r\n");
-        APP_LOG(TS_OFF, VLEVEL_M, "Reset counter: %u\r\n", current_event.event_data.reset.count);
 
-        if (IsAllZero(user_dev_eui, sizeof(user_dev_eui)) == true)
-        {
-          GetUniqueId(user_dev_eui);
-        }
+        GetUniqueId(user_dev_eui);
 
         /* Set user credentials */
         ASSERT_SMTC_MODEM_RC(smtc_modem_set_deveui(stack_id, user_dev_eui));
@@ -627,17 +615,6 @@ static void EventCallback(void)
         /* Set user region */
         ASSERT_SMTC_MODEM_RC(smtc_modem_set_region(stack_id, ACTIVE_REGION));
 
-        /* Helium uses public LoRaWAN network settings (public sync word). */
-        ASSERT_SMTC_MODEM_RC(smtc_modem_set_network_type(stack_id, true));
-
-        /* Force robust join attempts at DR0 first to maximize gateway decode probability. */
-        ASSERT_SMTC_MODEM_RC(smtc_modem_adr_set_join_distribution(stack_id, join_dr_distribution));
-
-        ASSERT_SMTC_MODEM_RC(smtc_modem_get_region(stack_id, &current_region));
-        ASSERT_SMTC_MODEM_RC(smtc_modem_get_network_type(stack_id, &network_type_public));
-        APP_LOG(TS_OFF, VLEVEL_M, "Region=%d PublicNetwork=%d CrystalErrorPpm=%u\r\n",
-          current_region, network_type_public, BSP_CRYSTAL_ERROR);
-
         /* Print Security material */
         SecureElementPrintKeys(stack_id);
         CertMode = (smtc_modem_is_certification_port_disabled(STACK_ID)) ? 0 : CertMode;
@@ -647,7 +624,6 @@ static void EventCallback(void)
           ASSERT_SMTC_MODEM_RC(smtc_modem_join_network(stack_id));
         }
         break;
-      }
 
       case SMTC_MODEM_EVENT_ALARM:
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: ALARM\r\n");
@@ -708,7 +684,6 @@ static void EventCallback(void)
       case SMTC_MODEM_EVENT_JOINFAIL:
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: JOINFAIL\r\n");
         smtc_modem_get_status(STACK_ID, &status_mask);
-        APP_LOG(TS_OFF, VLEVEL_M, "JOINFAIL status_mask=0x%08X\r\n", (unsigned int)status_mask);
         /* USER CODE BEGIN EventCallback_4 */
         /* Check if the device has already joined a network */
         if ((!JoinLedTimer.IsRunning) && (status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)

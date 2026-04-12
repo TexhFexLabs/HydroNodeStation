@@ -113,13 +113,8 @@ typedef enum
 
 typedef enum
 {
-#if defined(RADIO_RFO_LP_MAXPOWER) && defined(RADIO_RFO_HP_MAXPOWER)
   RBI_RFO_LP_MAXPOWER = RADIO_RFO_LP_MAXPOWER,
   RBI_RFO_HP_MAXPOWER = RADIO_RFO_HP_MAXPOWER,
-#else
-  RBI_RFO_LP_MAXPOWER = 0,
-  RBI_RFO_HP_MAXPOWER = 1,
-#endif
 } RBI_RFOMaxPowerConfig_TypeDef;
 
 #else

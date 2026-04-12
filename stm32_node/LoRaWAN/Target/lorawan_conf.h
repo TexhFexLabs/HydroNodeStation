@@ -55,13 +55,13 @@ extern "C" {
 /* the region listed here will be linked in the MW code */
 /* the application (on sys_conf.h) shall just configure one region at the time */
 
-/*#define REGION_AS923*/
+#define REGION_AS923
 /*#define REGION_AU915*/
 /*#define REGION_CN470*/
 #define REGION_EU868
 /*#define REGION_KR920*/
 /*#define REGION_IN865*/
-/*#define REGION_US915*/
+#define REGION_US915
 /*#define REGION_RU864*/
 /*#define REGION_CN470_RP_1_0*/
 

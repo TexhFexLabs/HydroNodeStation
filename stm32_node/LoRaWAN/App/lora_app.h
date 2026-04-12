@@ -49,11 +49,6 @@ extern "C" {
 /* USER CODE END EC_CAYENNE_LPP */
 
 /*!
- * Defines the application data transmission duty cycle. 10s, value in [s].
- */
-#define APP_TX_DUTYCYCLE                            20
-
-/*!
  * LoRaWAN User application port
  * @note do not use 224. It is reserved for certification
  */
@@ -64,7 +59,7 @@ extern "C" {
  * ( ex: set 30 for a crystal error = 0.3%).
  * Default value is 10
  */
-#define BSP_CRYSTAL_ERROR                           50
+#define BSP_CRYSTAL_ERROR                           10
 
 /*!
  * LoRaWAN Certification Mode
