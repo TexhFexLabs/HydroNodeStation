@@ -22,4 +22,5 @@
 *.su
 
 # Standalone make build directory
-build/
+stm32_node/.idea/
+stm32_node/build/
