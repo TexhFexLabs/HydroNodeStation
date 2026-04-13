@@ -40,10 +40,8 @@ typedef struct
   float pressure;         /*!< in mbar */
   float temperature;      /*!< in degC */
   float humidity;         /*!< in % */
-  int32_t latitude;       /*!< latitude converted to binary */
-  int32_t longitude;      /*!< longitude converted to binary */
-  int16_t altitudeGps;    /*!< in m */
-  int16_t altitudeBar;    /*!< in m * 10 */
+  float battery_voltage;  /*!< battery voltage in V */
+  uint32_t uv_raw;        /*!< LTR390 UV raw counts */
   /**more may be added*/
   /* USER CODE BEGIN sensor_t */
 

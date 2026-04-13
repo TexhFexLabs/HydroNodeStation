@@ -84,9 +84,6 @@
 #define STSOP_LATTITUDE           ((float) 43.618622 )  /*!< default latitude position */
 #define STSOP_LONGITUDE           ((float) 7.051415  )  /*!< default longitude position */
 #define MAX_GPS_POS               ((int32_t) 8388607 )  /*!< 2^23 - 1 */
-#define HUMIDITY_DEFAULT_VAL      50.0f                 /*!< default humidity */
-#define TEMPERATURE_DEFAULT_VAL   18.0f                 /*!< default temperature */
-#define PRESSURE_DEFAULT_VAL      1000.0f               /*!< default pressure */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -97,20 +94,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
-#if defined (X_NUCLEO_IKS01A2)
-#warning "IKS drivers are today available for several families but not stm32WL"
-#warning "up to the user adapt IKS low layer to map it on WL board driver"
-#warning "this code would work only if user provide necessary IKS and BSP layers"
-IKS01A2_ENV_SENSOR_Capabilities_t EnvCapabilities;
-#elif defined (X_NUCLEO_IKS01A3)
-IKS01A3_ENV_SENSOR_Capabilities_t EnvCapabilities;
-#else  /* not X_IKS01Ax */
-#error "user to include its sensor drivers"
-#endif  /* X_NUCLEO_IKS01 */
-#elif !defined (SENSOR_ENABLED)
-#error SENSOR_ENABLED not defined
-#endif  /* SENSOR_ENABLED */
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -122,37 +106,11 @@ IKS01A3_ENV_SENSOR_Capabilities_t EnvCapabilities;
 int32_t EnvSensors_Read(sensor_t *sensor_data)
 {
   /* USER CODE BEGIN EnvSensors_Read */
-  float HUMIDITY_Value = HUMIDITY_DEFAULT_VAL;
-  float TEMPERATURE_Value = TEMPERATURE_DEFAULT_VAL;
-  float PRESSURE_Value = PRESSURE_DEFAULT_VAL;
-
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
-#if (USE_IKS01A2_ENV_SENSOR_HTS221_0 == 1)
-  IKS01A2_ENV_SENSOR_GetValue(HTS221_0, ENV_HUMIDITY, &HUMIDITY_Value);
-  IKS01A2_ENV_SENSOR_GetValue(HTS221_0, ENV_TEMPERATURE, &TEMPERATURE_Value);
-#endif /* USE_IKS01A2_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A2_ENV_SENSOR_LPS22HB_0 == 1)
-  IKS01A2_ENV_SENSOR_GetValue(LPS22HB_0, ENV_PRESSURE, &PRESSURE_Value);
-  IKS01A2_ENV_SENSOR_GetValue(LPS22HB_0, ENV_TEMPERATURE, &TEMPERATURE_Value);
-#endif /* USE_IKS01A2_ENV_SENSOR_LPS22HB_0 */
-#if (USE_IKS01A3_ENV_SENSOR_HTS221_0 == 1)
-  IKS01A3_ENV_SENSOR_GetValue(IKS01A3_HTS221_0, ENV_HUMIDITY, &HUMIDITY_Value);
-  IKS01A3_ENV_SENSOR_GetValue(IKS01A3_HTS221_0, ENV_TEMPERATURE, &TEMPERATURE_Value);
-#endif /* USE_IKS01A3_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A3_ENV_SENSOR_LPS22HH_0 == 1)
-  IKS01A3_ENV_SENSOR_GetValue(IKS01A3_LPS22HH_0, ENV_PRESSURE, &PRESSURE_Value);
-  IKS01A3_ENV_SENSOR_GetValue(IKS01A3_LPS22HH_0, ENV_TEMPERATURE, &TEMPERATURE_Value);
-#endif /* USE_IKS01A3_ENV_SENSOR_LPS22HH_0 */
-#else
-  TEMPERATURE_Value = (SYS_GetTemperatureLevel() >> 8);
-#endif  /* SENSOR_ENABLED */
-
-  sensor_data->humidity    = HUMIDITY_Value;
-  sensor_data->temperature = TEMPERATURE_Value;
-  sensor_data->pressure    = PRESSURE_Value;
-
-  sensor_data->latitude  = (int32_t)((STSOP_LATTITUDE  * MAX_GPS_POS) / 90);
-  sensor_data->longitude = (int32_t)((STSOP_LONGITUDE  * MAX_GPS_POS) / 180);
+  sensor_data->humidity    = 50.0f;
+  sensor_data->temperature = 18.0f;
+  sensor_data->pressure    = 1000.0f;
+  sensor_data->battery_voltage = 0.0f;
+  sensor_data->uv_raw      = 0U;
 
   return 0;
   /* USER CODE END EnvSensors_Read */

@@ -41,7 +41,10 @@
 #include "stm32_lpm.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "sht45.h"
+#include "bmp390.h"
+#include "ltr390.h"
+#include "max17048.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -329,13 +332,6 @@ static Callbacks_t Callbacks =
   */
 static uint8_t AppDataBuffer[LORAWAN_APP_DATA_BUFFER_MAX_SIZE];
 
-#ifdef CAYENNE_LPP
-/**
-  * @brief Specifies the state of the application LED
-  */
-static uint8_t AppLedStateOn = RESET;
-#endif /*CAYENNE_LPP*/
-
 /**
   * @brief Timer to handle the application Tx Led to toggle
   */
@@ -438,6 +434,38 @@ void LoRaWAN_Init(void)
   /* USER CODE BEGIN LoRaWAN_Init_Last */
   UTIL_TIMER_Start(&JoinLedTimer);
 
+  SHT45_Init();
+  APP_LOG(TS_OFF, VLEVEL_M, "SHT45 initialized (I2C2: PA15=SDA, PB15=SCL)\r\n");
+
+  int32_t bmp390_init_ret = BMP390_Init();
+  if (bmp390_init_ret == BMP390_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "BMP390 initialized (Forced mode, ULP, IIR off)\r\n");
+  }
+  else
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "BMP390 init error: %d\r\n", (int)bmp390_init_ret);
+  }
+
+  int32_t ltr390_init_ret = LTR390_Init();
+  if (ltr390_init_ret == LTR390_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "LTR390 initialized (UVS mode, gain x3, 16-bit)\r\n");
+  }
+  else
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "LTR390 init error: %d\r\n", (int)ltr390_init_ret);
+  }
+
+  int32_t max17048_init_ret = MAX17048_Init();
+  if (max17048_init_ret == MAX17048_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 initialized (battery gauge)\r\n");
+  }
+  else
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 init error: %d\r\n", (int)max17048_init_ret);
+  }
   /* USER CODE END LoRaWAN_Init_Last */
 }
 
@@ -672,7 +700,7 @@ static void EventCallback(void)
       case SMTC_MODEM_EVENT_DOWNDATA:
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: DOWNDATA\r\n");
         /* USER CODE BEGIN EventCallback_3 */
-        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET); /* LED_BLUE */
+        //HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET); /* LED_BLUE */
         UTIL_TIMER_Start(&RxLedTimer);
         /* USER CODE END EventCallback_3 */
         /* Get downlink data */
@@ -810,83 +838,109 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 static void SendTxData(uint8_t port)
 {
   /* USER CODE BEGIN SendTxData_1 */
-  uint8_t batteryLevel = GetBatteryLevel();
   sensor_t sensor_data;
   uint8_t bufferSize = 0;
-  smtc_modem_region_t region = LORAMAC_REGION_EU868;
-
-#ifdef CAYENNE_LPP
-  uint8_t channel = 0;
-#else
-  uint16_t pressure = 0;
-  int16_t temperature = 0;
-  uint16_t humidity = 0;
-  uint32_t i = 0;
-  int32_t latitude = 0;
-  int32_t longitude = 0;
-  uint16_t altitudeGps = 0;
-#endif /* CAYENNE_LPP */
 
   EnvSensors_Read(&sensor_data);
 
-  APP_LOG(TS_ON, VLEVEL_M, "VDDA: %d\r\n", batteryLevel);
-  APP_LOG(TS_ON, VLEVEL_M, "temp: %d\r\n", (int16_t)(sensor_data.temperature));
-
-  smtc_modem_get_region(STACK_ID, &region);
-
-#ifdef CAYENNE_LPP
-  CayenneLppReset();
-  CayenneLppAddBarometricPressure(channel++, sensor_data.pressure);
-  CayenneLppAddTemperature(channel++, sensor_data.temperature);
-  CayenneLppAddRelativeHumidity(channel++, (uint16_t)(sensor_data.humidity));
-
-  if ((region == LORAMAC_REGION_US915) || (region == LORAMAC_REGION_AU915)
-      || (region == LORAMAC_REGION_AS923_GRP1))
+  /* Read SHT45 — overrides default values from EnvSensors_Read */
+  SHT45_Data_t sht45;
+  int32_t sht45_ret = SHT45_Read(&sht45);
+  if (sht45_ret == SHT45_OK)
   {
-    CayenneLppAddDigitalInput(channel++, GetBatteryLevel());
-    CayenneLppAddDigitalOutput(channel++, AppLedStateOn);
-  }
-
-  CayenneLppCopy(AppDataBuffer);
-  bufferSize = CayenneLppGetSize();
-#else  /* not CAYENNE_LPP */
-  humidity    = (uint16_t)(sensor_data.humidity * 10);            /* in %*10     */
-  temperature = (int16_t)(sensor_data.temperature);
-  pressure = (uint16_t)(sensor_data.pressure * 100 / 10); /* in hPa / 10 */
-
-  AppDataBuffer[i++] = HAL_GPIO_ReadPin(LED3_GPIO_Port, LED3_Pin);
-  AppDataBuffer[i++] = (uint8_t)((pressure >> 8) & 0xFF);
-  AppDataBuffer[i++] = (uint8_t)(pressure & 0xFF);
-  AppDataBuffer[i++] = (uint8_t)(temperature & 0xFF);
-  AppDataBuffer[i++] = (uint8_t)((humidity >> 8) & 0xFF);
-  AppDataBuffer[i++] = (uint8_t)(humidity & 0xFF);
-
-  if ((region == LORAMAC_REGION_US915) || (region == LORAMAC_REGION_AU915)
-      || (region == LORAMAC_REGION_AS923_GRP1))
-  {
-    AppDataBuffer[i++] = 0;
-    AppDataBuffer[i++] = 0;
-    AppDataBuffer[i++] = 0;
-    AppDataBuffer[i++] = 0;
+    sensor_data.temperature = sht45.temperature;
+    sensor_data.humidity    = sht45.humidity;
+    /* stm32_tiny_vsnprintf has no %f — split into integer and decimal parts */
+    int16_t  t10  = (int16_t)(sht45.temperature * 10.0f);
+    uint16_t rh10 = (uint16_t)(sht45.humidity   * 10.0f);
+    APP_LOG(TS_ON, VLEVEL_M, "SHT45: T=%d.%d degC  RH=%d.%d%%\r\n",
+            t10 / 10, (t10 < 0 ? -t10 : t10) % 10,
+            rh10 / 10, rh10 % 10);
   }
   else
   {
-    latitude = sensor_data.latitude;
-    longitude = sensor_data.longitude;
-
-    AppDataBuffer[i++] = GetBatteryLevel();        /* 1 (very low) to 254 (fully charged) */
-    AppDataBuffer[i++] = (uint8_t)((latitude >> 16) & 0xFF);
-    AppDataBuffer[i++] = (uint8_t)((latitude >> 8) & 0xFF);
-    AppDataBuffer[i++] = (uint8_t)(latitude & 0xFF);
-    AppDataBuffer[i++] = (uint8_t)((longitude >> 16) & 0xFF);
-    AppDataBuffer[i++] = (uint8_t)((longitude >> 8) & 0xFF);
-    AppDataBuffer[i++] = (uint8_t)(longitude & 0xFF);
-    AppDataBuffer[i++] = (uint8_t)((altitudeGps >> 8) & 0xFF);
-    AppDataBuffer[i++] = (uint8_t)(altitudeGps & 0xFF);
+    APP_LOG(TS_ON, VLEVEL_M, "SHT45 read error: %d\r\n", (int)sht45_ret);
   }
 
-  bufferSize = i;
-#endif /* CAYENNE_LPP */
+  /* Read BMP390 — Forced mode, single measurement, auto-returns to sleep */
+  BMP390_Data_t bmp390;
+  int32_t bmp390_ret = BMP390_Read(&bmp390);
+  if (bmp390_ret == BMP390_OK)
+  {
+    sensor_data.pressure = bmp390.pressure_hPa;
+    /* stm32_tiny_vsnprintf has no %f — split into integer and decimal parts */
+    int32_t  p_int = (int32_t)bmp390.pressure_hPa;
+    uint32_t p_dec = (uint32_t)((bmp390.pressure_hPa - (float)p_int) * 100.0f);
+    int16_t  bt10  = (int16_t)(bmp390.temperature * 10.0f);
+    APP_LOG(TS_ON, VLEVEL_M, "BMP390: P=%d.%02u hPa  T=%d.%d degC\r\n",
+        (int)p_int, (unsigned int)p_dec,
+            bt10 / 10, (bt10 < 0 ? -bt10 : bt10) % 10);
+  }
+  else
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "BMP390 read error: %d\r\n", (int)bmp390_ret);
+  }
+
+  LTR390_Data_t ltr390;
+  int32_t ltr390_ret = LTR390_ReadUV(&ltr390);
+  if (ltr390_ret == LTR390_OK)
+  {
+    sensor_data.uv_raw = ltr390.uvs_raw;
+    uint16_t uvi100 = (uint16_t)(ltr390.uvi_est * 100.0f);
+    APP_LOG(TS_ON, VLEVEL_M, "LTR390: UVS=%u  UVI~%d.%02d\r\n",
+            (unsigned int)ltr390.uvs_raw,
+            uvi100 / 100,
+            uvi100 % 100);
+  }
+  else
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "LTR390 read error: %d\r\n", (int)ltr390_ret);
+  }
+
+  MAX17048_Data_t max17048;
+  int32_t max17048_ret = MAX17048_Read(&max17048);
+  if (max17048_ret == MAX17048_OK)
+  {
+    sensor_data.battery_voltage = max17048.voltage_v;
+    APP_LOG(TS_ON, VLEVEL_M, "MAX17048: VBAT=%d.%03d V\r\n",
+            (int)max17048.voltage_mv / 1000,
+            (int)max17048.voltage_mv % 1000);
+  }
+  else
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "MAX17048 read error: %d\r\n", (int)max17048_ret);
+  }
+
+  APP_LOG(TS_ON, VLEVEL_M, "VDDA: %d\r\n", GetBatteryLevel());
+  APP_LOG(TS_ON, VLEVEL_M, "temp: %d\r\n", (int16_t)(sensor_data.temperature));
+
+  enum
+  {
+    LPP_CH_PRESSURE = 0,
+    LPP_CH_TEMPERATURE,
+    LPP_CH_HUMIDITY,
+    LPP_CH_UV_RAW,
+    LPP_CH_BATTERY_V,
+  };
+
+  CayenneLppReset();
+
+  /* Fixed CayenneLPP mapping:
+   * ch0 pressure (BMP390), ch1 temperature (SHT45), ch2 humidity (SHT45),
+    * ch3 UV raw (LTR390, carried as luminosity), ch4 battery voltage (MAX17048). */
+  CayenneLppAddBarometricPressure(LPP_CH_PRESSURE, sensor_data.pressure);
+  CayenneLppAddTemperature(LPP_CH_TEMPERATURE, sensor_data.temperature);
+  CayenneLppAddRelativeHumidity(LPP_CH_HUMIDITY, sensor_data.humidity);
+
+  /* Use LPP luminosity field to carry LTR390 UV raw counts (16-bit configured range). */
+  CayenneLppAddLuminosity(LPP_CH_UV_RAW,
+                          (sensor_data.uv_raw > 65535U) ? 65535U : (uint16_t)sensor_data.uv_raw);
+
+  /* Battery voltage from MAX17048 on Analog Input (0.01 V resolution in CayenneLPP). */
+  CayenneLppAddAnalogInput(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
+
+  CayenneLppCopy(AppDataBuffer);
+  bufferSize = CayenneLppGetSize();
 
   if (JoinLedTimer.IsRunning)
   {
@@ -935,7 +989,7 @@ static void OnTxTimerLedEvent(void *context)
 
 static void OnRxTimerLedEvent(void *context)
 {
-  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET); /* LED_BLUE */
+  //HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET); /* LED_BLUE */
 }
 
 static void OnJoinTimerLedEvent(void *context)
