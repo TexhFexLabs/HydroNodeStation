@@ -35,6 +35,10 @@
 #define SHT45_CRC_POLY       (0x31U)
 #define SHT45_CRC_INIT       (0xFFU)
 
+#ifndef SHT45_ERR_PARAM
+#define SHT45_ERR_PARAM      (-3)
+#endif
+
 /* -------------------------------------------------------------------------- */
 /* Private helpers                                                            */
 /* -------------------------------------------------------------------------- */
@@ -82,6 +86,11 @@ int32_t SHT45_Read(SHT45_Data_t *data)
     uint8_t cmd = SHT45_CMD_MEAS_HIGH;
     uint8_t buf[6];
     float rh;
+
+    if (data == NULL)
+    {
+        return SHT45_ERR_PARAM;
+    }
 
     /* 1. Trigger single-shot measurement ------------------------------------ */
     status = HAL_I2C_Master_Transmit(&hi2c2,
