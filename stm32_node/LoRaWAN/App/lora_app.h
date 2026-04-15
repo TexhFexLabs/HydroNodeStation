@@ -43,11 +43,17 @@ extern "C" {
 
 /* USER CODE BEGIN EC_CAYENNE_LPP */
 /*!
- * Defines the application data transmission duty cycle in seconds.
- */
-#define APP_TX_DUTYCYCLE                            30
-/* USER CODE END EC_CAYENNE_LPP */
+  * Defines the application data transmission duty cycle in seconds.
+  */
+#define APP_TX_DUTYCYCLE                            300
 
+/**
+  * @brief SCD41 pre-measurement time in milliseconds.
+  * @note This is the time the node wakes up before the uplink to start the CO2 measurement.
+  */
+#define SCD41_PRE_MEASUREMENT_TIME_MS               5500
+
+/* USER CODE END EC_CAYENNE_LPP */
 /*!
  * LoRaWAN User application port
  * @note do not use 224. It is reserved for certification

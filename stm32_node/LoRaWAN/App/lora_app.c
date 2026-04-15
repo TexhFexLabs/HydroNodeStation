@@ -41,11 +41,7 @@
 #include "stm32_lpm.h"
 
 /* USER CODE BEGIN Includes */
-#include "sht45.h"
-#include "bmp390.h"
-#include "ltr390.h"
-#include "max17048.h"
-#include "scd41.h"
+
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -255,6 +251,12 @@ static void OnRxTimerLedEvent(void *context);
   */
 static void OnJoinTimerLedEvent(void *context);
 
+/**
+  * @brief  SCD41 pre-measurement timer callback function
+  * @param  context ptr
+  */
+static void OnScd41TimerEvent(void *context);
+
 /* USER CODE END PFP */
 
 /* Private variables ---------------------------------------------------------*/
@@ -286,6 +288,10 @@ static smtc_modem_dl_metadata_t rx_metadata     = { 0 };
   */
 static uint8_t                  rx_remaining    = 0;
 
+/**
+ * @brief TX counter
+ */
+static uint8_t                  tx_counter    = 0U;
 /**
   * @brief  Flag for button status
   */
@@ -347,6 +353,11 @@ static UTIL_TIMER_Object_t RxLedTimer;
   * @brief Timer to handle the application Join Led to toggle
   */
 static UTIL_TIMER_Object_t JoinLedTimer;
+
+/**
+  * @brief Timer to trigger SCD41 pre-measurement
+  */
+static UTIL_TIMER_Object_t Scd41Timer;
 
 /* USER CODE END PV */
 
@@ -410,6 +421,7 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Create(&TxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnTxTimerLedEvent, NULL);
   UTIL_TIMER_Create(&RxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
   UTIL_TIMER_Create(&JoinLedTimer, LED_PERIOD_TIME, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
+  UTIL_TIMER_Create(&Scd41Timer, SCD41_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnScd41TimerEvent, NULL);
 
   /* USER CODE END LoRaWAN_Init_1 */
 
@@ -435,48 +447,7 @@ void LoRaWAN_Init(void)
   /* USER CODE BEGIN LoRaWAN_Init_Last */
   UTIL_TIMER_Start(&JoinLedTimer);
 
-  SHT45_Init();
-  APP_LOG(TS_OFF, VLEVEL_M, "SHT45 initialized (I2C2: PA15=SDA, PB15=SCL)\r\n");
-
-  int32_t bmp390_init_ret = BMP390_Init();
-  if (bmp390_init_ret == BMP390_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "BMP390 initialized (Forced mode, ULP, IIR off)\r\n");
-  }
-  else
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "BMP390 init error: %d\r\n", (int)bmp390_init_ret);
-  }
-
-  int32_t ltr390_init_ret = LTR390_Init();
-  if (ltr390_init_ret == LTR390_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "LTR390 initialized (UVS mode, gain x3, 16-bit)\r\n");
-  }
-  else
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "LTR390 init error: %d\r\n", (int)ltr390_init_ret);
-  }
-
-  int32_t max17048_init_ret = MAX17048_Init();
-  if (max17048_init_ret == MAX17048_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 initialized (battery gauge)\r\n");
-  }
-  else
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 init error: %d\r\n", (int)max17048_init_ret);
-  }
-
-  int32_t scd41_init_ret = SCD41_Init();
-  if (scd41_init_ret == SCD41_STATUS_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 initialized (single-shot mode)\r\n");
-  }
-  else
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 init error: %d\r\n", (int)scd41_init_ret);
-  }
+  EnvSensors_Init();
   /* USER CODE END LoRaWAN_Init_Last */
 }
 
@@ -852,100 +823,27 @@ static void SendTxData(uint8_t port)
   sensor_t sensor_data;
   uint8_t bufferSize = 0;
 
-  EnvSensors_Read(&sensor_data);
-
-  /* Read SHT45 — overrides default values from EnvSensors_Read */
-  SHT45_Data_t sht45;
-  int32_t sht45_ret = SHT45_Read(&sht45);
-  if (sht45_ret == SHT45_OK)
+  /* Increment tx_counter */
+  tx_counter++;
+  if (tx_counter > 6U)
   {
-    sensor_data.temperature = sht45.temperature;
-    sensor_data.humidity    = sht45.humidity;
-    /* stm32_tiny_vsnprintf has no %f — split into integer and decimal parts */
-    int16_t  t10  = (int16_t)(sht45.temperature * 10.0f);
-    uint16_t rh10 = (uint16_t)(sht45.humidity   * 10.0f);
-    APP_LOG(TS_ON, VLEVEL_M, "SHT45: T=%d.%d degC  RH=%d.%d%%\r\n",
-            t10 / 10, (t10 < 0 ? -t10 : t10) % 10,
-            rh10 / 10, rh10 % 10);
-  }
-  else
-  {
-    APP_LOG(TS_ON, VLEVEL_M, "SHT45 read error: %d\r\n", (int)sht45_ret);
+    tx_counter = 1U;
   }
 
-  /* Read BMP390 — Forced mode, single measurement, auto-returns to sleep */
-  BMP390_Data_t bmp390;
-  int32_t bmp390_ret = BMP390_Read(&bmp390);
-  if (bmp390_ret == BMP390_OK)
-  {
-    sensor_data.pressure = bmp390.pressure_hPa;
-    /* stm32_tiny_vsnprintf has no %f — split into integer and decimal parts */
-    int32_t  p_int = (int32_t)bmp390.pressure_hPa;
-    uint32_t p_dec = (uint32_t)((bmp390.pressure_hPa - (float)p_int) * 100.0f);
-    int16_t  bt10  = (int16_t)(bmp390.temperature * 10.0f);
-    APP_LOG(TS_ON, VLEVEL_M, "BMP390: P=%d.%02u hPa  T=%d.%d degC\r\n",
-        (int)p_int, (unsigned int)p_dec,
-            bt10 / 10, (bt10 < 0 ? -bt10 : bt10) % 10);
-  }
-  else
-  {
-    APP_LOG(TS_ON, VLEVEL_M, "BMP390 read error: %d\r\n", (int)bmp390_ret);
-  }
+  /* Determine which sensors to read this cycle */
+  uint8_t sensor_flags = 0U;
+  if (tx_counter % 3U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
+  if (tx_counter % 6U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
 
-  LTR390_Data_t ltr390;
-  int32_t ltr390_ret = LTR390_ReadUV(&ltr390);
-  if (ltr390_ret == LTR390_OK)
-  {
-    sensor_data.uv_raw = ltr390.uvs_raw;
-    uint16_t uvi100 = (uint16_t)(ltr390.uvi_est * 100.0f);
-    APP_LOG(TS_ON, VLEVEL_M, "LTR390: UVS=%u  UVI~%d.%02d\r\n",
-            (unsigned int)ltr390.uvs_raw,
-            uvi100 / 100,
-            uvi100 % 100);
-  }
-  else
-  {
-    APP_LOG(TS_ON, VLEVEL_M, "LTR390 read error: %d\r\n", (int)ltr390_ret);
-  }
+  /* Read sensors */
+  EnvSensors_Read(&sensor_data, sensor_flags);
 
-  MAX17048_Data_t max17048;
-  int32_t max17048_ret = MAX17048_Read(&max17048);
-  if (max17048_ret == MAX17048_OK)
-  {
-    sensor_data.battery_voltage = max17048.voltage_v;
-    APP_LOG(TS_ON, VLEVEL_M, "MAX17048: VBAT=%d.%03d V\r\n",
-            (int)max17048.voltage_mv / 1000,
-            (int)max17048.voltage_mv % 1000);
-  }
-  else
-  {
-    APP_LOG(TS_ON, VLEVEL_M, "MAX17048 read error: %d\r\n", (int)max17048_ret);
-  }
-
-  int32_t scd41_start_ret = SCD41_StartCo2SingleShot();
-  if (scd41_start_ret == SCD41_STATUS_OK)
-  {
-    uint16_t scd41_co2_ppm = 0U;
-    int32_t scd41_read_ret;
-
-    HAL_Delay(SCD41_SINGLE_SHOT_WAIT_MS);
-    scd41_read_ret = SCD41_ReadCo2SingleShot(&scd41_co2_ppm, NULL, NULL);
-    if (scd41_read_ret == SCD41_STATUS_OK)
-    {
-      APP_LOG(TS_ON, VLEVEL_M, "SCD41: CO2=%u ppm\r\n", (unsigned int)scd41_co2_ppm);
-    }
-    else
-    {
-      APP_LOG(TS_ON, VLEVEL_M, "SCD41 read error: %d\r\n", (int)scd41_read_ret);
-    }
-  }
-  else
-  {
-    APP_LOG(TS_ON, VLEVEL_M, "SCD41 start error: %d\r\n", (int)scd41_start_ret);
-  }
-
-  APP_LOG(TS_ON, VLEVEL_M, "VDDA: %d\r\n", GetBatteryLevel());
-  APP_LOG(TS_ON, VLEVEL_M, "temp: %d\r\n", (int16_t)(sensor_data.temperature));
+  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d.%d degC, RH=%d.%d%%, P=%d hPa, VBAT=%d.%03d V, CO2=%u ppm\r\n",
+          (int)sensor_data.temperature, (int)(sensor_data.temperature * 10) % 10,
+          (int)sensor_data.humidity, (int)(sensor_data.humidity * 10) % 10,
+          (int)sensor_data.pressure,
+          (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 1000) % 1000,
+          (unsigned int)sensor_data.co2_ppm);
 
   enum
   {
@@ -954,23 +852,16 @@ static void SendTxData(uint8_t port)
     LPP_CH_HUMIDITY,
     LPP_CH_UV_RAW,
     LPP_CH_BATTERY_V,
+    LPP_CH_CO2,
   };
 
   CayenneLppReset();
-
-  /* Fixed CayenneLPP mapping:
-   * ch0 pressure (BMP390), ch1 temperature (SHT45), ch2 humidity (SHT45),
-    * ch3 UV raw (LTR390, carried as luminosity), ch4 battery voltage (MAX17048). */
   CayenneLppAddBarometricPressure(LPP_CH_PRESSURE, sensor_data.pressure);
   CayenneLppAddTemperature(LPP_CH_TEMPERATURE, sensor_data.temperature);
   CayenneLppAddRelativeHumidity(LPP_CH_HUMIDITY, sensor_data.humidity);
-
-  /* Use LPP luminosity field to carry LTR390 UV raw counts (16-bit configured range). */
-  CayenneLppAddLuminosity(LPP_CH_UV_RAW,
-                          (sensor_data.uv_raw > 65535U) ? 65535U : (uint16_t)sensor_data.uv_raw);
-
-  /* Battery voltage from MAX17048 on Analog Input (0.01 V resolution in CayenneLPP). */
+  CayenneLppAddLuminosity(LPP_CH_UV_RAW, (uint16_t)sensor_data.uv_raw);
   CayenneLppAddAnalogInput(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
+  CayenneLppAddLuminosity(LPP_CH_CO2, sensor_data.co2_ppm);
 
   CayenneLppCopy(AppDataBuffer);
   bufferSize = CayenneLppGetSize();
@@ -978,7 +869,7 @@ static void SendTxData(uint8_t port)
   if (JoinLedTimer.IsRunning)
   {
     UTIL_TIMER_Stop(&JoinLedTimer);
-    HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET); /* LED_RED */
+    HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
   }
 
   ASSERT_SMTC_MODEM_RC(smtc_modem_request_uplink(STACK_ID, port, false, AppDataBuffer, bufferSize));
@@ -987,15 +878,21 @@ static void SendTxData(uint8_t port)
   {
     smtc_modem_status_mask_t status_mask = 0;
     smtc_modem_get_status(STACK_ID, &status_mask);
-    /* Restart periodical uplink alarm */
-    /* It is set value by default APP_TX_DUTYCYCLE. If Certification mode is enabled or during join phase, the time is 10s */
-    if (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED))
+    uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : APP_TX_DUTYCYCLE;
+
+    ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
+
+    /* Schedule pre-measurement for next TX if it will be a CO2 cycle */
+    uint8_t next_counter = (tx_counter % 6U) + 1U;
+    if (next_counter % 3U == 0U)
     {
-      ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(CERT_TX_DUTYCYCLE));
+      UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U) - SCD41_PRE_MEASUREMENT_TIME_MS);
+      UTIL_TIMER_Start(&Scd41Timer);
     }
-    else
+
+    if (next_counter % 6U == 0U)
     {
-      ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(APP_TX_DUTYCYCLE));
+      /* dummy: start SPS30 timer */
     }
   }
   /* USER CODE END SendTxData_1 */
@@ -1028,6 +925,12 @@ static void OnRxTimerLedEvent(void *context)
 static void OnJoinTimerLedEvent(void *context)
 {
   HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin); /* LED_RED */
+}
+
+static void OnScd41TimerEvent(void *context)
+{
+  APP_LOG(TS_ON, VLEVEL_M, "SCD41 pre-measurement started\r\n");
+  EnvSensors_StartPreMeasurement(SENSOR_FLAG_CO2);
 }
 
 /* USER CODE END PrFD_LedEvents */

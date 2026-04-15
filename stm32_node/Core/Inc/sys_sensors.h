@@ -42,10 +42,7 @@ typedef struct
   float humidity;         /*!< in % */
   float battery_voltage;  /*!< battery voltage in V */
   uint32_t uv_raw;        /*!< LTR390 UV raw counts */
-  /**more may be added*/
-  /* USER CODE BEGIN sensor_t */
-
-  /* USER CODE END sensor_t */
+  uint16_t co2_ppm;       /*!< SCD41 CO2 in ppm */
 } sensor_t;
 
 /* USER CODE BEGIN ET */
@@ -55,10 +52,6 @@ typedef struct
 /* Exported constants --------------------------------------------------------*/
 
 /* USER CODE BEGIN EC */
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1) && defined (X_NUCLEO_IKS01A2)
-#define HTS221_0    0U
-#define LPS22HB_0   1U
-#endif /* SENSOR_ENABLED & X_NUCLEO_IKS01A2 */
 /* USER CODE END EC */
 
 /* External variables --------------------------------------------------------*/
@@ -77,14 +70,21 @@ typedef struct
   */
 int32_t EnvSensors_Init(void);
 
-/**
-  * @brief  Environmental sensor  read.
-  * @param  sensor_data sensor data
-  */
-int32_t EnvSensors_Read(sensor_t *sensor_data);
-
 /* USER CODE BEGIN EFP */
+/* USER CODE BEGIN sensor_flags */
+#define SENSOR_FLAG_CO2   (1U << 0)   /*!< Read SCD41 CO2 this cycle */
+#define SENSOR_FLAG_SPS30 (1U << 1)   /*!< Read SPS30 particulates this cycle */
+/* USER CODE END sensor_flags */
 
+/**
+  * @brief  Environmental sensor read.
+  */
+int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags);
+
+/**
+  * @brief  Start pre-measurement
+  */
+int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus
