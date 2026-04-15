@@ -45,6 +45,7 @@
 #include "bmp390.h"
 #include "ltr390.h"
 #include "max17048.h"
+#include "scd41.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -465,6 +466,16 @@ void LoRaWAN_Init(void)
   else
   {
     APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 init error: %d\r\n", (int)max17048_init_ret);
+  }
+
+  int32_t scd41_init_ret = SCD41_Init();
+  if (scd41_init_ret == SCD41_STATUS_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 initialized (single-shot mode)\r\n");
+  }
+  else
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 init error: %d\r\n", (int)scd41_init_ret);
   }
   /* USER CODE END LoRaWAN_Init_Last */
 }
@@ -909,6 +920,28 @@ static void SendTxData(uint8_t port)
   else
   {
     APP_LOG(TS_ON, VLEVEL_M, "MAX17048 read error: %d\r\n", (int)max17048_ret);
+  }
+
+  int32_t scd41_start_ret = SCD41_StartCo2SingleShot();
+  if (scd41_start_ret == SCD41_STATUS_OK)
+  {
+    uint16_t scd41_co2_ppm = 0U;
+    int32_t scd41_read_ret;
+
+    HAL_Delay(SCD41_SINGLE_SHOT_WAIT_MS);
+    scd41_read_ret = SCD41_ReadCo2SingleShot(&scd41_co2_ppm, NULL, NULL);
+    if (scd41_read_ret == SCD41_STATUS_OK)
+    {
+      APP_LOG(TS_ON, VLEVEL_M, "SCD41: CO2=%u ppm\r\n", (unsigned int)scd41_co2_ppm);
+    }
+    else
+    {
+      APP_LOG(TS_ON, VLEVEL_M, "SCD41 read error: %d\r\n", (int)scd41_read_ret);
+    }
+  }
+  else
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "SCD41 start error: %d\r\n", (int)scd41_start_ret);
   }
 
   APP_LOG(TS_ON, VLEVEL_M, "VDDA: %d\r\n", GetBatteryLevel());
