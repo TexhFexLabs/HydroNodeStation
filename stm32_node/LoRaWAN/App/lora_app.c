@@ -448,6 +448,7 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Start(&JoinLedTimer);
 
   EnvSensors_Init();
+  APP_LOG(TS_OFF, VLEVEL_M, "Sensors initialized\r\n");
   /* USER CODE END LoRaWAN_Init_Last */
 }
 

@@ -116,7 +116,7 @@ void SystemApp_Init(void)
   SYS_InitMeasurement();
 
   /*Initialize the Sensors */
-  EnvSensors_Init();
+  //EnvSensors_Init();
 
   /*Init low power manager*/
   UTIL_LPM_Init();
