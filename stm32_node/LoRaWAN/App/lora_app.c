@@ -38,6 +38,7 @@
 #include "flash_if.h"
 #include "rng.h"
 #include "lorawan_api.h"
+#include "sps30.h"
 #include "stm32_lpm.h"
 
 /* USER CODE BEGIN Includes */
@@ -488,7 +489,7 @@ void LoRaWAN_Init(void)
   EnvSensors_Read(&init_sensor_data, 0U); // Just read battery
   if (init_sensor_data.battery_voltage > 4.00f)
   {
-    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%.2fV)\r\n", init_sensor_data.battery_voltage);
+    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)init_sensor_data.battery_voltage, (int)(init_sensor_data.battery_voltage * 100) % 100);
     if (SPS30_WakeUp() == SPS30_STATUS_OK)
     {
        (void)SPS30_StartMeasurement();
@@ -496,7 +497,7 @@ void LoRaWAN_Init(void)
        HAL_Delay(100); // Small delay for command
        (void)SPS30_StopMeasurement();
        (void)SPS30_Sleep();
-       last_sps30_clean_timestamp = SysTimeGet().Seconds;
+        last_sps30_clean_timestamp = SysTimeGet().Seconds;
     }
   }
 
@@ -945,12 +946,15 @@ static void SendTxData(uint8_t port)
     if (((current_time_s - last_sps30_clean_timestamp) > (SPS30_FAN_CLEAN_INTERVAL_HOURS * 3600U)) &&
         (sensor_data.battery_voltage > 4.12f))
     {
-      APP_LOG(TS_ON, VLEVEL_M, "Manual SPS30 fan cleaning triggered (VBat=%.2fV)\r\n", sensor_data.battery_voltage);
+      APP_LOG(TS_OFF, VLEVEL_M, "Manual SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 100) % 100);
       if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)
       {
         last_sps30_clean_timestamp = current_time_s;
         UTIL_TIMER_Start(&Sps30CleanupTimer);
         cleaning_triggered = true;
+      } else
+      {
+        APP_LOG(TS_OFF, VLEVEL_M, "Failed to start SPS30 fan cleaning\r\n");
       }
     }
 
