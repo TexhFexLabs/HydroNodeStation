@@ -20,8 +20,52 @@
 /* Includes ------------------------------------------------------------------*/
 #include "i2c.h"
 
-/* USER CODE BEGIN 0 */
+#include "sys_app.h"
 
+/* USER CODE BEGIN 0 */
+/**
+ * @brief  I2C Bus Recovery: Toggles SCL 9 times to free a stuck SDA line.
+ */
+void I2C2_RecoverBus(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* 1. De-initialize I2C2 */
+  HAL_I2C_DeInit(&hi2c2);
+
+  /* 2. Configure SCL and SDA as GPIO Outputs */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /* PA15: SDA, PB15: SCL */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); /* SDA */
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct); /* SCL */
+
+  /* 3. Toggle SCL 9 times */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_SET); /* SDA high */
+  for (int i = 0; i < 9; i++)
+  {
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
+    HAL_Delay(10);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+    HAL_Delay(10);
+  }
+
+  /* 4. Generate a STOP condition manually */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_RESET);
+  HAL_Delay(10);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_Delay(10);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_Delay(10);
+
+  /* 5. Re-initialize I2C2 */
+  MX_I2C2_Init();
+}
 /* USER CODE END 0 */
 
 I2C_HandleTypeDef hi2c2;
@@ -48,21 +92,21 @@ void MX_I2C2_Init(void)
   hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   if (HAL_I2C_Init(&hi2c2) != HAL_OK)
   {
-    Error_Handler();
+    APP_LOG(TS_OFF, VLEVEL_M, "I2C2 Init Failed\r\n");
   }
 
   /** Configure Analogue filter
   */
   if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
   {
-    Error_Handler();
+    APP_LOG(TS_OFF, VLEVEL_M, "I2C2 Analog Filter Config Failed\r\n");
   }
 
   /** Configure Digital filter
   */
   if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
   {
-    Error_Handler();
+    APP_LOG(TS_OFF, VLEVEL_M, "I2C2 Digital Filter Config Failed\r\n");
   }
   /* USER CODE BEGIN I2C2_Init 2 */
 

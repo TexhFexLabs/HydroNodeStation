@@ -74,10 +74,18 @@ static uint8_t sht45_crc8(uint8_t byte1, uint8_t byte2)
 /* Public API                                                                 */
 /* -------------------------------------------------------------------------- */
 
-void SHT45_Init(void)
+int32_t SHT45_Init(void)
 {
+    HAL_StatusTypeDef status;
+
     /* I2C2 is initialised by MX_I2C2_Init() before this call.
-       No sensor-side initialisation needed — SHT45 is ready after power-up. */
+       SHT45 needs no init command, so we just probe address 0x44. */
+    status = HAL_I2C_IsDeviceReady(&hi2c2,
+                                   (uint16_t)(SHT45_I2C_ADDR << 1U),
+                                   2U,
+                                   SHT45_I2C_TIMEOUT_MS);
+
+    return (status == HAL_OK) ? SHT45_OK : SHT45_ERR_I2C;
 }
 
 int32_t SHT45_Read(SHT45_Data_t *data)

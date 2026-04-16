@@ -116,7 +116,7 @@ void SystemApp_Init(void)
   SYS_InitMeasurement();
 
   /*Initialize the Sensors */
-  EnvSensors_Init();
+  //EnvSensors_Init();
 
   /*Init low power manager*/
   UTIL_LPM_Init();
@@ -189,7 +189,7 @@ int16_t GetTemperatureLevel(void)
 
   sensor_t sensor_data;
 
-  EnvSensors_Read(&sensor_data);
+  EnvSensors_Read(&sensor_data, 0U);
   temperatureLevel = (int16_t)(sensor_data.temperature);
   /* USER CODE BEGIN GetTemperatureLevel */
 

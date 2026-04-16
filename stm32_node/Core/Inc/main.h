@@ -86,7 +86,8 @@ void Error_Handler(void);
 #define USARTx_TX_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
-
+#define LED1_Pin GPIO_PIN_5
+#define LED1_GPIO_Port GPIOB
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

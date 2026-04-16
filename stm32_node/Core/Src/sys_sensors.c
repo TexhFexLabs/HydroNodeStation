@@ -23,49 +23,16 @@
 #include "platform.h"
 #include "sys_conf.h"
 #include "sys_sensors.h"
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 0)
-#include "adc_if.h"
-#endif /* SENSOR_ENABLED */
 
 /* USER CODE BEGIN Includes */
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
-#if defined (X_NUCLEO_IKS01A2)
-#warning "IKS drivers are today available for several families but not stm32WL"
-#warning "up to the user adapt IKS low layer to map it on WL board driver"
-#warning "this code would work only if user provide necessary IKS and BSP layers"
-#include "iks01a2_env_sensors.h"
-#elif defined (X_NUCLEO_IKS01A3)
-
-/*
-## How to add IKS01A3 to STM32CubeWL
-   Note that LoRaWAN_End_Node Example is used as an example for steps below.
- 1. Open the LoRaWAN_End_Node CubeMX project by double-clicking on the LoRaWAN_End_Node.ioc under "STM32Cube_FW_WL_V1.x.x\Projects\NUCLEO-WL55JC\Applications\LoRaWAN\LoRaWAN_End_Node"
- 2. From the CubeMX project, click on "Software Packs"->"Manage Software Packs" to open the Embedded Software Packages Manager. Then, click on the "STMicroelectronics" tab, expand the X-CUBE-MEMS1, check the latest version of this pack (i.e. 9.0.0), and install. Then, close the Embedded Software Packages Manager.
- 3. From the CubeMX project, click on "Software Packs"->"Select Components" to open the Software Packs Component Selector, expand the X-CUBE-MEMS1 pack and select the "Board Extension IKS01A3" component by checking the respective box, and click OK.
- 4. From the CubeMX project, expand the "Connectivity" category and enable I2C2 on pins PA11 (I2C2_SDA) and PA12 (I2C2_SCK).
- 5. From the CubeMX project, expand the "Software Packs" category and enable the "Board Extension IKS01A3" by checking the box, and choose I2C2 under the "Found Solutions" menu.
- 6. From the CubeMX project, click the "Project Manager" section
-    - From the "Project Settings" section, select your Toolchain/IDE of choice (if CubeIDE, uncheck the "Generator Under Root" option).
-    - From the "Code Generator" section, select "Copy only the necessary library files".
- 7. Click "GENERATE CODE" to generate the code project with the MEMS drivers integrated.
- 8. From the code project, find and open the sys_conf.h and make the following edits
-    - Set the #define SENSOR_ENABLED to 1
-    - Set the #define LOW_POWER_DISABLE to 1 to prevent the device from entering low power mode. This is needed, since the I2C2 requires handling when exiting low power modes, so to prevent issues, best is to disable low power mode, however, if low power mode is desired, you'll have to re-initialize the I2C2 from PWR_ExitStopMode() in stm32_lpm_if.c, so you can just call HAL_I2C_Init() from there.
- 9. From the code project, find and open lora_app.h, and uncomment the following line
-    #define CAYENNE_LPP
- 10. From the code project properties, add X_NUCLEO_IKS01A3 Pre-processor Defined symbol.
- 11. Save all changes and build project
- 12. Connect the X-NUCLEO-IKS01A3 expansion board on the NUCLEO-WL55JC1
- 13. Load and run the code
-*/
-#warning "IKS drivers are today available for several families but not stm32WL, follow steps defined in sys_sensors.c"
-#include "iks01a3_env_sensors.h"
-#else  /* not X_IKS01xx */
-#error "user to include its sensor drivers"
-#endif  /* X_NUCLEO_IKS01xx */
-#elif !defined (SENSOR_ENABLED)
-#error SENSOR_ENABLED not defined
-#endif  /* SENSOR_ENABLED */
+#include "sht45.h"
+#include "bmp390.h"
+#include "ltr390.h"
+#include "max17048.h"
+#include "scd41.h"
+#include "i2c.h"
+#include "sys_app.h"
+#include "adc_if.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -81,9 +48,6 @@
 /* Private define ------------------------------------------------------------*/
 
 /* USER CODE BEGIN PD */
-#define STSOP_LATTITUDE           ((float) 43.618622 )  /*!< default latitude position */
-#define STSOP_LONGITUDE           ((float) 7.051415  )  /*!< default longitude position */
-#define MAX_GPS_POS               ((int32_t) 8388607 )  /*!< 2^23 - 1 */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -94,7 +58,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,14 +66,74 @@
 /* USER CODE END PFP */
 
 /* Exported functions --------------------------------------------------------*/
-int32_t EnvSensors_Read(sensor_t *sensor_data)
+int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
 {
   /* USER CODE BEGIN EnvSensors_Read */
-  sensor_data->humidity    = 50.0f;
-  sensor_data->temperature = 18.0f;
-  sensor_data->pressure    = 1000.0f;
-  sensor_data->battery_voltage = 0.0f;
-  sensor_data->uv_raw      = 0U;
+  if (sensor_data == NULL)
+  {
+    return -1;
+  }
+
+  /* Default values */
+  sensor_data->humidity         = 0.0f;
+  sensor_data->temperature      = 0.0f;
+  sensor_data->pressure         = 0.0f;
+  sensor_data->battery_voltage  = 0.0f;
+  sensor_data->uv_raw           = 0U;
+  sensor_data->co2_ppm          = 0U;
+
+  /* 1. Read SHT45 */
+  SHT45_Data_t sht45;
+  if (SHT45_Read(&sht45) == SHT45_OK)
+  {
+    sensor_data->temperature = sht45.temperature;
+    sensor_data->humidity    = sht45.humidity;
+  }
+  else
+  {
+    I2C2_RecoverBus();
+  }
+
+  /* 2. Read BMP390 */
+  BMP390_Data_t bmp390;
+  if (BMP390_Read(&bmp390) == BMP390_OK)
+  {
+    sensor_data->pressure = bmp390.pressure_hPa;
+  }
+  else
+  {
+    I2C2_RecoverBus();
+  }
+
+  /* 3. Read LTR390 */
+  LTR390_Data_t ltr390;
+  if (LTR390_ReadUV(&ltr390) == LTR390_OK)
+  {
+    sensor_data->uv_raw = ltr390.uvs_raw;
+  }
+
+  /* 4. Read MAX17048 */
+  MAX17048_Data_t max17048;
+  if (MAX17048_Read(&max17048) == MAX17048_OK)
+  {
+    sensor_data->battery_voltage = max17048.voltage_v;
+  }
+
+  /* 5. Read SCD41 */
+  if (sensor_flags & SENSOR_FLAG_CO2)
+  {
+    uint16_t scd41_co2_ppm = 0U;
+    if (SCD41_ReadCo2SingleShot(&scd41_co2_ppm, NULL, NULL) == SCD41_STATUS_OK)
+    {
+      sensor_data->co2_ppm = scd41_co2_ppm;
+    }
+  }
+
+  /* 6. Read SPS30 */
+  if (sensor_flags & SENSOR_FLAG_SPS30)
+  {
+    /* TODO: implement SPS30 reading */
+  }
 
   return 0;
   /* USER CODE END EnvSensors_Read */
@@ -118,128 +141,49 @@ int32_t EnvSensors_Read(sensor_t *sensor_data)
 
 int32_t EnvSensors_Init(void)
 {
-  int32_t ret = 0;
   /* USER CODE BEGIN EnvSensors_Init */
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
-  /* Init */
-#if (USE_IKS01A2_ENV_SENSOR_HTS221_0 == 1)
-  ret = IKS01A2_ENV_SENSOR_Init(HTS221_0, ENV_TEMPERATURE | ENV_HUMIDITY);
-  if (ret != BSP_ERROR_NONE)
+  if (SHT45_Init() != SHT45_OK)
   {
-    Error_Handler();
+    APP_LOG(TS_OFF, VLEVEL_M, "SHT45 not found\r\n");
   }
-#endif /* USE_IKS01A2_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A2_ENV_SENSOR_LPS22HB_0 == 1)
-  ret = IKS01A2_ENV_SENSOR_Init(LPS22HB_0, ENV_TEMPERATURE | ENV_PRESSURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A2_ENV_SENSOR_LPS22HB_0 */
-#if (USE_IKS01A3_ENV_SENSOR_HTS221_0 == 1)
-  ret = IKS01A3_ENV_SENSOR_Init(IKS01A3_HTS221_0, ENV_TEMPERATURE | ENV_HUMIDITY);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A3_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A3_ENV_SENSOR_LPS22HH_0 == 1)
-  ret = IKS01A3_ENV_SENSOR_Init(IKS01A3_LPS22HH_0, ENV_TEMPERATURE | ENV_PRESSURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A3_ENV_SENSOR_LPS22HH_0 */
 
-  /* Enable */
-#if (USE_IKS01A2_ENV_SENSOR_HTS221_0 == 1)
-  ret = IKS01A2_ENV_SENSOR_Enable(HTS221_0, ENV_HUMIDITY);
-  if (ret != BSP_ERROR_NONE)
+  if (BMP390_Init() != BMP390_OK)
   {
-    Error_Handler();
+    APP_LOG(TS_OFF, VLEVEL_M, "BMP390 not found\r\n");
   }
-  ret = IKS01A2_ENV_SENSOR_Enable(HTS221_0, ENV_TEMPERATURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A2_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A2_ENV_SENSOR_LPS22HB_0 == 1)
-  ret = IKS01A2_ENV_SENSOR_Enable(LPS22HB_0, ENV_PRESSURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-  ret = IKS01A2_ENV_SENSOR_Enable(LPS22HB_0, ENV_TEMPERATURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A2_ENV_SENSOR_LPS22HB_0 */
-#if (USE_IKS01A3_ENV_SENSOR_HTS221_0 == 1)
-  ret = IKS01A3_ENV_SENSOR_Enable(IKS01A3_HTS221_0, ENV_HUMIDITY);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-  ret = IKS01A3_ENV_SENSOR_Enable(IKS01A3_HTS221_0, ENV_TEMPERATURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A3_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A3_ENV_SENSOR_LPS22HH_0 == 1)
-  ret = IKS01A3_ENV_SENSOR_Enable(IKS01A3_LPS22HH_0, ENV_PRESSURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-  ret = IKS01A3_ENV_SENSOR_Enable(IKS01A3_LPS22HH_0, ENV_TEMPERATURE);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A3_ENV_SENSOR_LPS22HH_0 */
 
-  /* Get capabilities */
-#if (USE_IKS01A2_ENV_SENSOR_HTS221_0 == 1)
-  ret = IKS01A2_ENV_SENSOR_GetCapabilities(HTS221_0, &EnvCapabilities);
-  if (ret != BSP_ERROR_NONE)
+  if (LTR390_Init() != LTR390_OK)
   {
-    Error_Handler();
+    APP_LOG(TS_OFF, VLEVEL_M, "LTR390 not found\r\n");
   }
-#endif /* USE_IKS01A2_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A2_ENV_SENSOR_LPS22HB_0 == 1)
-  ret = IKS01A2_ENV_SENSOR_GetCapabilities(LPS22HB_0, &EnvCapabilities);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A2_ENV_SENSOR_LPS22HB_0 */
-#if (USE_IKS01A3_ENV_SENSOR_HTS221_0 == 1)
-  ret = IKS01A3_ENV_SENSOR_GetCapabilities(IKS01A3_HTS221_0, &EnvCapabilities);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A3_ENV_SENSOR_HTS221_0 */
-#if (USE_IKS01A3_ENV_SENSOR_LPS22HH_0 == 1)
-  ret = IKS01A3_ENV_SENSOR_GetCapabilities(IKS01A3_LPS22HH_0, &EnvCapabilities);
-  if (ret != BSP_ERROR_NONE)
-  {
-    Error_Handler();
-  }
-#endif /* USE_IKS01A3_ENV_SENSOR_LPS22HH_0 */
 
-#elif !defined (SENSOR_ENABLED)
-#error SENSOR_ENABLED not defined
-#endif /* SENSOR_ENABLED  */
+  if (MAX17048_Init() != MAX17048_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 not found\r\n");
+  }
+
+  if (SCD41_Init() != SCD41_STATUS_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 not found\r\n");
+  }
+
+  return 0;
   /* USER CODE END EnvSensors_Init */
-  return ret;
 }
 
 /* USER CODE BEGIN EF */
-
+int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags)
+{
+  if(sensor_flags & SENSOR_FLAG_CO2)
+  {
+    return SCD41_StartCo2SingleShot();
+  }
+  if(sensor_flags & SENSOR_FLAG_SPS30)
+  {
+    /* TODO: implement SPS30 pre-measurement start */
+  }
+  return -1;
+}
 /* USER CODE END EF */
 
 /* Private Functions Definition -----------------------------------------------*/

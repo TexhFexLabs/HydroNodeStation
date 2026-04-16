@@ -43,10 +43,13 @@ typedef struct
 /* -------------------------------------------------------------------------- */
 
 /**
- * @brief  Mark the driver as initialised.
+ * @brief  Probe SHT45 device on I2C and mark driver as initialised.
  *         Call MX_I2C2_Init() before this function.
+ *
+ * @retval SHT45_OK       Sensor responded
+ * @retval SHT45_ERR_I2C  Sensor not responding / wiring issue
  */
-void    SHT45_Init(void);
+int32_t SHT45_Init(void);
 
 /**
  * @brief  Trigger a single-shot high-precision measurement and read results.
