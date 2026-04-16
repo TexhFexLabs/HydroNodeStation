@@ -30,6 +30,7 @@
 #include "ltr390.h"
 #include "max17048.h"
 #include "scd41.h"
+#include "sps30.h"
 #include "i2c.h"
 #include "sys_app.h"
 #include "adc_if.h"
@@ -81,6 +82,10 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   sensor_data->battery_voltage  = 0.0f;
   sensor_data->uv_raw           = 0U;
   sensor_data->co2_ppm          = 0U;
+  sensor_data->pm1_0            = 0.0f;
+  sensor_data->pm2_5            = 0.0f;
+  sensor_data->pm4_0            = 0.0f;
+  sensor_data->pm10_0           = 0.0f;
 
   /* 1. Read SHT45 */
   SHT45_Data_t sht45;
@@ -132,7 +137,18 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   /* 6. Read SPS30 */
   if (sensor_flags & SENSOR_FLAG_SPS30)
   {
-    /* TODO: implement SPS30 reading */
+    SPS30_Data_t sps30_data;
+    if (SPS30_ReadMeasurement(&sps30_data) == SPS30_STATUS_OK)
+    {
+      sensor_data->pm1_0  = sps30_data.mc_1_0;
+      sensor_data->pm2_5  = sps30_data.mc_2_5;
+      sensor_data->pm4_0  = sps30_data.mc_4_0;
+      sensor_data->pm10_0 = sps30_data.mc_10_0;
+    }
+    
+    /* Put sensor back to sleep after reading */
+    (void)SPS30_StopMeasurement();
+    (void)SPS30_Sleep();
   }
 
   return 0;
@@ -167,6 +183,11 @@ int32_t EnvSensors_Init(void)
     APP_LOG(TS_OFF, VLEVEL_M, "SCD41 not found\r\n");
   }
 
+  if (SPS30_Init() != SPS30_STATUS_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "SPS30 not found\r\n");
+  }
+
   return 0;
   /* USER CODE END EnvSensors_Init */
 }
@@ -180,7 +201,11 @@ int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags)
   }
   if(sensor_flags & SENSOR_FLAG_SPS30)
   {
-    /* TODO: implement SPS30 pre-measurement start */
+    if (SPS30_WakeUp() == SPS30_STATUS_OK)
+    {
+      return SPS30_StartMeasurement();
+    }
+    return SPS30_STATUS_ERROR;
   }
   return -1;
 }

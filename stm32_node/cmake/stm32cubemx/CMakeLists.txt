@@ -94,6 +94,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/ltr390.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/max17048.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/scd41.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sps30.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32wl55xx_cm4.s
 )
 

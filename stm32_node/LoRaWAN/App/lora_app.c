@@ -257,6 +257,12 @@ static void OnJoinTimerLedEvent(void *context);
   */
 static void OnScd41TimerEvent(void *context);
 
+/**
+  * @brief  SPS30 pre-measurement timer callback function
+  * @param  context ptr
+  */
+static void OnSps30TimerEvent(void *context);
+
 /* USER CODE END PFP */
 
 /* Private variables ---------------------------------------------------------*/
@@ -359,6 +365,11 @@ static UTIL_TIMER_Object_t JoinLedTimer;
   */
 static UTIL_TIMER_Object_t Scd41Timer;
 
+/**
+  * @brief Timer to trigger SPS30 pre-measurement
+  */
+static UTIL_TIMER_Object_t Sps30Timer;
+
 /* USER CODE END PV */
 
 /* Exported functions ---------------------------------------------------------*/
@@ -422,6 +433,7 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Create(&RxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
   UTIL_TIMER_Create(&JoinLedTimer, LED_PERIOD_TIME, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
   UTIL_TIMER_Create(&Scd41Timer, SCD41_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnScd41TimerEvent, NULL);
+  UTIL_TIMER_Create(&Sps30Timer, SPS30_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnSps30TimerEvent, NULL);
 
   /* USER CODE END LoRaWAN_Init_1 */
 
@@ -839,12 +851,25 @@ static void SendTxData(uint8_t port)
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
 
-  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d.%d degC, RH=%d.%d%%, P=%d hPa, VBAT=%d.%03d V, CO2=%u ppm\r\n",
+  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d.%d degC, RH=%d.%d%%, P=%d hPa, VBAT=%d.%03d V\r\n",
           (int)sensor_data.temperature, (int)(sensor_data.temperature * 10) % 10,
           (int)sensor_data.humidity, (int)(sensor_data.humidity * 10) % 10,
           (int)sensor_data.pressure,
-          (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 1000) % 1000,
-          (unsigned int)sensor_data.co2_ppm);
+          (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 1000) % 1000);
+
+  if (sensor_flags & SENSOR_FLAG_CO2)
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "SCD41: CO2=%u ppm\r\n", (unsigned int)sensor_data.co2_ppm);
+  }
+
+  if (sensor_flags & SENSOR_FLAG_SPS30)
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30: PM1.0=%d.%d, PM2.5=%d.%d, PM4.0=%d.%d, PM10.0=%d.%d ug/m3\r\n",
+            (int)sensor_data.pm1_0, (int)(sensor_data.pm1_0 * 10) % 10,
+            (int)sensor_data.pm2_5, (int)(sensor_data.pm2_5 * 10) % 10,
+            (int)sensor_data.pm4_0, (int)(sensor_data.pm4_0 * 10) % 10,
+            (int)sensor_data.pm10_0, (int)(sensor_data.pm10_0 * 10) % 10);
+  }
 
   enum
   {
@@ -854,6 +879,10 @@ static void SendTxData(uint8_t port)
     LPP_CH_UV_RAW,
     LPP_CH_BATTERY_V,
     LPP_CH_CO2,
+    LPP_CH_PM1_0,
+    LPP_CH_PM2_5,
+    LPP_CH_PM4_0,
+    LPP_CH_PM10_0,
   };
 
   CayenneLppReset();
@@ -862,7 +891,19 @@ static void SendTxData(uint8_t port)
   CayenneLppAddRelativeHumidity(LPP_CH_HUMIDITY, sensor_data.humidity);
   CayenneLppAddLuminosity(LPP_CH_UV_RAW, (uint16_t)sensor_data.uv_raw);
   CayenneLppAddAnalogInput(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
-  CayenneLppAddLuminosity(LPP_CH_CO2, sensor_data.co2_ppm);
+
+  if (sensor_flags & SENSOR_FLAG_CO2)
+  {
+    CayenneLppAddLuminosity(LPP_CH_CO2, sensor_data.co2_ppm);
+  }
+
+  if (sensor_flags & SENSOR_FLAG_SPS30)
+  {
+    CayenneLppAddAnalogInput(LPP_CH_PM1_0, sensor_data.pm1_0);
+    CayenneLppAddAnalogInput(LPP_CH_PM2_5, sensor_data.pm2_5);
+    CayenneLppAddAnalogInput(LPP_CH_PM4_0, sensor_data.pm4_0);
+    CayenneLppAddAnalogInput(LPP_CH_PM10_0, sensor_data.pm10_0);
+  }
 
   CayenneLppCopy(AppDataBuffer);
   bufferSize = CayenneLppGetSize();
@@ -883,7 +924,7 @@ static void SendTxData(uint8_t port)
 
     ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
 
-    /* Schedule pre-measurement for next TX if it will be a CO2 cycle */
+    /* Schedule pre-measurement for next TX if it will be a cycle for CO2 or SPS30 */
     uint8_t next_counter = (tx_counter % 6U) + 1U;
     if (next_counter % 3U == 0U)
     {
@@ -893,7 +934,8 @@ static void SendTxData(uint8_t port)
 
     if (next_counter % 6U == 0U)
     {
-      /* dummy: start SPS30 timer */
+      UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U) - SPS30_PRE_MEASUREMENT_TIME_MS);
+      UTIL_TIMER_Start(&Sps30Timer);
     }
   }
   /* USER CODE END SendTxData_1 */
@@ -932,6 +974,12 @@ static void OnScd41TimerEvent(void *context)
 {
   APP_LOG(TS_ON, VLEVEL_M, "SCD41 pre-measurement started\r\n");
   EnvSensors_StartPreMeasurement(SENSOR_FLAG_CO2);
+}
+
+static void OnSps30TimerEvent(void *context)
+{
+  APP_LOG(TS_ON, VLEVEL_M, "SPS30 pre-measurement started\r\n");
+  EnvSensors_StartPreMeasurement(SENSOR_FLAG_SPS30);
 }
 
 /* USER CODE END PrFD_LedEvents */
