@@ -22,6 +22,8 @@
 #define SPS30_CMD_READ_MEASURED_VALUES  0x0300U
 #define SPS30_CMD_SLEEP                 0x1001U
 #define SPS30_CMD_WAKE_UP                0x1103U
+#define SPS30_CMD_FAN_CLEAN_INTERVAL    0x8004U
+#define SPS30_CMD_START_FAN_CLEANING    0x5607U
 #define SPS30_CMD_RESET                 0xD304U
 
 /* Private function prototypes -----------------------------------------------*/
@@ -123,10 +125,14 @@ int32_t SPS30_Init(void)
     return SPS30_STATUS_ERROR;
   }
 
-  /* Just a simple ping/check or reset */
-  /* SPS30 enters Idle-Mode after power up */
-  /* Ensure it's in sleep mode for low power if not needed now */
-  SPS30_Sleep();
+  /* Wake up first to be able to send commands */
+  (void)SPS30_WakeUp();
+
+  /* Disable auto cleaning interval (set to 0) */
+  (void)SPS30_SetFanAutoCleaningInterval(0U);
+
+  /* Ensure it's in sleep mode for low power */
+  (void)SPS30_Sleep();
   
   SPS30_BusDeInit();
   return SPS30_STATUS_OK;
@@ -210,6 +216,22 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
 int32_t SPS30_StopMeasurement(void)
 {
   return SPS30_WriteCommand(SPS30_CMD_STOP_MEASUREMENT);
+}
+
+int32_t SPS30_SetFanAutoCleaningInterval(uint32_t interval_s)
+{
+  uint8_t data[4];
+  data[0] = (uint8_t)((interval_s >> 24) & 0xFFU);
+  data[1] = (uint8_t)((interval_s >> 16) & 0xFFU);
+  data[2] = (uint8_t)((interval_s >> 8) & 0xFFU);
+  data[3] = (uint8_t)(interval_s & 0xFFU);
+
+  return SPS30_WriteCommandWithData(SPS30_CMD_FAN_CLEAN_INTERVAL, data, 4);
+}
+
+int32_t SPS30_StartFanCleaning(void)
+{
+  return SPS30_WriteCommand(SPS30_CMD_START_FAN_CLEANING);
 }
 
 int32_t SPS30_Sleep(void)

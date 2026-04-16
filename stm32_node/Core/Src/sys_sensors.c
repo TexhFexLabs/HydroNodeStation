@@ -145,10 +145,6 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
       sensor_data->pm4_0  = sps30_data.mc_4_0;
       sensor_data->pm10_0 = sps30_data.mc_10_0;
     }
-    
-    /* Put sensor back to sleep after reading */
-    (void)SPS30_StopMeasurement();
-    (void)SPS30_Sleep();
   }
 
   return 0;

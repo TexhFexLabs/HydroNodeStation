@@ -111,6 +111,10 @@ typedef enum TxEventType_e
 #define ADDR_FLASH_SECURE_ELEMENT_CONTEXT       (void *)(LORAWAN_NVM_BASE_ADDRESS + LORAWAN_CONTEXT_SIZE + MODEM_CONTEXT_SIZE)
 
 /* USER CODE BEGIN PD */
+/**
+  * @brief SPS30 Manual Fan cleaning interval in hours
+  */
+#define SPS30_FAN_CLEAN_INTERVAL_HOURS  120U
 
 /* USER CODE END PD */
 
@@ -263,6 +267,12 @@ static void OnScd41TimerEvent(void *context);
   */
 static void OnSps30TimerEvent(void *context);
 
+/**
+  * @brief  SPS30 fan cleanup timer callback function
+  * @param  context ptr
+  */
+static void OnSps30CleanupTimerEvent(void *context);
+
 /* USER CODE END PFP */
 
 /* Private variables ---------------------------------------------------------*/
@@ -298,6 +308,12 @@ static uint8_t                  rx_remaining    = 0;
  * @brief TX counter
  */
 static uint8_t                  tx_counter    = 0U;
+
+/**
+ * @brief Last SPS30 fan cleaning timestamp
+ */
+static uint32_t                 last_sps30_clean_timestamp = 0U;
+
 /**
   * @brief  Flag for button status
   */
@@ -370,6 +386,11 @@ static UTIL_TIMER_Object_t Scd41Timer;
   */
 static UTIL_TIMER_Object_t Sps30Timer;
 
+/**
+  * @brief Timer to stop SPS30 fan cleaning
+  */
+static UTIL_TIMER_Object_t Sps30CleanupTimer;
+
 /* USER CODE END PV */
 
 /* Exported functions ---------------------------------------------------------*/
@@ -434,6 +455,7 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Create(&JoinLedTimer, LED_PERIOD_TIME, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
   UTIL_TIMER_Create(&Scd41Timer, SCD41_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnScd41TimerEvent, NULL);
   UTIL_TIMER_Create(&Sps30Timer, SPS30_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnSps30TimerEvent, NULL);
+  UTIL_TIMER_Create(&Sps30CleanupTimer, SPS30_CLEANING_DURATION_MS, UTIL_TIMER_ONESHOT, OnSps30CleanupTimerEvent, NULL);
 
   /* USER CODE END LoRaWAN_Init_1 */
 
@@ -460,6 +482,24 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Start(&JoinLedTimer);
 
   EnvSensors_Init();
+  
+  /* Initial fan clean check if battery is good */
+  sensor_t init_sensor_data;
+  EnvSensors_Read(&init_sensor_data, 0U); // Just read battery
+  if (init_sensor_data.battery_voltage > 4.00f)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%.2fV)\r\n", init_sensor_data.battery_voltage);
+    if (SPS30_WakeUp() == SPS30_STATUS_OK)
+    {
+       (void)SPS30_StartMeasurement();
+       (void)SPS30_StartFanCleaning();
+       HAL_Delay(100); // Small delay for command
+       (void)SPS30_StopMeasurement();
+       (void)SPS30_Sleep();
+       last_sps30_clean_timestamp = SysTimeGet().Seconds;
+    }
+  }
+
   APP_LOG(TS_OFF, VLEVEL_M, "Sensors initialized\r\n");
   /* USER CODE END LoRaWAN_Init_Last */
 }
@@ -899,6 +939,26 @@ static void SendTxData(uint8_t port)
 
   if (sensor_flags & SENSOR_FLAG_SPS30)
   {
+    uint32_t current_time_s = SysTimeGet().Seconds;
+    bool cleaning_triggered = false;
+
+    if (((current_time_s - last_sps30_clean_timestamp) > (SPS30_FAN_CLEAN_INTERVAL_HOURS * 3600U)) &&
+        (sensor_data.battery_voltage > 4.12f))
+    {
+      APP_LOG(TS_ON, VLEVEL_M, "Manual SPS30 fan cleaning triggered (VBat=%.2fV)\r\n", sensor_data.battery_voltage);
+      if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)
+      {
+        last_sps30_clean_timestamp = current_time_s;
+        UTIL_TIMER_Start(&Sps30CleanupTimer);
+        cleaning_triggered = true;
+      }
+    }
+
+    if (!cleaning_triggered)
+    {
+      (void)SPS30_StopMeasurement();
+      (void)SPS30_Sleep();
+    }
     CayenneLppAddAnalogInput(LPP_CH_PM1_0, sensor_data.pm1_0);
     CayenneLppAddAnalogInput(LPP_CH_PM2_5, sensor_data.pm2_5);
     CayenneLppAddAnalogInput(LPP_CH_PM4_0, sensor_data.pm4_0);
@@ -980,6 +1040,13 @@ static void OnSps30TimerEvent(void *context)
 {
   APP_LOG(TS_ON, VLEVEL_M, "SPS30 pre-measurement started\r\n");
   EnvSensors_StartPreMeasurement(SENSOR_FLAG_SPS30);
+}
+
+static void OnSps30CleanupTimerEvent(void *context)
+{
+  APP_LOG(TS_ON, VLEVEL_M, "SPS30 cleaning finished, going to sleep\r\n");
+  (void)SPS30_StopMeasurement();
+  (void)SPS30_Sleep();
 }
 
 /* USER CODE END PrFD_LedEvents */
