@@ -53,6 +53,12 @@ extern "C" {
   */
 #define SCD41_PRE_MEASUREMENT_TIME_MS               5500
 
+/**
+  * @brief SPS30 pre-measurement time in milliseconds.
+  * @note This is the time the node wakes up before the uplink to start the particulate matter measurement.
+  */
+#define SPS30_PRE_MEASUREMENT_TIME_MS               16500
+
 /* USER CODE END EC_CAYENNE_LPP */
 /*!
  * LoRaWAN User application port

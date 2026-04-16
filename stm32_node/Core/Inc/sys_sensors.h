@@ -43,6 +43,10 @@ typedef struct
   float battery_voltage;  /*!< battery voltage in V */
   uint32_t uv_raw;        /*!< LTR390 UV raw counts */
   uint16_t co2_ppm;       /*!< SCD41 CO2 in ppm */
+  float pm1_0;            /*!< SPS30 PM1.0 in ug/m3 */
+  float pm2_5;            /*!< SPS30 PM2.5 in ug/m3 */
+  float pm4_0;            /*!< SPS30 PM4.0 in ug/m3 */
+  float pm10_0;           /*!< SPS30 PM10.0 in ug/m3 */
 } sensor_t;
 
 /* USER CODE BEGIN ET */
