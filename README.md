@@ -6,6 +6,8 @@ Eine autarke, hocheffiziente Wetterstation, konzipiert für das HydroNode-Netzwe
 
 Das System ist in drei Hauptbereiche unterteilt: Hardware, Software (STM32 Node) und Mechanik (CAD).
 
+![HydroNodeStation Übersicht](doc/assets/hydronodestation_v2.svg)
+
 ### Hardware & Sensoren
 Die Elektronik ist auf maximale Effizienz und Kompaktheit ausgelegt. Das Custom-PCB bündelt fortschrittliche Sensorik und ein intelligentes Power-Management:
 * **Mikrocontroller & Funk:** STM32WLE5 (integriertes LoRaWAN)
@@ -13,7 +15,7 @@ Die Elektronik ist auf maximale Effizienz und Kompaktheit ausgelegt. Das Custom-
 * **Klima & Luftgüte:** Sensirion SCD41 (CO2), SPS30 (Feinstaub), SHT45 (Temperatur/Luftfeuchtigkeit)
 * **Wetter & Licht:** Bosch BMP390 (Luftdruck), LTR390 (UV/Umgebungslicht)
 
-*[Platzhalter: Render des finalen PCBs von JLCPCB]*
+![PCB Top Layer](doc/assets/pcb_top_layer_v1.png)
 
 ### Software (STM32 Node)
 Die Firmware basiert auf dem STM32Cube-Ökosystem und implementiert einen LoRaWAN End-Node. Der Fokus der Entwicklung liegt auf tiefgreifender Energieoptimierung:
@@ -24,7 +26,7 @@ Die Firmware basiert auf dem STM32Cube-Ökosystem und implementiert einen LoRaWA
 ### Mechanik (CAD)
 Die Elektronik wird in einem speziell entwickelten Gehäuse (Stevenson Screen) untergebracht. Dieses schützt die Komponenten vor Witterungseinflüssen, während es gleichzeitig eine optimale Luftzirkulation für exakte Messwerte gewährleistet.
 
-*[Platzhalter: CAD-Rendering des fertigen Gehäuses]*
+![Stevenson Screen Middle Part](doc/assets/stevensonScreenMiddlePart.png)
 
 ## Projektphasen
 
