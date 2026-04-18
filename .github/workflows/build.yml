@@ -4,22 +4,26 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - software/**
+      - stm32_node/**
+  workflow_dispatch:
+    
 
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: software
+        working-directory: stm32_node
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ARM GCC toolchain
+      - name: Install Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi
+          sudo apt-get install -y gcc-arm-none-eabi cmake ninja-build
+
+      - name: Configure CMake
+        run: cmake --preset Release
 
       - name: Build
-        run: make build
-
+        run: cmake --build --preset Release
