@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - stm32_node/**
+  workflow_dispatch:
+    
 
 jobs:
   build:
