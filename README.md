@@ -44,7 +44,33 @@ Die Stationen werden vollständig in das HydroNode-Netzwerk integriert. Die gesa
 
 ## System-Integration
 
-```text
-[ Sensor Node ] ~LoRaWAN~> [ Gateway ] ==> [ HydroNode Backend ] ==> [ Dashboard & Analytics ]
+```mermaid
+flowchart LR
+    subgraph Field ["Feldeinsatz (z.B. Regensburg)"]
+        Node1(("HydroNode\nStation01"))
+        Node2(("HydroNode\nStation02"))
+    end
+
+    subgraph Network ["LoRaWAN Infrastruktur"]
+        Helium["Helium\nNetwork"]
+        SNS["AWS SNS"]
+    end
+
+    subgraph Backend ["HydroNode Cloud"]
+        API{"HTTPS\nEndpoint"}
+        Kafka["Kafka Pipeline\n(Validierung & Processing)"]
+        DB[("PostgreSQL\nDatabase")]
+    end
+    
+    subgraph Client ["Endnutzer"]
+        App["iOS App"]
+    end
+
+    Node1 -- LoRaWAN --> Helium
+    Node2 -- LoRaWAN --> Helium
+    Helium -- Integration --> SNS
+    SNS -- HTTPS --> API
+    API --> Kafka
+    Kafka --> DB
+    DB --> App
 ```
-*[Platzhalter: Grafische Visualisierung der Netzwerk-Architektur und Datenanalyse]*
