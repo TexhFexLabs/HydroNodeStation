@@ -27,3 +27,4 @@ stm32_node/build/
 .build/
 .cache/
 build/
+stm32_node/.idea/debugServers/ST_LINK.xml
