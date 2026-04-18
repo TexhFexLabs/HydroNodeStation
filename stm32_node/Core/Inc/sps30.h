@@ -80,6 +80,19 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data);
 int32_t SPS30_StopMeasurement(void);
 
 /**
+  * @brief  Sets the fan auto cleaning interval
+  * @param  interval_s Interval in seconds (0 to disable)
+  * @retval SPS30_STATUS_OK if successful
+  */
+int32_t SPS30_SetFanAutoCleaningInterval(uint32_t interval_s);
+
+/**
+  * @brief  Starts the fan cleaning manually
+  * @retval SPS30_STATUS_OK if successful
+  */
+int32_t SPS30_StartFanCleaning(void);
+
+/**
   * @brief  Enters sleep mode (low power)
   * @retval SPS30_STATUS_OK if successful
   */

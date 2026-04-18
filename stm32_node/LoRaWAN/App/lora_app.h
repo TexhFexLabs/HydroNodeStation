@@ -59,6 +59,11 @@ extern "C" {
   */
 #define SPS30_PRE_MEASUREMENT_TIME_MS               16500
 
+/**
+  * @brief SPS30 fan cleaning duration in milliseconds.
+  */
+#define SPS30_CLEANING_DURATION_MS                  10500
+
 /* USER CODE END EC_CAYENNE_LPP */
 /*!
  * LoRaWAN User application port
