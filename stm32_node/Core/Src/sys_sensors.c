@@ -211,4 +211,3 @@ int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags)
 /* USER CODE BEGIN PrFD */
 
 /* USER CODE END PrFD */
-
