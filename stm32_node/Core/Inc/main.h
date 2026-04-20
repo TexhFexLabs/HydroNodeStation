@@ -68,13 +68,17 @@ void Error_Handler(void);
 #define BUT1_Pin GPIO_PIN_0
 #define BUT1_GPIO_Port GPIOA
 #define BUT1_EXTI_IRQn EXTI0_IRQn
+#ifndef STM32WLE5xx
 #define PROB2_Pin GPIO_PIN_13
 #define PROB2_GPIO_Port GPIOB
+#endif
 #define PROB1_Pin GPIO_PIN_12
 #define PROB1_GPIO_Port GPIOB
+#ifndef STM32WLE5xx
 #define BUT3_Pin GPIO_PIN_6
 #define BUT3_GPIO_Port GPIOC
 #define BUT3_EXTI_IRQn EXTI9_5_IRQn
+#endif
 #define BUT2_Pin GPIO_PIN_1
 #define BUT2_GPIO_Port GPIOA
 #define BUT2_EXTI_IRQn EXTI1_IRQn

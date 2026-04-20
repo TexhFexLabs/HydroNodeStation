@@ -2,15 +2,26 @@ cmake_minimum_required(VERSION 3.22)
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 # STM32CubeMX generated symbols (macros)
-set(MX_Defines_Syms 
-	NUMBER_OF_STACKS=1 
-	SX126X 
-	ENDNODE 
-	CORE_CM4 
-	USE_HAL_DRIVER 
-	STM32WL55xx
-    $<$<CONFIG:Debug>:DEBUG>
-)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(MX_Defines_Syms
+        NUMBER_OF_STACKS=1
+        SX126X
+        ENDNODE
+        CORE_CM4
+        USE_HAL_DRIVER
+        STM32WLE5xx
+    )
+else()
+    set(MX_Defines_Syms
+        NUMBER_OF_STACKS=1
+        SX126X
+        ENDNODE
+        CORE_CM4
+        USE_HAL_DRIVER
+        STM32WL55xx
+        DEBUG
+    )
+endif()
 
 # STM32CubeMX generated include paths
 set(MX_Include_Dirs
@@ -95,8 +106,13 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/max17048.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/scd41.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sps30.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32wl55xx_cm4.s
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    list(APPEND MX_Application_Src ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32wle5xx.s)
+else()
+    list(APPEND MX_Application_Src ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32wl55xx_cm4.s)
+endif()
 
 # STM32 HAL/LL Drivers
 set(STM32_Drivers_Src

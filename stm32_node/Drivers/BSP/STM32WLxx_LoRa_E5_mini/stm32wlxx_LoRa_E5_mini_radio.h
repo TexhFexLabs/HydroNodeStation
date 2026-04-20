@@ -95,6 +95,14 @@ typedef enum
   * @{
   */ 
   
+#if defined(STM32WLE5xx)
+/* BGS12SN6E6327: SPDT, ein CTL-Pin an PC13 */
+#define RF_SW_CTRL_PIN                           GPIO_PIN_13
+#define RF_SW_CTRL_GPIO_PORT                     GPIOC
+#define RF_SW_CTRL_GPIO_CLK_ENABLE()             __HAL_RCC_GPIOC_CLK_ENABLE()
+#define RF_SW_CTRL_GPIO_CLK_DISABLE()            __HAL_RCC_GPIOC_CLK_DISABLE()
+#else
+/* Wio-E5 Standard: 2 CTL-Pins (PA4 + PA5) */
 #define RF_SW_CTRL1_PIN                          GPIO_PIN_4
 #define RF_SW_CTRL1_GPIO_PORT                    GPIOA
 #define RF_SW_CTRL1_GPIO_CLK_ENABLE()            __HAL_RCC_GPIOA_CLK_ENABLE()
@@ -104,6 +112,7 @@ typedef enum
 #define RF_SW_CTRL2_GPIO_PORT                    GPIOA
 #define RF_SW_CTRL2_GPIO_CLK_ENABLE()            __HAL_RCC_GPIOA_CLK_ENABLE()
 #define RF_SW_CTRL2_GPIO_CLK_DISABLE()           __HAL_RCC_GPIOA_CLK_DISABLE()
+#endif
 
 #define RF_TCXO_VCC_PIN                          GPIO_PIN_0
 #define RF_TCXO_VCC_GPIO_PORT                    GPIOB
