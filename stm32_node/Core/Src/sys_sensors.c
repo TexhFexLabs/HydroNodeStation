@@ -86,6 +86,12 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   sensor_data->pm2_5            = 0U;
   sensor_data->pm4_0            = 0U;
   sensor_data->pm10_0           = 0U;
+  sensor_data->nc_0_5           = 0U;
+  sensor_data->nc_1_0           = 0U;
+  sensor_data->nc_2_5           = 0U;
+  sensor_data->nc_4_0           = 0U;
+  sensor_data->nc_10_0          = 0U;
+  sensor_data->typ_size         = 0U;
 
   /* 1. Read MAX17048 */
   MAX17048_Data_t max17048;
@@ -145,10 +151,16 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     SPS30_Data_t sps30_data;
     if (SPS30_ReadMeasurement(&sps30_data) == SPS30_STATUS_OK)
     {
-      sensor_data->pm1_0  = sps30_data.mc_1_0;   /* 0.1 ug/m3 */
-      sensor_data->pm2_5  = sps30_data.mc_2_5;
-      sensor_data->pm4_0  = sps30_data.mc_4_0;
-      sensor_data->pm10_0 = sps30_data.mc_10_0;
+      sensor_data->pm1_0    = sps30_data.mc_1_0;   /* 0.1 ug/m3 */
+      sensor_data->pm2_5    = sps30_data.mc_2_5;
+      sensor_data->pm4_0    = sps30_data.mc_4_0;
+      sensor_data->pm10_0   = sps30_data.mc_10_0;
+      sensor_data->nc_0_5   = sps30_data.nc_0_5;   /* 0.1 #/cm3 */
+      sensor_data->nc_1_0   = sps30_data.nc_1_0;
+      sensor_data->nc_2_5   = sps30_data.nc_2_5;
+      sensor_data->nc_4_0   = sps30_data.nc_4_0;
+      sensor_data->nc_10_0  = sps30_data.nc_10_0;
+      sensor_data->typ_size = sps30_data.typ_size; /* nm */
     }
   }
 

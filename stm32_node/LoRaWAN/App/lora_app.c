@@ -907,11 +907,18 @@ static void SendTxData(uint8_t port)
 
   if (sensor_flags & SENSOR_FLAG_SPS30)
   {
-    APP_LOG(TS_ON, VLEVEL_M, "SPS30: PM1.0=%u PM2.5=%u PM4.0=%u PM10.0=%u [0.1 ug/m3]\r\n",
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 MC: PM1.0=%u PM2.5=%u PM4.0=%u PM10.0=%u [0.1 ug/m3]\r\n",
             (unsigned)sensor_data.pm1_0,
             (unsigned)sensor_data.pm2_5,
             (unsigned)sensor_data.pm4_0,
             (unsigned)sensor_data.pm10_0);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 NC: PM0.5=%u PM1.0=%u PM2.5=%u PM4.0=%u PM10=%u [0.1 #/cm3]\r\n",
+            (unsigned)sensor_data.nc_0_5,
+            (unsigned)sensor_data.nc_1_0,
+            (unsigned)sensor_data.nc_2_5,
+            (unsigned)sensor_data.nc_4_0,
+            (unsigned)sensor_data.nc_10_0);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 TypSize=%u [nm]\r\n", (unsigned)sensor_data.typ_size);
   }
 
   enum
@@ -926,6 +933,12 @@ static void SendTxData(uint8_t port)
     LPP_CH_PM2_5,
     LPP_CH_PM4_0,
     LPP_CH_PM10_0,
+    LPP_CH_NC_0_5,
+    LPP_CH_NC_1_0,
+    LPP_CH_NC_2_5,
+    LPP_CH_NC_4_0,
+    LPP_CH_NC_10_0,
+    LPP_CH_TYP_SIZE,
   };
 
   /* Send all scaled values as raw uint16 via Luminosity (2 bytes, big-endian).
@@ -936,7 +949,9 @@ static void SendTxData(uint8_t port)
    *  UV_RAW      : uint16 (LTR390 20-bit counts, clamped)
    *  BATTERY_V   : uint16 mV
    *  CO2         : uint16 ppm
-   *  PM*         : uint16 * 0.1 ug/m3
+   *  PM*         : uint16 * 0.1 ug/m3 (MC)
+   *  NC_*        : uint16 * 0.1 #/cm3
+   *  TYP_SIZE    : uint16 nm (um*1000)
    */
   CayenneLppReset();
   CayenneLppAddLuminosity(LPP_CH_PRESSURE, sensor_data.pressure);
@@ -976,10 +991,16 @@ static void SendTxData(uint8_t port)
       (void)SPS30_StopMeasurement();
       (void)SPS30_Sleep();
     }
-    CayenneLppAddLuminosity(LPP_CH_PM1_0,  sensor_data.pm1_0);
-    CayenneLppAddLuminosity(LPP_CH_PM2_5,  sensor_data.pm2_5);
-    CayenneLppAddLuminosity(LPP_CH_PM4_0,  sensor_data.pm4_0);
-    CayenneLppAddLuminosity(LPP_CH_PM10_0, sensor_data.pm10_0);
+    CayenneLppAddLuminosity(LPP_CH_PM1_0,    sensor_data.pm1_0);
+    CayenneLppAddLuminosity(LPP_CH_PM2_5,    sensor_data.pm2_5);
+    CayenneLppAddLuminosity(LPP_CH_PM4_0,    sensor_data.pm4_0);
+    CayenneLppAddLuminosity(LPP_CH_PM10_0,   sensor_data.pm10_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_0_5,   sensor_data.nc_0_5);
+    CayenneLppAddLuminosity(LPP_CH_NC_1_0,   sensor_data.nc_1_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_2_5,   sensor_data.nc_2_5);
+    CayenneLppAddLuminosity(LPP_CH_NC_4_0,   sensor_data.nc_4_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_10_0,  sensor_data.nc_10_0);
+    CayenneLppAddLuminosity(LPP_CH_TYP_SIZE, sensor_data.typ_size);
   }
 
   CayenneLppCopy(AppDataBuffer);
@@ -1004,7 +1025,7 @@ static void SendTxData(uint8_t port)
       dutycycle = dutycycle * 2U; // Reduce TX frequency when battery is low
       APP_LOG(TS_ON, VLEVEL_M, "Low battery (%u mV), reducing TX frequency\r\n", (unsigned)sensor_data.battery_voltage);
     }
-    if (sensor_data.battery_voltage > ULTRA_LOW_BATTERY_THRESHOLD_MV)
+    if (sensor_data.battery_voltage < ULTRA_LOW_BATTERY_THRESHOLD_MV)
     {
       dutycycle = dutycycle * 6U;
       tx_counter = 0U;

@@ -35,10 +35,16 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 typedef struct {
-  uint16_t mc_1_0;   /*!< Mass Concentration PM1.0  [0.1 ug/m3] (ug/m3 * 10) */
-  uint16_t mc_2_5;   /*!< Mass Concentration PM2.5  [0.1 ug/m3] (ug/m3 * 10) */
-  uint16_t mc_4_0;   /*!< Mass Concentration PM4.0  [0.1 ug/m3] (ug/m3 * 10) */
-  uint16_t mc_10_0;  /*!< Mass Concentration PM10.0 [0.1 ug/m3] (ug/m3 * 10) */
+  uint16_t mc_1_0;    /*!< Mass Concentration PM1.0   [0.1 ug/m3] (ug/m3 * 10) */
+  uint16_t mc_2_5;    /*!< Mass Concentration PM2.5   [0.1 ug/m3] (ug/m3 * 10) */
+  uint16_t mc_4_0;    /*!< Mass Concentration PM4.0   [0.1 ug/m3] (ug/m3 * 10) */
+  uint16_t mc_10_0;   /*!< Mass Concentration PM10.0  [0.1 ug/m3] (ug/m3 * 10) */
+  uint16_t nc_0_5;    /*!< Number Concentration PM0.5 [0.1 #/cm3] (#/cm3 * 10) */
+  uint16_t nc_1_0;    /*!< Number Concentration PM1.0 [0.1 #/cm3] (#/cm3 * 10) */
+  uint16_t nc_2_5;    /*!< Number Concentration PM2.5 [0.1 #/cm3] (#/cm3 * 10) */
+  uint16_t nc_4_0;    /*!< Number Concentration PM4.0 [0.1 #/cm3] (#/cm3 * 10) */
+  uint16_t nc_10_0;   /*!< Number Concentration PM10  [0.1 #/cm3] (#/cm3 * 10) */
+  uint16_t typ_size;  /*!< Typical Particle Size [nm] (um * 1000) */
 } SPS30_Data_t;
 
 /* Exported functions prototypes ---------------------------------------------*/

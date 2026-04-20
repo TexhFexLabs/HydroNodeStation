@@ -43,10 +43,16 @@ typedef struct
   uint16_t battery_voltage;  /*!< battery voltage in mV */
   uint32_t uv_raw;        /*!< LTR390 UV raw counts (20-bit) */
   uint16_t co2_ppm;       /*!< SCD41 CO2 in ppm */
-  uint16_t pm1_0;         /*!< SPS30 PM1.0 in 0.1 ug/m3 (ug/m3*10) */
-  uint16_t pm2_5;         /*!< SPS30 PM2.5 in 0.1 ug/m3 (ug/m3*10) */
-  uint16_t pm4_0;         /*!< SPS30 PM4.0 in 0.1 ug/m3 (ug/m3*10) */
-  uint16_t pm10_0;        /*!< SPS30 PM10.0 in 0.1 ug/m3 (ug/m3*10) */
+  uint16_t pm1_0;         /*!< SPS30 PM1.0 MC in 0.1 ug/m3 */
+  uint16_t pm2_5;         /*!< SPS30 PM2.5 MC in 0.1 ug/m3 */
+  uint16_t pm4_0;         /*!< SPS30 PM4.0 MC in 0.1 ug/m3 */
+  uint16_t pm10_0;        /*!< SPS30 PM10.0 MC in 0.1 ug/m3 */
+  uint16_t nc_0_5;        /*!< SPS30 PM0.5 NC in 0.1 #/cm3 */
+  uint16_t nc_1_0;        /*!< SPS30 PM1.0 NC in 0.1 #/cm3 */
+  uint16_t nc_2_5;        /*!< SPS30 PM2.5 NC in 0.1 #/cm3 */
+  uint16_t nc_4_0;        /*!< SPS30 PM4.0 NC in 0.1 #/cm3 */
+  uint16_t nc_10_0;       /*!< SPS30 PM10  NC in 0.1 #/cm3 */
+  uint16_t typ_size;      /*!< SPS30 Typical Particle Size in nm (um*1000) */
 } sensor_t;
 
 /* USER CODE BEGIN ET */

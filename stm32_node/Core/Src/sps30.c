@@ -201,11 +201,17 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
     }
   }
 
-  /* Decode only mc_1_0..mc_10_0 (first 4 big-endian IEEE754 floats) and
-   * convert to scaled uint16 (0.1 ug/m3). The float is local/scratch only;
-   * no float is stored in SPS30_Data_t. */
-  uint16_t *out[4] = { &data->mc_1_0, &data->mc_2_5, &data->mc_4_0, &data->mc_10_0 };
-  for (i = 0, j = 0; i < 4; i++, j += 6)
+  /* Decode all 10 big-endian IEEE754 floats and convert to scaled uint16.
+   * Float is local/scratch only; no float stored in SPS30_Data_t.
+   * Index 0..3 : MC   -> *10  (0.1 ug/m3)
+   * Index 4..8 : NC   -> *10  (0.1 #/cm3)
+   * Index 9    : Typ size -> *1000 (nm) */
+  uint16_t *out[10] = {
+    &data->mc_1_0, &data->mc_2_5, &data->mc_4_0, &data->mc_10_0,
+    &data->nc_0_5, &data->nc_1_0, &data->nc_2_5, &data->nc_4_0, &data->nc_10_0,
+    &data->typ_size
+  };
+  for (i = 0, j = 0; i < 10; i++, j += 6)
   {
     uint32_t raw_val = ((uint32_t)rx[j]     << 24) |
                        ((uint32_t)rx[j + 1] << 16) |
@@ -214,7 +220,8 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
     float f;
     memcpy(&f, &raw_val, 4);
 
-    float v = f * 10.0f;
+    float scale = (i < 9) ? 10.0f : 1000.0f;
+    float v = f * scale;
     if (v < 0.0f)     { v = 0.0f; }
     if (v > 65535.0f) { v = 65535.0f; }
     *out[i] = (uint16_t)(v + 0.5f);
