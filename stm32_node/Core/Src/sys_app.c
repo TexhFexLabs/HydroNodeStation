@@ -154,26 +154,24 @@ void UTIL_SEQ_Idle(void)
 uint8_t GetBatteryLevel(void)
 {
   uint8_t batteryLevel = 0;
-  uint16_t batteryLevelmV;
 
   /* USER CODE BEGIN GetBatteryLevel_0 */
-
+  sensor_t bat_sensor_data;
+  EnvSensors_Read(&bat_sensor_data, SENSOR_FLAG_ONLY_BATTERY);
   /* USER CODE END GetBatteryLevel_0 */
 
-  batteryLevelmV = (uint16_t) SYS_GetBatteryLevel();
-
   /* Convert battery level from mV to linear scale: 1 (very low) to 254 (fully charged) */
-  if (batteryLevelmV > VDD_BAT)
+  if (bat_sensor_data.battery_voltage > VDD_BAT)
   {
     batteryLevel = LORAWAN_MAX_BAT;
   }
-  else if (batteryLevelmV < VDD_MIN)
+  else if (bat_sensor_data.battery_voltage < VDD_MIN)
   {
     batteryLevel = 0;
   }
   else
   {
-    batteryLevel = (((uint32_t)(batteryLevelmV - VDD_MIN) * LORAWAN_MAX_BAT) / (VDD_BAT - VDD_MIN));
+    batteryLevel = (((uint32_t)(bat_sensor_data.battery_voltage - VDD_MIN) * LORAWAN_MAX_BAT) / (VDD_BAT - VDD_MIN));
   }
 
   /* USER CODE BEGIN GetBatteryLevel_2 */

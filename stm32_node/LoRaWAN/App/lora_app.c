@@ -487,9 +487,9 @@ void LoRaWAN_Init(void)
   /* Initial fan clean check if battery is good */
   sensor_t init_sensor_data;
   EnvSensors_Read(&init_sensor_data, SENSOR_FLAG_ONLY_BATTERY); // Just read battery
-  if (init_sensor_data.battery_voltage > 4.00f)
+  if (init_sensor_data.battery_voltage > 4000)
   {
-    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)init_sensor_data.battery_voltage, (int)(init_sensor_data.battery_voltage * 100) % 100);
+    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%d V)\r\n", init_sensor_data.battery_voltage);
     if (SPS30_WakeUp() == SPS30_STATUS_OK)
     {
        (void)SPS30_StartMeasurement();
@@ -892,11 +892,11 @@ static void SendTxData(uint8_t port)
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
 
-  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d.%d degC, RH=%d.%d%%, P=%d hPa, VBAT=%d.%03d V\r\n",
+  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d.%d degC, RH=%d.%d%%, P=%d hPa, VBAT=%d V\r\n",
           (int)sensor_data.temperature, (int)(sensor_data.temperature * 10) % 10,
           (int)sensor_data.humidity, (int)(sensor_data.humidity * 10) % 10,
           (int)sensor_data.pressure,
-          (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 1000) % 1000);
+          sensor_data.battery_voltage);
 
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
@@ -931,7 +931,7 @@ static void SendTxData(uint8_t port)
   CayenneLppAddTemperature(LPP_CH_TEMPERATURE, sensor_data.temperature);
   CayenneLppAddRelativeHumidity(LPP_CH_HUMIDITY, sensor_data.humidity);
   CayenneLppAddLuminosity(LPP_CH_UV_RAW, (uint16_t)sensor_data.uv_raw);
-  CayenneLppAddAnalogInput(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
+  CayenneLppAddLuminosity(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
 
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
@@ -944,7 +944,7 @@ static void SendTxData(uint8_t port)
     bool cleaning_triggered = false;
 
     if (((current_time_s - last_sps30_clean_timestamp) > (SPS30_FAN_CLEAN_INTERVAL_HOURS * 3600U)) &&
-        (sensor_data.battery_voltage > 4.12f))
+        (sensor_data.battery_voltage > 4120))
     {
       APP_LOG(TS_OFF, VLEVEL_M, "Manual SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 100) % 100);
       if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)

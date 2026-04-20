@@ -79,7 +79,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   sensor_data->humidity         = 0.0f;
   sensor_data->temperature      = 0.0f;
   sensor_data->pressure         = 0.0f;
-  sensor_data->battery_voltage  = 0.0f;
+  sensor_data->battery_voltage  = 0U;
   sensor_data->uv_raw           = 0U;
   sensor_data->co2_ppm          = 0U;
   sensor_data->pm1_0            = 0.0f;
@@ -91,7 +91,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   MAX17048_Data_t max17048;
   if (MAX17048_Read(&max17048) == MAX17048_OK)
   {
-    sensor_data->battery_voltage = max17048.voltage_v;
+    sensor_data->battery_voltage = max17048.voltage_mv;
   }
 
   if (sensor_flags & SENSOR_FLAG_ONLY_BATTERY)

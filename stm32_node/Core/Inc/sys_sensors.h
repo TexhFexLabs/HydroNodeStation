@@ -40,7 +40,7 @@ typedef struct
   float pressure;         /*!< in mbar */
   float temperature;      /*!< in degC */
   float humidity;         /*!< in % */
-  float battery_voltage;  /*!< battery voltage in V */
+  uint16_t battery_voltage;  /*!< battery voltage in V */
   uint32_t uv_raw;        /*!< LTR390 UV raw counts */
   uint16_t co2_ppm;       /*!< SCD41 CO2 in ppm */
   float pm1_0;            /*!< SPS30 PM1.0 in ug/m3 */
