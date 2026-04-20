@@ -486,7 +486,7 @@ void LoRaWAN_Init(void)
   
   /* Initial fan clean check if battery is good */
   sensor_t init_sensor_data;
-  EnvSensors_Read(&init_sensor_data, 0U); // Just read battery
+  EnvSensors_Read(&init_sensor_data, SENSOR_FLAG_ONLY_BATTERY); // Just read battery
   if (init_sensor_data.battery_voltage > 4.00f)
   {
     APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)init_sensor_data.battery_voltage, (int)(init_sensor_data.battery_voltage * 100) % 100);

@@ -87,7 +87,19 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   sensor_data->pm4_0            = 0.0f;
   sensor_data->pm10_0           = 0.0f;
 
-  /* 1. Read SHT45 */
+  /* 1. Read MAX17048 */
+  MAX17048_Data_t max17048;
+  if (MAX17048_Read(&max17048) == MAX17048_OK)
+  {
+    sensor_data->battery_voltage = max17048.voltage_v;
+  }
+
+  if (sensor_flags & SENSOR_FLAG_ONLY_BATTERY)
+  {
+    return 0;
+  }
+
+  /* 2. Read SHT45 */
   SHT45_Data_t sht45;
   if (SHT45_Read(&sht45) == SHT45_OK)
   {
@@ -99,7 +111,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     I2C2_RecoverBus();
   }
 
-  /* 2. Read BMP390 */
+  /* 3. Read BMP390 */
   BMP390_Data_t bmp390;
   if (BMP390_Read(&bmp390) == BMP390_OK)
   {
@@ -110,18 +122,11 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     I2C2_RecoverBus();
   }
 
-  /* 3. Read LTR390 */
+  /* 4. Read LTR390 */
   LTR390_Data_t ltr390;
   if (LTR390_ReadUV(&ltr390) == LTR390_OK)
   {
     sensor_data->uv_raw = ltr390.uvs_raw;
-  }
-
-  /* 4. Read MAX17048 */
-  MAX17048_Data_t max17048;
-  if (MAX17048_Read(&max17048) == MAX17048_OK)
-  {
-    sensor_data->battery_voltage = max17048.voltage_v;
   }
 
   /* 5. Read SCD41 */

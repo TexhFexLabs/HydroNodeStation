@@ -76,8 +76,9 @@ int32_t EnvSensors_Init(void);
 
 /* USER CODE BEGIN EFP */
 /* USER CODE BEGIN sensor_flags */
-#define SENSOR_FLAG_CO2   (1U << 0)   /*!< Read SCD41 CO2 this cycle */
-#define SENSOR_FLAG_SPS30 (1U << 1)   /*!< Read SPS30 particulates this cycle */
+#define SENSOR_FLAG_CO2   (1U << 0)         /*!< Read SCD41 CO2 this cycle */
+#define SENSOR_FLAG_SPS30 (1U << 1)         /*!< Read SPS30 particulates this cycle */
+#define SENSOR_FLAG_ONLY_BATTERY (1U << 2)  /*!< Read only battery voltage */
 /* USER CODE END sensor_flags */
 
 /**
