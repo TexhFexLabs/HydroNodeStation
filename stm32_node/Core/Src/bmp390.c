@@ -407,8 +407,24 @@ int32_t BMP390_Read(BMP390_Data_t *data)
                    | ((uint32_t)buf[5] << 16U);
 
     /* 5. Compensate — temperature must be computed first (updates t_lin) --- */
-    data->temperature    = compensate_temperature(raw_t);
-    data->pressure_hPa   = compensate_pressure(raw_p) / 100.0f; /* Pa → hPa */
+    /* Compensation is float internally (Bosch reference algorithm).
+     * Convert to scaled integers at driver boundary:
+     *   temperature: degC  * 100  -> int16  (0.01 degC)
+     *   pressure:    hPa   * 10   -> uint16 (0.1 hPa, from Pa/10)
+     */
+    float t_c  = compensate_temperature(raw_t);            /* degC */
+    float p_pa = compensate_pressure(raw_p);               /* Pa   */
+
+    float t_scaled = t_c * 100.0f;
+    if (t_scaled >  32767.0f) { t_scaled =  32767.0f; }
+    if (t_scaled < -32768.0f) { t_scaled = -32768.0f; }
+    data->temperature = (int16_t)(t_scaled >= 0.0f ? (t_scaled + 0.5f)
+                                                   : (t_scaled - 0.5f));
+
+    float p_scaled = p_pa / 10.0f;  /* Pa/10 = hPa*10 = 0.1 hPa LSB */
+    if (p_scaled < 0.0f)      { p_scaled = 0.0f; }
+    if (p_scaled > 65535.0f)  { p_scaled = 65535.0f; }
+    data->pressure_hPa = (uint16_t)(p_scaled + 0.5f);
 
     return BMP390_OK;
 }

@@ -76,16 +76,16 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   }
 
   /* Default values */
-  sensor_data->humidity         = 0.0f;
-  sensor_data->temperature      = 0.0f;
-  sensor_data->pressure         = 0.0f;
+  sensor_data->humidity         = 0U;
+  sensor_data->temperature      = 0;
+  sensor_data->pressure         = 0U;
   sensor_data->battery_voltage  = 0U;
   sensor_data->uv_raw           = 0U;
   sensor_data->co2_ppm          = 0U;
-  sensor_data->pm1_0            = 0.0f;
-  sensor_data->pm2_5            = 0.0f;
-  sensor_data->pm4_0            = 0.0f;
-  sensor_data->pm10_0           = 0.0f;
+  sensor_data->pm1_0            = 0U;
+  sensor_data->pm2_5            = 0U;
+  sensor_data->pm4_0            = 0U;
+  sensor_data->pm10_0           = 0U;
 
   /* 1. Read MAX17048 */
   MAX17048_Data_t max17048;
@@ -103,8 +103,8 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   SHT45_Data_t sht45;
   if (SHT45_Read(&sht45) == SHT45_OK)
   {
-    sensor_data->temperature = sht45.temperature;
-    sensor_data->humidity    = sht45.humidity;
+    sensor_data->temperature = sht45.temperature;   /* 0.01 degC */
+    sensor_data->humidity    = sht45.humidity;      /* 0.01 %RH  */
   }
   else
   {
@@ -115,7 +115,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   BMP390_Data_t bmp390;
   if (BMP390_Read(&bmp390) == BMP390_OK)
   {
-    sensor_data->pressure = bmp390.pressure_hPa;
+    sensor_data->pressure = bmp390.pressure_hPa;  /* 0.1 hPa */
   }
   else
   {
@@ -145,7 +145,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     SPS30_Data_t sps30_data;
     if (SPS30_ReadMeasurement(&sps30_data) == SPS30_STATUS_OK)
     {
-      sensor_data->pm1_0  = sps30_data.mc_1_0;
+      sensor_data->pm1_0  = sps30_data.mc_1_0;   /* 0.1 ug/m3 */
       sensor_data->pm2_5  = sps30_data.mc_2_5;
       sensor_data->pm4_0  = sps30_data.mc_4_0;
       sensor_data->pm10_0 = sps30_data.mc_10_0;

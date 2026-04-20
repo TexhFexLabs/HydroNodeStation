@@ -43,8 +43,8 @@ static int32_t SCD41_WriteCommandWithWord(uint16_t command, uint16_t data);
 static int32_t SCD41_GetDataReadyStatus(uint16_t *status_word);
 static int32_t SCD41_WaitDataReady(uint32_t timeout_ms);
 static int32_t SCD41_ReadMeasurementWords(uint16_t *co2_raw, uint16_t *temperature_raw, uint16_t *humidity_raw);
-static float SCD41_ConvertTemperature(uint16_t temperature_raw);
-static float SCD41_ConvertHumidity(uint16_t humidity_raw);
+static int16_t  SCD41_ConvertTemperature(uint16_t temperature_raw);
+static uint16_t SCD41_ConvertHumidity(uint16_t humidity_raw);
 
 /* Private functions ---------------------------------------------------------*/
 static uint8_t SCD41_CalculateCrc(const uint8_t *data, uint8_t length)
@@ -213,14 +213,23 @@ static int32_t SCD41_ReadMeasurementWords(uint16_t *co2_raw, uint16_t *temperatu
   return SCD41_STATUS_OK;
 }
 
-static float SCD41_ConvertTemperature(uint16_t temperature_raw)
+/* T [degC]  = -45 + 175 * raw / 65536,     output = degC * 100 (0.01 degC)
+ * RH [%RH] =       100 * raw / 65536,     output = %RH  * 100 (0.01 %RH)
+ * Max intermediate: 17500 * 65535 < 2^31 -> int32 safe. */
+static int16_t SCD41_ConvertTemperature(uint16_t temperature_raw)
 {
-  return (-45.0f + (175.0f * ((float)temperature_raw / 65536.0f)));
+  int32_t t = -4500 + (int32_t)(((uint32_t)17500U * (uint32_t)temperature_raw
+                                 + 32768U) >> 16);
+  if (t >  32767) { t =  32767; }
+  if (t < -32768) { t = -32768; }
+  return (int16_t)t;
 }
 
-static float SCD41_ConvertHumidity(uint16_t humidity_raw)
+static uint16_t SCD41_ConvertHumidity(uint16_t humidity_raw)
 {
-  return (100.0f * ((float)humidity_raw / 65536.0f));
+  uint32_t h = ((uint32_t)10000U * (uint32_t)humidity_raw + 32768U) >> 16;
+  if (h > 10000U) { h = 10000U; }
+  return (uint16_t)h;
 }
 
 /* Exported functions --------------------------------------------------------*/
@@ -282,7 +291,7 @@ int32_t SCD41_Init(void)
   return SCD41_STATUS_OK;
 }
 
-int32_t SCD41_ReadRhtSingleShot(float *temperature, float *humidity)
+int32_t SCD41_ReadRhtSingleShot(int16_t *temperature, uint16_t *humidity)
 {
   uint16_t co2_raw = 0;
   uint16_t temperature_raw = 0;
@@ -355,7 +364,7 @@ int32_t SCD41_StartCo2SingleShot(void)
   return status;
 }
 
-int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, float *temperature, float *humidity)
+int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, int16_t *temperature, uint16_t *humidity)
 {
   uint16_t co2_raw = 0;
   uint16_t temperature_raw = 0;

@@ -37,16 +37,16 @@ extern "C" {
   */
 typedef struct
 {
-  float pressure;         /*!< in mbar */
-  float temperature;      /*!< in degC */
-  float humidity;         /*!< in % */
-  uint16_t battery_voltage;  /*!< battery voltage in V */
-  uint32_t uv_raw;        /*!< LTR390 UV raw counts */
+  uint16_t pressure;      /*!< pressure in 0.1 hPa (hPa*10) */
+  int16_t  temperature;   /*!< temperature in 0.01 degC (degC*100) */
+  uint16_t humidity;      /*!< humidity in 0.01 % (%*100) */
+  uint16_t battery_voltage;  /*!< battery voltage in mV */
+  uint32_t uv_raw;        /*!< LTR390 UV raw counts (20-bit) */
   uint16_t co2_ppm;       /*!< SCD41 CO2 in ppm */
-  float pm1_0;            /*!< SPS30 PM1.0 in ug/m3 */
-  float pm2_5;            /*!< SPS30 PM2.5 in ug/m3 */
-  float pm4_0;            /*!< SPS30 PM4.0 in ug/m3 */
-  float pm10_0;           /*!< SPS30 PM10.0 in ug/m3 */
+  uint16_t pm1_0;         /*!< SPS30 PM1.0 in 0.1 ug/m3 (ug/m3*10) */
+  uint16_t pm2_5;         /*!< SPS30 PM2.5 in 0.1 ug/m3 (ug/m3*10) */
+  uint16_t pm4_0;         /*!< SPS30 PM4.0 in 0.1 ug/m3 (ug/m3*10) */
+  uint16_t pm10_0;        /*!< SPS30 PM10.0 in 0.1 ug/m3 (ug/m3*10) */
 } sensor_t;
 
 /* USER CODE BEGIN ET */

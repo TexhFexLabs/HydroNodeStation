@@ -107,17 +107,6 @@ static int32_t ltr390_set_resolution_and_rate(uint8_t resolution, uint8_t rate)
     return ltr390_update_bits(LTR390_REG_MEAS_RATE, (uint8_t)(0x70U | 0x07U), set_mask);
 }
 
-static float ltr390_estimate_uvi(uint32_t raw_uvs)
-{
-    float scaled = (float)raw_uvs;
-
-    /* Normalize from gain x3 and resolution 16-bit to a rough x18/20-bit space. */
-    scaled *= (18.0f / 3.0f);
-    scaled *= (float)(1U << (20U - 16U));
-
-    return scaled / 2300.0f;
-}
-
 int32_t LTR390_Init(void)
 {
     uint8_t part_id;
@@ -233,8 +222,6 @@ int32_t LTR390_ReadUV(LTR390_Data_t *data)
                   | ((uint32_t)buf[1] << 8U)
                   | ((uint32_t)buf[2] << 16U);
     data->uvs_raw &= 0x000FFFFFU;
-
-    data->uvi_est = ltr390_estimate_uvi(data->uvs_raw);
 
     return LTR390_OK;
 }

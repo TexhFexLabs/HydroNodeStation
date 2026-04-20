@@ -34,8 +34,8 @@ extern "C" {
 /* -------------------------------------------------------------------------- */
 typedef struct
 {
-    float temperature;   /* Celsius */
-    float humidity;      /* %RH, range 0..100 */
+    int16_t  temperature;   /* 0.01 degC (degC * 100), range about -4500..13000 */
+    uint16_t humidity;      /* 0.01 %RH (%RH  * 100), range 0..10000 */
 } SHT45_Data_t;
 
 /* -------------------------------------------------------------------------- */

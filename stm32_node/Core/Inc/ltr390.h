@@ -9,7 +9,7 @@
  * - Gain: x3
  * - Resolution: 16-bit
  *
- * The driver exposes raw UV counts plus a heuristic UV index estimate.
+ * The driver exposes raw UV counts.
  ******************************************************************************
  */
 
@@ -28,7 +28,6 @@
 typedef struct
 {
     uint32_t uvs_raw;   /* Raw UVS counts (up to 20 bits) */
-    float    uvi_est;   /* Heuristic UV index estimate */
 } LTR390_Data_t;
 
 int32_t LTR390_Init(void);

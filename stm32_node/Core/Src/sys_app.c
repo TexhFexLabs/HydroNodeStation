@@ -188,7 +188,8 @@ int16_t GetTemperatureLevel(void)
   sensor_t sensor_data;
 
   EnvSensors_Read(&sensor_data, 0U);
-  temperatureLevel = (int16_t)(sensor_data.temperature);
+  /* sensor_data.temperature is in 0.01 degC; convert back to degC */
+  temperatureLevel = (int16_t)(sensor_data.temperature / 100);
   /* USER CODE BEGIN GetTemperatureLevel */
 
   /* USER CODE END GetTemperatureLevel */
