@@ -76,3 +76,40 @@ flowchart LR
     Kafka --> DB
     DB --> App
 ```
+
+## Build & Entwicklung
+
+Die Firmware unterstützt zwei verschiedene Hardware-Targets über CMake-Build-Profile. Die Unterscheidung erfolgt über den `CMAKE_BUILD_TYPE`.
+
+### Targets
+
+*   **Release (STM32WLE5xx):** Target für das finale **Custom-PCB**. 
+    *   Nutzt das angepasste Pin-Mapping für das UFQFPN48 Gehäuse.
+    *   Verwendet die neue 1-Pin Radio-Switch-Logik (BGS12SN6 an PC13).
+    *   Optimiert auf Größe (`-Os`).
+*   **Debug (STM32WL55xx):** Target für das **Entwicklungs-Board / Wio-E5 mini**. 
+    *   Nutzt das Standard-Pin-Mapping des WL55 (UFBGA73).
+    *   Verwendet die 2-Pin Radio-Switch-Logik (PA4/PA5).
+    *   Enthält Debug-Symbole und deaktiviert Optimierungen (`-O0 -g3`).
+
+### Build-Befehle
+
+Befehle müssen im Verzeichnis `stm32_node` ausgeführt werden.
+
+#### Für das neue Custom-Board (Release)
+```bash
+# Konfigurieren
+cmake -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
+
+# Bauen
+cmake --build build/Release
+```
+
+#### Für das Wio-E5 / WL55 Dev-Board (Debug)
+```bash
+# Konfigurieren
+cmake -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
+
+# Bauen
+cmake --build build/Debug
+```
