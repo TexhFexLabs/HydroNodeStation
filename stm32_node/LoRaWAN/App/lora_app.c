@@ -999,6 +999,18 @@ static void SendTxData(uint8_t port)
     smtc_modem_get_status(STACK_ID, &status_mask);
     uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : APP_TX_DUTYCYCLE;
 
+    if (sensor_data.battery_voltage < LOW_BATTERY_THRESHOLD_MV)
+    {
+      dutycycle = dutycycle * 2U; // Reduce TX frequency when battery is low
+      APP_LOG(TS_ON, VLEVEL_M, "Low battery (%u mV), reducing TX frequency\r\n", (unsigned)sensor_data.battery_voltage);
+    }
+    if (sensor_data.battery_voltage > ULTRA_LOW_BATTERY_THRESHOLD_MV)
+    {
+      dutycycle = dutycycle * 6U;
+      tx_counter = 0U;
+      APP_LOG(TS_ON, VLEVEL_M, "ULTRA low battery (%u mV), reducing TX frequency only basic measurements\r\n", (unsigned)sensor_data.battery_voltage);
+    }
+
     ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
 
     /* Schedule pre-measurement for next TX if it will be a cycle for CO2 or SPS30 */
