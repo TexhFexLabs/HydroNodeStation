@@ -20,7 +20,6 @@
 
 typedef struct
 {
-    float voltage_v;      /* Cell voltage in volts */
     uint16_t voltage_mv;  /* Cell voltage in millivolts */
 } MAX17048_Data_t;
 

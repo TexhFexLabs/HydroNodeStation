@@ -171,9 +171,8 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
 {
   if (data == NULL) return SPS30_STATUS_ERROR;
 
-  uint8_t rx[60]; // 10 floats * (2 bytes + 1 byte CRC) = 60 bytes
+  uint8_t rx[60]; /* 10 IEEE754 floats * (2 bytes + 1 CRC) = 60 bytes */
   uint8_t i, j;
-  float *float_ptr = (float *)data;
 
   if (SPS30_BusInit() != SPS30_STATUS_OK)
   {
@@ -190,24 +189,42 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
     return SPS30_STATUS_ERROR;
   }
 
-  for (i = 0, j = 0; i < 10; i++)
+  /* Verify CRC for all 10 float words (we only keep the first 4). */
+  for (i = 0, j = 0; i < 10; i++, j += 6)
   {
     uint8_t word1[2] = { rx[j], rx[j + 1] };
-    uint8_t crc1 = rx[j + 2];
     uint8_t word2[2] = { rx[j + 3], rx[j + 4] };
-    uint8_t crc2 = rx[j + 5];
-
-    if (SPS30_CalculateCrc(word1, 2) != crc1 || SPS30_CalculateCrc(word2, 2) != crc2)
+    if (SPS30_CalculateCrc(word1, 2) != rx[j + 2] ||
+        SPS30_CalculateCrc(word2, 2) != rx[j + 5])
     {
       return SPS30_STATUS_CRC_ERROR;
     }
+  }
 
-    /* Convert to float (Big-endian) */
-    uint32_t raw_val = ((uint32_t)rx[j] << 24) | ((uint32_t)rx[j + 1] << 16) | 
-                       ((uint32_t)rx[j + 3] << 8) | (uint32_t)rx[j + 4];
-    memcpy(&float_ptr[i], &raw_val, 4);
-    
-    j += 6;
+  /* Decode all 10 big-endian IEEE754 floats and convert to scaled uint16.
+   * Float is local/scratch only; no float stored in SPS30_Data_t.
+   * Index 0..3 : MC   -> *10  (0.1 ug/m3)
+   * Index 4..8 : NC   -> *10  (0.1 #/cm3)
+   * Index 9    : Typ size -> *1000 (nm) */
+  uint16_t *out[10] = {
+    &data->mc_1_0, &data->mc_2_5, &data->mc_4_0, &data->mc_10_0,
+    &data->nc_0_5, &data->nc_1_0, &data->nc_2_5, &data->nc_4_0, &data->nc_10_0,
+    &data->typ_size
+  };
+  for (i = 0, j = 0; i < 10; i++, j += 6)
+  {
+    uint32_t raw_val = ((uint32_t)rx[j]     << 24) |
+                       ((uint32_t)rx[j + 1] << 16) |
+                       ((uint32_t)rx[j + 3] <<  8) |
+                       ((uint32_t)rx[j + 4]);
+    float f;
+    memcpy(&f, &raw_val, 4);
+
+    float scale = (i < 9) ? 10.0f : 1000.0f;
+    float v = f * scale;
+    if (v < 0.0f)     { v = 0.0f; }
+    if (v > 65535.0f) { v = 65535.0f; }
+    *out[i] = (uint16_t)(v + 0.5f);
   }
 
   return SPS30_STATUS_OK;

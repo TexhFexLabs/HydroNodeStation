@@ -93,7 +93,6 @@ int32_t SHT45_Read(SHT45_Data_t *data)
     HAL_StatusTypeDef status;
     uint8_t cmd = SHT45_CMD_MEAS_HIGH;
     uint8_t buf[6];
-    float rh;
 
     if (data == NULL)
     {
@@ -133,16 +132,25 @@ int32_t SHT45_Read(SHT45_Data_t *data)
         return SHT45_ERR_CRC;
     }
 
-    /* 5. Convert raw values (Datasheet Eq. 1 & 2) -------------------------- */
+    /* 5. Convert raw values in pure integer math.
+     *    T  [degC] = -45 + 175 * raw_t  / 65535
+     *    RH [%]   = -6  + 125 * raw_rh / 65535
+     *    Output scaled x100 -> 0.01 degC / 0.01 %.
+     *    max intermediate: 17500 * 65535 = 1146862500 -> fits uint32. */
     uint16_t raw_t  = ((uint16_t)buf[0] << 8U) | buf[1];
     uint16_t raw_rh = ((uint16_t)buf[3] << 8U) | buf[4];
 
-    data->temperature = -45.0f + 175.0f * ((float)raw_t  / 65535.0f);
+    int32_t t_cdeg = -4500 + (int32_t)(((uint32_t)17500U * (uint32_t)raw_t
+                                        + 32767U) / 65535U);
+    if (t_cdeg >  32767) { t_cdeg =  32767; }
+    if (t_cdeg < -32768) { t_cdeg = -32768; }
+    data->temperature = (int16_t)t_cdeg;
 
-    rh = -6.0f + 125.0f * ((float)raw_rh / 65535.0f);
-    if      (rh <   0.0f) { rh =   0.0f; }
-    else if (rh > 100.0f) { rh = 100.0f; }
-    data->humidity = rh;
+    int32_t rh_chum = -600 + (int32_t)(((uint32_t)12500U * (uint32_t)raw_rh
+                                        + 32767U) / 65535U);
+    if (rh_chum <     0) { rh_chum =     0; }
+    if (rh_chum > 10000) { rh_chum = 10000; }
+    data->humidity = (uint16_t)rh_chum;
 
     return SHT45_OK;
 }

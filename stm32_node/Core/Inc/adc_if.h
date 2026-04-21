@@ -40,17 +40,13 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /**
-  * @brief Battery level in mV
-  */
-#define BAT_CR2032                  ((uint32_t) 3000)
-/**
   * @brief Maximum battery level in mV
   */
-#define VDD_BAT                     BAT_CR2032
+#define VDD_BAT                     4250
 /**
   * @brief Minimum battery level in mV
   */
-#define VDD_MIN                     1800
+#define VDD_MIN                     3200
 
 /* USER CODE BEGIN EC */
 

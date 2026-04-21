@@ -17,7 +17,10 @@
 #define MAX17048_I2C_TIMEOUT_MS  (50U)
 
 /* VCELL LSB = 78.125 uV -> 0.000078125 V */
-#define MAX17048_VCELL_LSB_V      (0.000078125f)
+/* VCELL LSB = 78.125 uV = 78125 nV = 5/64 mV.
+ * mV = raw * 5 / 64. Max raw = 65535 -> 65535 * 5 = 327675 < 2^31 (int32 ok). */
+#define MAX17048_VCELL_MV_NUM     (5U)
+#define MAX17048_VCELL_MV_DEN     (64U)
 
 static uint8_t s_initialised = 0U;
 
@@ -77,8 +80,11 @@ int32_t MAX17048_Read(MAX17048_Data_t *data)
 
     raw16 = (uint16_t)(((uint16_t)raw[0] << 8U) | (uint16_t)raw[1]);
 
-    data->voltage_v = ((float)raw16) * MAX17048_VCELL_LSB_V;
-    data->voltage_mv = (uint16_t)(data->voltage_v * 1000.0f + 0.5f);
+    /* Integer math: mV = (raw * 5 + 32) / 64 (rounded). */
+    uint32_t mv = ((uint32_t)raw16 * MAX17048_VCELL_MV_NUM
+                   + (MAX17048_VCELL_MV_DEN / 2U)) / MAX17048_VCELL_MV_DEN;
+    if (mv > 0xFFFFU) { mv = 0xFFFFU; }
+    data->voltage_mv = (uint16_t)mv;
 
     return MAX17048_OK;
 }

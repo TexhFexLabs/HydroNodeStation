@@ -486,10 +486,10 @@ void LoRaWAN_Init(void)
   
   /* Initial fan clean check if battery is good */
   sensor_t init_sensor_data;
-  EnvSensors_Read(&init_sensor_data, 0U); // Just read battery
-  if (init_sensor_data.battery_voltage > 4.00f)
+  EnvSensors_Read(&init_sensor_data, SENSOR_FLAG_ONLY_BATTERY); // Just read battery
+  if (init_sensor_data.battery_voltage > 4000)
   {
-    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)init_sensor_data.battery_voltage, (int)(init_sensor_data.battery_voltage * 100) % 100);
+    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)init_sensor_data.battery_voltage);
     if (SPS30_WakeUp() == SPS30_STATUS_OK)
     {
        (void)SPS30_StartMeasurement();
@@ -892,11 +892,13 @@ static void SendTxData(uint8_t port)
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
 
-  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d.%d degC, RH=%d.%d%%, P=%d hPa, VBAT=%d.%03d V\r\n",
-          (int)sensor_data.temperature, (int)(sensor_data.temperature * 10) % 10,
-          (int)sensor_data.humidity, (int)(sensor_data.humidity * 10) % 10,
-          (int)sensor_data.pressure,
-          (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 1000) % 1000);
+  /* Log raw stored values (scaling noted in unit label). Receiver / human
+   * reader converts: T/100 = degC, RH/100 = %, P/10 = hPa. */
+  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d [0.01degC], RH=%u [0.01%%], P=%u [0.1hPa], VBAT=%u mV\r\n",
+          (int)sensor_data.temperature,
+          (unsigned)sensor_data.humidity,
+          (unsigned)sensor_data.pressure,
+          (unsigned)sensor_data.battery_voltage);
 
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
@@ -905,11 +907,18 @@ static void SendTxData(uint8_t port)
 
   if (sensor_flags & SENSOR_FLAG_SPS30)
   {
-    APP_LOG(TS_ON, VLEVEL_M, "SPS30: PM1.0=%d.%d, PM2.5=%d.%d, PM4.0=%d.%d, PM10.0=%d.%d ug/m3\r\n",
-            (int)sensor_data.pm1_0, (int)(sensor_data.pm1_0 * 10) % 10,
-            (int)sensor_data.pm2_5, (int)(sensor_data.pm2_5 * 10) % 10,
-            (int)sensor_data.pm4_0, (int)(sensor_data.pm4_0 * 10) % 10,
-            (int)sensor_data.pm10_0, (int)(sensor_data.pm10_0 * 10) % 10);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 MC: PM1.0=%u PM2.5=%u PM4.0=%u PM10.0=%u [0.1 ug/m3]\r\n",
+            (unsigned)sensor_data.pm1_0,
+            (unsigned)sensor_data.pm2_5,
+            (unsigned)sensor_data.pm4_0,
+            (unsigned)sensor_data.pm10_0);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 NC: PM0.5=%u PM1.0=%u PM2.5=%u PM4.0=%u PM10=%u [0.1 #/cm3]\r\n",
+            (unsigned)sensor_data.nc_0_5,
+            (unsigned)sensor_data.nc_1_0,
+            (unsigned)sensor_data.nc_2_5,
+            (unsigned)sensor_data.nc_4_0,
+            (unsigned)sensor_data.nc_10_0);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 TypSize=%u [nm]\r\n", (unsigned)sensor_data.typ_size);
   }
 
   enum
@@ -924,14 +933,33 @@ static void SendTxData(uint8_t port)
     LPP_CH_PM2_5,
     LPP_CH_PM4_0,
     LPP_CH_PM10_0,
+    LPP_CH_NC_0_5,
+    LPP_CH_NC_1_0,
+    LPP_CH_NC_2_5,
+    LPP_CH_NC_4_0,
+    LPP_CH_NC_10_0,
+    LPP_CH_TYP_SIZE,
   };
 
+  /* Send all scaled values as raw uint16 via Luminosity (2 bytes, big-endian).
+   * Receiver must know scaling:
+   *  PRESSURE    : uint16 * 0.1 hPa
+   *  TEMPERATURE : int16  * 0.01 degC (bit-cast into uint16 on wire)
+   *  HUMIDITY    : uint16 * 0.01 %
+   *  UV_RAW      : uint16 (LTR390 20-bit counts, clamped)
+   *  BATTERY_V   : uint16 mV
+   *  CO2         : uint16 ppm
+   *  PM*         : uint16 * 0.1 ug/m3 (MC)
+   *  NC_*        : uint16 * 0.1 #/cm3
+   *  TYP_SIZE    : uint16 nm (um*1000)
+   */
   CayenneLppReset();
-  CayenneLppAddBarometricPressure(LPP_CH_PRESSURE, sensor_data.pressure);
-  CayenneLppAddTemperature(LPP_CH_TEMPERATURE, sensor_data.temperature);
-  CayenneLppAddRelativeHumidity(LPP_CH_HUMIDITY, sensor_data.humidity);
-  CayenneLppAddLuminosity(LPP_CH_UV_RAW, (uint16_t)sensor_data.uv_raw);
-  CayenneLppAddAnalogInput(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
+  CayenneLppAddLuminosity(LPP_CH_PRESSURE, sensor_data.pressure);
+  CayenneLppAddLuminosity(LPP_CH_TEMPERATURE, (uint16_t)sensor_data.temperature);
+  CayenneLppAddLuminosity(LPP_CH_HUMIDITY, sensor_data.humidity);
+  CayenneLppAddLuminosity(LPP_CH_UV_RAW,
+                          (uint16_t)(sensor_data.uv_raw > 0xFFFFU ? 0xFFFFU : sensor_data.uv_raw));
+  CayenneLppAddLuminosity(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
 
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
@@ -944,9 +972,9 @@ static void SendTxData(uint8_t port)
     bool cleaning_triggered = false;
 
     if (((current_time_s - last_sps30_clean_timestamp) > (SPS30_FAN_CLEAN_INTERVAL_HOURS * 3600U)) &&
-        (sensor_data.battery_voltage > 4.12f))
+        (sensor_data.battery_voltage > 4120))
     {
-      APP_LOG(TS_OFF, VLEVEL_M, "Manual SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 100) % 100);
+      APP_LOG(TS_OFF, VLEVEL_M, "Manual SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)sensor_data.battery_voltage);
       if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)
       {
         last_sps30_clean_timestamp = current_time_s;
@@ -963,10 +991,16 @@ static void SendTxData(uint8_t port)
       (void)SPS30_StopMeasurement();
       (void)SPS30_Sleep();
     }
-    CayenneLppAddAnalogInput(LPP_CH_PM1_0, sensor_data.pm1_0);
-    CayenneLppAddAnalogInput(LPP_CH_PM2_5, sensor_data.pm2_5);
-    CayenneLppAddAnalogInput(LPP_CH_PM4_0, sensor_data.pm4_0);
-    CayenneLppAddAnalogInput(LPP_CH_PM10_0, sensor_data.pm10_0);
+    CayenneLppAddLuminosity(LPP_CH_PM1_0,    sensor_data.pm1_0);
+    CayenneLppAddLuminosity(LPP_CH_PM2_5,    sensor_data.pm2_5);
+    CayenneLppAddLuminosity(LPP_CH_PM4_0,    sensor_data.pm4_0);
+    CayenneLppAddLuminosity(LPP_CH_PM10_0,   sensor_data.pm10_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_0_5,   sensor_data.nc_0_5);
+    CayenneLppAddLuminosity(LPP_CH_NC_1_0,   sensor_data.nc_1_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_2_5,   sensor_data.nc_2_5);
+    CayenneLppAddLuminosity(LPP_CH_NC_4_0,   sensor_data.nc_4_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_10_0,  sensor_data.nc_10_0);
+    CayenneLppAddLuminosity(LPP_CH_TYP_SIZE, sensor_data.typ_size);
   }
 
   CayenneLppCopy(AppDataBuffer);
@@ -985,6 +1019,18 @@ static void SendTxData(uint8_t port)
     smtc_modem_status_mask_t status_mask = 0;
     smtc_modem_get_status(STACK_ID, &status_mask);
     uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : APP_TX_DUTYCYCLE;
+
+    if (sensor_data.battery_voltage < LOW_BATTERY_THRESHOLD_MV)
+    {
+      dutycycle = dutycycle * 2U; // Reduce TX frequency when battery is low
+      APP_LOG(TS_ON, VLEVEL_M, "Low battery (%u mV), reducing TX frequency\r\n", (unsigned)sensor_data.battery_voltage);
+    }
+    if (sensor_data.battery_voltage < ULTRA_LOW_BATTERY_THRESHOLD_MV)
+    {
+      dutycycle = dutycycle * 6U;
+      tx_counter = 0U;
+      APP_LOG(TS_ON, VLEVEL_M, "ULTRA low battery (%u mV), reducing TX frequency only basic measurements\r\n", (unsigned)sensor_data.battery_voltage);
+    }
 
     ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
 
