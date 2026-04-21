@@ -27,3 +27,12 @@ stm32_node/build/
 .build/
 .cache/
 build/
+
+# tex build files
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
