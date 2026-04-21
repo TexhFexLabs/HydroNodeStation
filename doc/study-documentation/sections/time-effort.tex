@@ -1,4 +1,58 @@
 \chapter{Stundenaufwand}
-Der zeitliche Aufwand wird nach Projektphasen dokumentiert, zum Beispiel Planung, Entwicklung, Tests und Nachbereitung. Dadurch lässt sich die Verteilung der Arbeitszeit klar bewerten.
+Die folgende Tabelle dokumentiert den zeitlichen Aufwand auf Basis der erfassten Stunden.
 
-Für die finale Version kann hier eine Tabelle mit Kalenderwochen, Aufgaben und Stunden ergänzt werden. Diese Übersicht unterstützt eine realistische Einschätzung des Gesamtaufwands.
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{|l|c|l|p{7.5cm}|}
+\hline
+\textbf{Datum} & \textbf{Stundenanzahl} & \textbf{Kategorie} & \textbf{Beschreibung} \\
+\hline
+23.03.2026 & 5 & Hardware & Energieeffiziente Komponenten ausgewählt und bestellt (STM32, Laderegler, Konverter, SCD41). \\
+\hline
+27.03.2026 & 4 & Software & Testprojekt auf Basis der Vorlage erstellt, um Dummy-Werte zu senden. \\
+\hline
+29.03.2026 & 2 & Hardware & L"otarbeiten f"ur die neuen Komponenten (STM32 und BQ25185) durchgef"uhrt. \\
+\hline
+30.03.2026 & 6 & Software & Erster Upload per ST-Link auf den STM32, Verbindungsparameter konfiguriert sowie erfolgreiche Sende- und Low-Power-Tests in den LoRaWAN-Ablauf integriert. \\
+\hline
+31.03.2026 & 2 & Hardware & Weitere Komponenten bestellt und Sensoren f"ur Luftfeuchtigkeit, Temperatur, Druck und UV-Strahlung ausgew"ahlt. \\
+\hline
+31.03.2026 & 1 & Hardware & Sendetests mit und ohne eigenem Gateway sowie mit verschiedenen Antennen durchgef"uhrt. \\
+\hline
+01.04.2026 & 1 & Hardware & LoRa-Tests innerhalb von K104 durchgef"uhrt. \\
+\hline
+01.04.2026 & 2 & Software & Projekt angepasst, SCD41 implementiert und den Build "uber Makefiles verbessert. \\
+\hline
+03.04.2026 & 2 & Planing & Mindestanforderungen f"ur Batterie und Solarmodul der Station berechnet. \\
+\hline
+05.04.2026 & 4 & Software & Effizienz verbessert, LC7092 implementiert, Tests bei sehr schlechtem Empfang (\textgreater{}10 km) durchgef"uhrt und GitHub-Actions-Tests eingerichtet. \\
+\hline
+06.04.2026 & 6 & CAD & PCB-Design erstellt sowie Datenblatt- und Leistungsberechnungen durchgef"uhrt. \\
+\hline
+07.04.2026 & 6 & CAD & PCB-Design weiter ausgearbeitet. \\
+\hline
+10.04.2026 & 6 & Software & Verbesserungen am Stack umgesetzt. \\
+\hline
+11.04.2026 & 3 & Planing & Vorbereitung f"ur das eigene PCB und die neue MCU abgeschlossen. \\
+\hline
+13.04.2026 & 6 & Software & SHT45, BMP390, LTR390 und MAX17048 implementiert und getestet. \\
+\hline
+14.04.2026 & 2 & Hardware & Signalst"arketests an der OTH erfolgreich durchgef"uhrt (Empfang durch mehrere Stationen). \\
+\hline
+15.04.2026 & 6 & Software & Remote-Debugging eingerichtet sowie Logik und Prewake-Logik verbessert. \\
+\hline
+16.04.2026 & 3 & Software & SPS30 implementiert, L"ufterreinigung integriert und Bugs behoben. \\
+\hline
+18.04.2026 & 7 & CAD & PCB- und RF-Design finalisiert. \\
+\hline
+20.04.2026 & 5 & Software & CMake- und Projektstruktur f"ur den neuen STM32WLE5CCU6 neu aufgebaut. \\
+\hline
+21.04.2026 & 1 & Planing & LaTeX-Projekt initialisiert. \\
+\hline
+\textbf{Gesamt} & \textbf{80} &  &  \\
+\hline
+\end{tabular}
+\caption{Dokumentierter Stundenaufwand nach Datum, Kategorie und T"atigkeit}
+\label{tab:stundenaufwand}
+\end{table}
