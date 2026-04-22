@@ -116,6 +116,8 @@ typedef enum TxEventType_e
   * @brief SPS30 Manual Fan cleaning interval in hours
   */
 #define SPS30_FAN_CLEAN_INTERVAL_HOURS  120U
+#define RX_CMD_PORT                      LORAWAN_USER_APP_PORT
+#define RX_CMD_TRIGGER_SPS30_CLEANING    0x11U
 
 /* USER CODE END PD */
 
@@ -186,6 +188,8 @@ typedef enum TxEventType_e
   * @brief  LoRa End Node send request
   */
 static void SendTxData(uint8_t port);
+static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata);
+
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
 /**
   * @brief  Sleep timer callback function
@@ -742,6 +746,18 @@ static void EventCallback(void)
         /* Get downlink data */
         ASSERT_SMTC_MODEM_RC(smtc_modem_get_downlink_data(rx_payload, &rx_payload_size, &rx_metadata, &rx_remaining));
         APP_LOG(TS_OFF, VLEVEL_M, "Data received on port %u\r\n", rx_metadata.fport);
+        if (rx_payload_size == 0U)
+        {
+          APP_LOG(TS_ON, VLEVEL_M, "Ignoring empty downlink payload on port %u\r\n", rx_metadata.fport);
+          break;
+        }
+
+        if (rx_remaining > 0U)
+        {
+          APP_LOG(TS_ON, VLEVEL_M, "Downlink payload truncated, remaining=%u\r\n", (unsigned)rx_remaining);
+        }
+
+        processRxData(rx_payload, rx_payload_size, &rx_metadata);
         /* APP_LOG(TS_OFF, VLEVEL_M, "Received payload", rx_payload, rx_payload_size ); */
         break;
 
@@ -1050,6 +1066,81 @@ static void SendTxData(uint8_t port)
   }
   /* USER CODE END SendTxData_1 */
 }
+
+static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata)
+{
+  if ((payload == NULL) || (metadata == NULL))
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "Ignoring downlink: invalid arguments\r\n");
+    return;
+  }
+
+  if (size == 0U)
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "Ignoring downlink: payload size is zero\r\n");
+    return;
+  }
+
+  if (metadata->fport != RX_CMD_PORT)
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "Ignoring downlink command on unexpected port %u\r\n", metadata->fport);
+    return;
+  }
+
+  const uint8_t command = payload[0];
+  APP_LOG(TS_ON, VLEVEL_M, "Received command 0x%02X (size=%u, port=%u)\r\n",
+          (unsigned)command,
+          (unsigned)size,
+          metadata->fport);
+
+  switch (command)
+  {
+    case RX_CMD_TRIGGER_SPS30_CLEANING:
+    {
+      bool measurement_started = false;
+      bool cleaning_started = false;
+
+      APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger SPS30 fan cleaning\r\n");
+
+      if (SPS30_WakeUp() != SPS30_STATUS_OK)
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 wake-up failed\r\n");
+        break;
+      }
+
+      if (SPS30_StartMeasurement() == SPS30_STATUS_OK)
+      {
+        measurement_started = true;
+      }
+      else
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 start measurement failed\r\n");
+      }
+
+      if (measurement_started && (SPS30_StartFanCleaning() == SPS30_STATUS_OK))
+      {
+        UTIL_TIMER_Start(&Sps30CleanupTimer);
+        cleaning_started = true;
+      }
+      else if (measurement_started)
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 fan cleaning start failed\r\n");
+      }
+
+      if ((cleaning_started == false) && (measurement_started == true))
+      {
+        (void)SPS30_StopMeasurement();
+        (void)SPS30_Sleep();
+      }
+
+      break;
+    }
+    default:
+      APP_LOG(TS_ON, VLEVEL_M, "Message: Unknown command 0x%02X\r\n", (unsigned)command);
+      break;
+  }
+}
+
 
 /* USER CODE BEGIN PrFD_LedEvents */
 static bool IsAllZero(const uint8_t *buffer, uint8_t size)
