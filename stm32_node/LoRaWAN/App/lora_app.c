@@ -499,15 +499,27 @@ void LoRaWAN_Init(void)
   if (init_sensor_data.battery_voltage > 4000)
   {
     APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)init_sensor_data.battery_voltage);
-    if (SPS30_WakeUp() == SPS30_STATUS_OK)
+    if ((SPS30_AcquireBus() == SPS30_STATUS_OK) && (SPS30_WakeUp() == SPS30_STATUS_OK))
     {
        (void)SPS30_StartMeasurement();
-       (void)SPS30_StartFanCleaning();
-       HAL_Delay(100); // Small delay for command
-       (void)SPS30_StopMeasurement();
-       (void)SPS30_Sleep();
+       HAL_Delay(50);
+       if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)
+       {
+         UTIL_TIMER_Start(&Sps30CleanupTimer);
+       }
+       else
+       {
+         APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning start failed\r\n");
+         (void)SPS30_StopMeasurement();
+         (void)SPS30_Sleep();
+       }
         last_sps30_clean_timestamp = SysTimeGet().Seconds;
     }
+    else
+    {
+      APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 bus acquire/wakeup failed\r\n");
+    }
+    (void)SPS30_ReleaseBus();
   }
 
   APP_LOG(TS_OFF, VLEVEL_M, "Sensors initialized\r\n");
@@ -1107,8 +1119,15 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
 
       APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger SPS30 fan cleaning\r\n");
 
+      if (SPS30_AcquireBus() != SPS30_STATUS_OK)
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 bus acquire failed\r\n");
+        break;
+      }
+
       if (SPS30_WakeUp() != SPS30_STATUS_OK)
       {
+        (void)SPS30_ReleaseBus();
         APP_LOG(TS_ON, VLEVEL_M, "SPS30 wake-up failed\r\n");
         break;
       }
@@ -1116,6 +1135,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       if (SPS30_StartMeasurement() == SPS30_STATUS_OK)
       {
         measurement_started = true;
+        HAL_Delay(50);
       }
       else
       {
@@ -1126,6 +1146,8 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       {
         UTIL_TIMER_Start(&Sps30CleanupTimer);
         cleaning_started = true;
+        last_sps30_clean_timestamp = SysTimeGet().Seconds;
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 fan cleaning started\r\n");
       }
       else if (measurement_started)
       {
@@ -1137,6 +1159,8 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
         (void)SPS30_StopMeasurement();
         (void)SPS30_Sleep();
       }
+
+      (void)SPS30_ReleaseBus();
 
       break;
     }

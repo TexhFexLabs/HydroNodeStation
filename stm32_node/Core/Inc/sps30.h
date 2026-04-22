@@ -55,6 +55,18 @@ typedef struct {
 int32_t SPS30_Init(void);
 
 /**
+  * @brief  Acquire SPS30 I2C bus context for grouped commands
+  * @retval SPS30_STATUS_OK if successful
+  */
+int32_t SPS30_AcquireBus(void);
+
+/**
+  * @brief  Release SPS30 I2C bus context after grouped commands
+  * @retval SPS30_STATUS_OK if successful
+  */
+int32_t SPS30_ReleaseBus(void);
+
+/**
   * @brief  Wakes up the SPS30 sensor from sleep mode
   * @retval SPS30_STATUS_OK if successful
   */

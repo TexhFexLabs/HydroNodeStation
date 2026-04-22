@@ -30,8 +30,12 @@
 static uint8_t SPS30_CalculateCrc(const uint8_t *data, uint8_t length);
 static int32_t SPS30_BusInit(void);
 static void SPS30_BusDeInit(void);
+static int32_t SPS30_EnsureBusReady(void);
 static int32_t SPS30_WriteCommand(uint16_t command);
 static int32_t SPS30_WriteCommandWithData(uint16_t command, const uint8_t *data, uint8_t length);
+
+/* Private variables ---------------------------------------------------------*/
+static uint8_t sps30_bus_acquire_count = 0U;
 
 /* Private functions ---------------------------------------------------------*/
 static uint8_t SPS30_CalculateCrc(const uint8_t *data, uint8_t length)
@@ -77,6 +81,16 @@ static int32_t SPS30_BusInit(void)
 static void SPS30_BusDeInit(void)
 {
   (void)HAL_I2C_DeInit(&hi2c2);
+}
+
+static int32_t SPS30_EnsureBusReady(void)
+{
+  if (sps30_bus_acquire_count > 0U)
+  {
+    return SPS30_STATUS_OK;
+  }
+
+  return SPS30_BusInit();
 }
 
 static int32_t SPS30_WriteCommand(uint16_t command)
@@ -138,9 +152,33 @@ int32_t SPS30_Init(void)
   return SPS30_STATUS_OK;
 }
 
+int32_t SPS30_AcquireBus(void)
+{
+  if (sps30_bus_acquire_count == 0U)
+  {
+    if (SPS30_BusInit() != SPS30_STATUS_OK)
+    {
+      return SPS30_STATUS_ERROR;
+    }
+  }
+
+  sps30_bus_acquire_count++;
+  return SPS30_STATUS_OK;
+}
+
+int32_t SPS30_ReleaseBus(void)
+{
+  if (sps30_bus_acquire_count > 0U)
+  {
+    sps30_bus_acquire_count--;
+  }
+
+  return SPS30_STATUS_OK;
+}
+
 int32_t SPS30_WakeUp(void)
 {
-  if (SPS30_BusInit() != SPS30_STATUS_OK)
+  if (SPS30_EnsureBusReady() != SPS30_STATUS_OK)
   {
     return SPS30_STATUS_ERROR;
   }
@@ -161,7 +199,11 @@ int32_t SPS30_StartMeasurement(void)
   data[0] = 0x03; // Big-endian IEEE754 float values
   data[1] = 0x00; // dummy byte
 
-  /* No BusInit here, assuming it's called after WakeUp */
+  if (SPS30_EnsureBusReady() != SPS30_STATUS_OK)
+  {
+    return SPS30_STATUS_ERROR;
+  }
+
   int32_t status = SPS30_WriteCommandWithData(SPS30_CMD_START_MEASUREMENT, data, 2);
   HAL_Delay(SPS30_START_MEASUREMENT_DELAY_MS);
   return status;
@@ -174,7 +216,7 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
   uint8_t rx[60]; /* 10 IEEE754 floats * (2 bytes + 1 CRC) = 60 bytes */
   uint8_t i, j;
 
-  if (SPS30_BusInit() != SPS30_STATUS_OK)
+  if (SPS30_EnsureBusReady() != SPS30_STATUS_OK)
   {
     return SPS30_STATUS_ERROR;
   }
@@ -232,6 +274,11 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
 
 int32_t SPS30_StopMeasurement(void)
 {
+  if (SPS30_EnsureBusReady() != SPS30_STATUS_OK)
+  {
+    return SPS30_STATUS_ERROR;
+  }
+
   return SPS30_WriteCommand(SPS30_CMD_STOP_MEASUREMENT);
 }
 
@@ -248,11 +295,23 @@ int32_t SPS30_SetFanAutoCleaningInterval(uint32_t interval_s)
 
 int32_t SPS30_StartFanCleaning(void)
 {
-  return SPS30_WriteCommand(SPS30_CMD_START_FAN_CLEANING);
+  if (SPS30_EnsureBusReady() != SPS30_STATUS_OK)
+  {
+    return SPS30_STATUS_ERROR;
+  }
+
+  int32_t status = SPS30_WriteCommand(SPS30_CMD_START_FAN_CLEANING);
+  HAL_Delay(20);
+  return status;
 }
 
 int32_t SPS30_Sleep(void)
 {
+  if (SPS30_EnsureBusReady() != SPS30_STATUS_OK)
+  {
+    return SPS30_STATUS_ERROR;
+  }
+
   int32_t status = SPS30_WriteCommand(SPS30_CMD_SLEEP);
   return status;
 }
