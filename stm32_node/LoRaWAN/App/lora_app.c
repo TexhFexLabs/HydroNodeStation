@@ -492,13 +492,17 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Start(&JoinLedTimer);
 
   EnvSensors_Init();
+
+  HAL_Delay(2000);
   
   /* Initial fan clean check if battery is good */
   sensor_t init_sensor_data;
-  EnvSensors_Read(&init_sensor_data, SENSOR_FLAG_ONLY_BATTERY); // Just read battery
-  if (init_sensor_data.battery_voltage > 4000)
+  (void)EnvSensors_Read(&init_sensor_data, SENSOR_FLAG_ONLY_BATTERY);
+  uint16_t init_battery_mv = init_sensor_data.battery_voltage;
+  APP_LOG(TS_OFF, VLEVEL_M, "Init Bat (VBat=%u mV)\r\n", (unsigned)init_battery_mv);
+  if (init_battery_mv > 4050)
   {
-    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)init_sensor_data.battery_voltage);
+    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)init_battery_mv);
     if ((SPS30_AcquireBus() == SPS30_STATUS_OK) && (SPS30_WakeUp() == SPS30_STATUS_OK))
     {
        (void)SPS30_StartMeasurement();

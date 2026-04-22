@@ -99,6 +99,15 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   {
     sensor_data->battery_voltage = max17048.voltage_mv;
   }
+  else
+  {
+    /* Try to recover I2C and re-init fuel gauge when first read fails at boot. */
+    I2C2_RecoverBus();
+    if ((MAX17048_Init() == MAX17048_OK) && (MAX17048_Read(&max17048) == MAX17048_OK))
+    {
+      sensor_data->battery_voltage = max17048.voltage_mv;
+    }
+  }
 
   if (sensor_flags & SENSOR_FLAG_ONLY_BATTERY)
   {
