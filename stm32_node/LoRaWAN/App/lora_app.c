@@ -116,8 +116,13 @@ typedef enum TxEventType_e
   * @brief SPS30 Manual Fan cleaning interval in hours
   */
 #define SPS30_FAN_CLEAN_INTERVAL_HOURS  120U
+
+/**
+  * @brief RX command port and codes
+  */
 #define RX_CMD_PORT                      LORAWAN_USER_APP_PORT
 #define RX_CMD_TRIGGER_SPS30_CLEANING    0x11U
+#define RX_CMD_SOFTWARE_RESET            0xFFU
 
 /* USER CODE END PD */
 
@@ -1135,6 +1140,10 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
 
       break;
     }
+    case RX_CMD_SOFTWARE_RESET:
+      APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger software reset\r\n");
+      HAL_NVIC_SystemReset();
+      break;
     default:
       APP_LOG(TS_ON, VLEVEL_M, "Message: Unknown command 0x%02X\r\n", (unsigned)command);
       break;
