@@ -43,6 +43,14 @@ extern "C" {
 
 /* USER CODE BEGIN EC_CAYENNE_LPP */
 /*!
+ * Low battery threshold in milli volt
+ */
+#define LOW_BATTERY_THRESHOLD_MV                    3400
+/*!
+ * ULTRA low battery threshold in milli volt
+ */
+#define ULTRA_LOW_BATTERY_THRESHOLD_MV                    3000
+/*!
   * Defines the application data transmission duty cycle in seconds.
   */
 #define APP_TX_DUTYCYCLE                            300

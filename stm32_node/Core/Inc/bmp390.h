@@ -29,8 +29,8 @@
 /* -------------------------------------------------------------------------- */
 typedef struct
 {
-    float pressure_hPa;  /* Compensated pressure in hPa                       */
-    float temperature;   /* Compensated temperature in °C (from BMP390 sensor) */
+    uint16_t pressure_hPa; /* Compensated pressure in 0.1 hPa (hPa * 10)        */
+    int16_t  temperature;  /* Compensated temperature in 0.01 degC (degC * 100) */
 } BMP390_Data_t;
 
 /* -------------------------------------------------------------------------- */

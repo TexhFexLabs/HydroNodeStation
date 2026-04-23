@@ -117,6 +117,13 @@ typedef enum TxEventType_e
   */
 #define SPS30_FAN_CLEAN_INTERVAL_HOURS  120U
 
+/**
+  * @brief RX command port and codes
+  */
+#define RX_CMD_PORT                      LORAWAN_USER_APP_PORT
+#define RX_CMD_TRIGGER_SPS30_CLEANING    0x11U
+#define RX_CMD_SOFTWARE_RESET            0xFFU
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -186,6 +193,8 @@ typedef enum TxEventType_e
   * @brief  LoRa End Node send request
   */
 static void SendTxData(uint8_t port);
+static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata);
+
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
 /**
   * @brief  Sleep timer callback function
@@ -483,22 +492,38 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Start(&JoinLedTimer);
 
   EnvSensors_Init();
+
+  HAL_Delay(2000);
   
   /* Initial fan clean check if battery is good */
   sensor_t init_sensor_data;
-  EnvSensors_Read(&init_sensor_data, 0U); // Just read battery
-  if (init_sensor_data.battery_voltage > 4.00f)
+  (void)EnvSensors_Read(&init_sensor_data, SENSOR_FLAG_ONLY_BATTERY);
+  uint16_t init_battery_mv = init_sensor_data.battery_voltage;
+  APP_LOG(TS_OFF, VLEVEL_M, "Init Bat (VBat=%u mV)\r\n", (unsigned)init_battery_mv);
+  if (init_battery_mv > 4050)
   {
-    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)init_sensor_data.battery_voltage, (int)(init_sensor_data.battery_voltage * 100) % 100);
-    if (SPS30_WakeUp() == SPS30_STATUS_OK)
+    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)init_battery_mv);
+    if ((SPS30_AcquireBus() == SPS30_STATUS_OK) && (SPS30_WakeUp() == SPS30_STATUS_OK))
     {
        (void)SPS30_StartMeasurement();
-       (void)SPS30_StartFanCleaning();
-       HAL_Delay(100); // Small delay for command
-       (void)SPS30_StopMeasurement();
-       (void)SPS30_Sleep();
+       HAL_Delay(50);
+       if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)
+       {
+         UTIL_TIMER_Start(&Sps30CleanupTimer);
+       }
+       else
+       {
+         APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning start failed\r\n");
+         (void)SPS30_StopMeasurement();
+         (void)SPS30_Sleep();
+       }
         last_sps30_clean_timestamp = SysTimeGet().Seconds;
     }
+    else
+    {
+      APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 bus acquire/wakeup failed\r\n");
+    }
+    (void)SPS30_ReleaseBus();
   }
 
   APP_LOG(TS_OFF, VLEVEL_M, "Sensors initialized\r\n");
@@ -742,6 +767,18 @@ static void EventCallback(void)
         /* Get downlink data */
         ASSERT_SMTC_MODEM_RC(smtc_modem_get_downlink_data(rx_payload, &rx_payload_size, &rx_metadata, &rx_remaining));
         APP_LOG(TS_OFF, VLEVEL_M, "Data received on port %u\r\n", rx_metadata.fport);
+        if (rx_payload_size == 0U)
+        {
+          APP_LOG(TS_ON, VLEVEL_M, "Ignoring empty downlink payload on port %u\r\n", rx_metadata.fport);
+          break;
+        }
+
+        if (rx_remaining > 0U)
+        {
+          APP_LOG(TS_ON, VLEVEL_M, "Downlink payload truncated, remaining=%u\r\n", (unsigned)rx_remaining);
+        }
+
+        processRxData(rx_payload, rx_payload_size, &rx_metadata);
         /* APP_LOG(TS_OFF, VLEVEL_M, "Received payload", rx_payload, rx_payload_size ); */
         break;
 
@@ -892,11 +929,13 @@ static void SendTxData(uint8_t port)
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
 
-  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d.%d degC, RH=%d.%d%%, P=%d hPa, VBAT=%d.%03d V\r\n",
-          (int)sensor_data.temperature, (int)(sensor_data.temperature * 10) % 10,
-          (int)sensor_data.humidity, (int)(sensor_data.humidity * 10) % 10,
-          (int)sensor_data.pressure,
-          (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 1000) % 1000);
+  /* Log raw stored values (scaling noted in unit label). Receiver / human
+   * reader converts: T/100 = degC, RH/100 = %, P/10 = hPa. */
+  APP_LOG(TS_ON, VLEVEL_M, "Sensors: T=%d [0.01degC], RH=%u [0.01%%], P=%u [0.1hPa], VBAT=%u mV\r\n",
+          (int)sensor_data.temperature,
+          (unsigned)sensor_data.humidity,
+          (unsigned)sensor_data.pressure,
+          (unsigned)sensor_data.battery_voltage);
 
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
@@ -905,11 +944,18 @@ static void SendTxData(uint8_t port)
 
   if (sensor_flags & SENSOR_FLAG_SPS30)
   {
-    APP_LOG(TS_ON, VLEVEL_M, "SPS30: PM1.0=%d.%d, PM2.5=%d.%d, PM4.0=%d.%d, PM10.0=%d.%d ug/m3\r\n",
-            (int)sensor_data.pm1_0, (int)(sensor_data.pm1_0 * 10) % 10,
-            (int)sensor_data.pm2_5, (int)(sensor_data.pm2_5 * 10) % 10,
-            (int)sensor_data.pm4_0, (int)(sensor_data.pm4_0 * 10) % 10,
-            (int)sensor_data.pm10_0, (int)(sensor_data.pm10_0 * 10) % 10);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 MC: PM1.0=%u PM2.5=%u PM4.0=%u PM10.0=%u [0.1 ug/m3]\r\n",
+            (unsigned)sensor_data.pm1_0,
+            (unsigned)sensor_data.pm2_5,
+            (unsigned)sensor_data.pm4_0,
+            (unsigned)sensor_data.pm10_0);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 NC: PM0.5=%u PM1.0=%u PM2.5=%u PM4.0=%u PM10=%u [0.1 #/cm3]\r\n",
+            (unsigned)sensor_data.nc_0_5,
+            (unsigned)sensor_data.nc_1_0,
+            (unsigned)sensor_data.nc_2_5,
+            (unsigned)sensor_data.nc_4_0,
+            (unsigned)sensor_data.nc_10_0);
+    APP_LOG(TS_ON, VLEVEL_M, "SPS30 TypSize=%u [nm]\r\n", (unsigned)sensor_data.typ_size);
   }
 
   enum
@@ -924,14 +970,33 @@ static void SendTxData(uint8_t port)
     LPP_CH_PM2_5,
     LPP_CH_PM4_0,
     LPP_CH_PM10_0,
+    LPP_CH_NC_0_5,
+    LPP_CH_NC_1_0,
+    LPP_CH_NC_2_5,
+    LPP_CH_NC_4_0,
+    LPP_CH_NC_10_0,
+    LPP_CH_TYP_SIZE,
   };
 
+  /* Send all scaled values as raw uint16 via Luminosity (2 bytes, big-endian).
+   * Receiver must know scaling:
+   *  PRESSURE    : uint16 * 0.1 hPa
+   *  TEMPERATURE : int16  * 0.01 degC (bit-cast into uint16 on wire)
+   *  HUMIDITY    : uint16 * 0.01 %
+   *  UV_RAW      : uint16 (LTR390 20-bit counts, clamped)
+   *  BATTERY_V   : uint16 mV
+   *  CO2         : uint16 ppm
+   *  PM*         : uint16 * 0.1 ug/m3 (MC)
+   *  NC_*        : uint16 * 0.1 #/cm3
+   *  TYP_SIZE    : uint16 nm (um*1000)
+   */
   CayenneLppReset();
-  CayenneLppAddBarometricPressure(LPP_CH_PRESSURE, sensor_data.pressure);
-  CayenneLppAddTemperature(LPP_CH_TEMPERATURE, sensor_data.temperature);
-  CayenneLppAddRelativeHumidity(LPP_CH_HUMIDITY, sensor_data.humidity);
-  CayenneLppAddLuminosity(LPP_CH_UV_RAW, (uint16_t)sensor_data.uv_raw);
-  CayenneLppAddAnalogInput(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
+  CayenneLppAddLuminosity(LPP_CH_PRESSURE, sensor_data.pressure);
+  CayenneLppAddLuminosity(LPP_CH_TEMPERATURE, (uint16_t)sensor_data.temperature);
+  CayenneLppAddLuminosity(LPP_CH_HUMIDITY, sensor_data.humidity);
+  CayenneLppAddLuminosity(LPP_CH_UV_RAW,
+                          (uint16_t)(sensor_data.uv_raw > 0xFFFFU ? 0xFFFFU : sensor_data.uv_raw));
+  CayenneLppAddLuminosity(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
 
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
@@ -944,9 +1009,9 @@ static void SendTxData(uint8_t port)
     bool cleaning_triggered = false;
 
     if (((current_time_s - last_sps30_clean_timestamp) > (SPS30_FAN_CLEAN_INTERVAL_HOURS * 3600U)) &&
-        (sensor_data.battery_voltage > 4.12f))
+        (sensor_data.battery_voltage > 4120))
     {
-      APP_LOG(TS_OFF, VLEVEL_M, "Manual SPS30 fan cleaning (VBat=%d.%02d V)\r\n", (int)sensor_data.battery_voltage, (int)(sensor_data.battery_voltage * 100) % 100);
+      APP_LOG(TS_OFF, VLEVEL_M, "Manual SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)sensor_data.battery_voltage);
       if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)
       {
         last_sps30_clean_timestamp = current_time_s;
@@ -963,10 +1028,16 @@ static void SendTxData(uint8_t port)
       (void)SPS30_StopMeasurement();
       (void)SPS30_Sleep();
     }
-    CayenneLppAddAnalogInput(LPP_CH_PM1_0, sensor_data.pm1_0);
-    CayenneLppAddAnalogInput(LPP_CH_PM2_5, sensor_data.pm2_5);
-    CayenneLppAddAnalogInput(LPP_CH_PM4_0, sensor_data.pm4_0);
-    CayenneLppAddAnalogInput(LPP_CH_PM10_0, sensor_data.pm10_0);
+    CayenneLppAddLuminosity(LPP_CH_PM1_0,    sensor_data.pm1_0);
+    CayenneLppAddLuminosity(LPP_CH_PM2_5,    sensor_data.pm2_5);
+    CayenneLppAddLuminosity(LPP_CH_PM4_0,    sensor_data.pm4_0);
+    CayenneLppAddLuminosity(LPP_CH_PM10_0,   sensor_data.pm10_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_0_5,   sensor_data.nc_0_5);
+    CayenneLppAddLuminosity(LPP_CH_NC_1_0,   sensor_data.nc_1_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_2_5,   sensor_data.nc_2_5);
+    CayenneLppAddLuminosity(LPP_CH_NC_4_0,   sensor_data.nc_4_0);
+    CayenneLppAddLuminosity(LPP_CH_NC_10_0,  sensor_data.nc_10_0);
+    CayenneLppAddLuminosity(LPP_CH_TYP_SIZE, sensor_data.typ_size);
   }
 
   CayenneLppCopy(AppDataBuffer);
@@ -986,6 +1057,18 @@ static void SendTxData(uint8_t port)
     smtc_modem_get_status(STACK_ID, &status_mask);
     uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : APP_TX_DUTYCYCLE;
 
+    if (sensor_data.battery_voltage < LOW_BATTERY_THRESHOLD_MV)
+    {
+      dutycycle = dutycycle * 2U; // Reduce TX frequency when battery is low
+      APP_LOG(TS_ON, VLEVEL_M, "Low battery (%u mV), reducing TX frequency\r\n", (unsigned)sensor_data.battery_voltage);
+    }
+    if (sensor_data.battery_voltage < ULTRA_LOW_BATTERY_THRESHOLD_MV)
+    {
+      dutycycle = dutycycle * 6U;
+      tx_counter = 0U;
+      APP_LOG(TS_ON, VLEVEL_M, "ULTRA low battery (%u mV), reducing TX frequency only basic measurements\r\n", (unsigned)sensor_data.battery_voltage);
+    }
+
     ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
 
     /* Schedule pre-measurement for next TX if it will be a cycle for CO2 or SPS30 */
@@ -1004,6 +1087,97 @@ static void SendTxData(uint8_t port)
   }
   /* USER CODE END SendTxData_1 */
 }
+
+static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata)
+{
+  if ((payload == NULL) || (metadata == NULL))
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "Ignoring downlink: invalid arguments\r\n");
+    return;
+  }
+
+  if (size == 0U)
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "Ignoring downlink: payload size is zero\r\n");
+    return;
+  }
+
+  if (metadata->fport != RX_CMD_PORT)
+  {
+    APP_LOG(TS_ON, VLEVEL_M, "Ignoring downlink command on unexpected port %u\r\n", metadata->fport);
+    return;
+  }
+
+  const uint8_t command = payload[0];
+  APP_LOG(TS_ON, VLEVEL_M, "Received command 0x%02X (size=%u, port=%u)\r\n",
+          (unsigned)command,
+          (unsigned)size,
+          metadata->fport);
+
+  switch (command)
+  {
+    case RX_CMD_TRIGGER_SPS30_CLEANING:
+    {
+      bool measurement_started = false;
+      bool cleaning_started = false;
+
+      APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger SPS30 fan cleaning\r\n");
+
+      if (SPS30_AcquireBus() != SPS30_STATUS_OK)
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 bus acquire failed\r\n");
+        break;
+      }
+
+      if (SPS30_WakeUp() != SPS30_STATUS_OK)
+      {
+        (void)SPS30_ReleaseBus();
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 wake-up failed\r\n");
+        break;
+      }
+
+      if (SPS30_StartMeasurement() == SPS30_STATUS_OK)
+      {
+        measurement_started = true;
+        HAL_Delay(50);
+      }
+      else
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 start measurement failed\r\n");
+      }
+
+      if (measurement_started && (SPS30_StartFanCleaning() == SPS30_STATUS_OK))
+      {
+        UTIL_TIMER_Start(&Sps30CleanupTimer);
+        cleaning_started = true;
+        last_sps30_clean_timestamp = SysTimeGet().Seconds;
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 fan cleaning started\r\n");
+      }
+      else if (measurement_started)
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SPS30 fan cleaning start failed\r\n");
+      }
+
+      if ((cleaning_started == false) && (measurement_started == true))
+      {
+        (void)SPS30_StopMeasurement();
+        (void)SPS30_Sleep();
+      }
+
+      (void)SPS30_ReleaseBus();
+
+      break;
+    }
+    case RX_CMD_SOFTWARE_RESET:
+      APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger software reset\r\n");
+      HAL_NVIC_SystemReset();
+      break;
+    default:
+      APP_LOG(TS_ON, VLEVEL_M, "Message: Unknown command 0x%02X\r\n", (unsigned)command);
+      break;
+  }
+}
+
 
 /* USER CODE BEGIN PrFD_LedEvents */
 static bool IsAllZero(const uint8_t *buffer, uint8_t size)
