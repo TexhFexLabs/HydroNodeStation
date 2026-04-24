@@ -131,9 +131,9 @@ void SystemApp_Init(void)
 #endif /* LOW_POWER_DISABLE */
 
   /* USER CODE BEGIN SystemApp_Init_2 */
-  /* Activity LED: ON while active, OFF before entering STOP2. */
-  BSP_LED_Init( LED_RED );
-  BSP_LED_On( LED_RED );
+  /* Activity LED control is handled in main startup blink and STOP2 enter/exit hooks. */
+  // BSP_LED_Init( LED_RED );
+  // BSP_LED_On( LED_RED );
   /* USER CODE END SystemApp_Init_2 */
 }
 
