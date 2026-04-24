@@ -281,9 +281,6 @@ void EXTI9_5_IRQHandler(void)
   /* USER CODE BEGIN EXTI9_5_IRQn 0 */
 
   /* USER CODE END EXTI9_5_IRQn 0 */
-  #ifndef STM32WLE5xx
-  HAL_GPIO_EXTI_IRQHandler(BUT3_Pin);
-  #endif
   /* USER CODE BEGIN EXTI9_5_IRQn 1 */
 
   /* USER CODE END EXTI9_5_IRQn 1 */
