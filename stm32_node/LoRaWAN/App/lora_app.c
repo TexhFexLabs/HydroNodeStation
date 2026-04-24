@@ -243,28 +243,27 @@ static uint32_t GetRandomValue(void);
  */
 static void SystemReset(void);
 
-/* USER CODE BEGIN PFP */
+/* USER CODE BEGIN PFP
 
 static bool IsAllZero(const uint8_t *buffer, uint8_t size);
-
+ */
 /**
   * @brief  LED Tx timer callback function
   * @param  context ptr of LED context
-  */
+  
 static void OnTxTimerLedEvent(void *context);
-
+*/
 /**
   * @brief  LED Rx timer callback function
   * @param  context ptr of LED context
-  */
 static void OnRxTimerLedEvent(void *context);
-
+ */
 /**
   * @brief  LED Join timer callback function
   * @param  context ptr of LED context
-  */
+  
 static void OnJoinTimerLedEvent(void *context);
-
+*/
 /**
   * @brief  SCD41 pre-measurement timer callback function
   * @param  context ptr
@@ -373,19 +372,19 @@ static uint8_t AppDataBuffer[LORAWAN_APP_DATA_BUFFER_MAX_SIZE];
 
 /**
   * @brief Timer to handle the application Tx Led to toggle
-  */
-static UTIL_TIMER_Object_t TxLedTimer;
 
+static UTIL_TIMER_Object_t TxLedTimer;
+*/
 /**
   * @brief Timer to handle the application Rx Led to toggle
-  */
-static UTIL_TIMER_Object_t RxLedTimer;
 
+static UTIL_TIMER_Object_t RxLedTimer;
+*/
 /**
   * @brief Timer to handle the application Join Led to toggle
-  */
-static UTIL_TIMER_Object_t JoinLedTimer;
 
+static UTIL_TIMER_Object_t JoinLedTimer;
+*/
 /**
   * @brief Timer to trigger SCD41 pre-measurement
   */
@@ -460,9 +459,9 @@ void LoRaWAN_Init(void)
           (uint8_t)(rp_version.minor),
           (uint8_t)(rp_version.patch));
 
-  UTIL_TIMER_Create(&TxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnTxTimerLedEvent, NULL);
-  UTIL_TIMER_Create(&RxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
-  UTIL_TIMER_Create(&JoinLedTimer, LED_PERIOD_TIME, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
+  // UTIL_TIMER_Create(&TxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnTxTimerLedEvent, NULL);
+  // UTIL_TIMER_Create(&RxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
+  // UTIL_TIMER_Create(&JoinLedTimer, LED_PERIOD_TIME, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
   UTIL_TIMER_Create(&Scd41Timer, SCD41_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnScd41TimerEvent, NULL);
   UTIL_TIMER_Create(&Sps30Timer, SPS30_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnSps30TimerEvent, NULL);
   UTIL_TIMER_Create(&Sps30CleanupTimer, SPS30_CLEANING_DURATION_MS, UTIL_TIMER_ONESHOT, OnSps30CleanupTimerEvent, NULL);
@@ -489,7 +488,7 @@ void LoRaWAN_Init(void)
   smtc_modem_set_crystal_error_ppm(BSP_CRYSTAL_ERROR);
 
   /* USER CODE BEGIN LoRaWAN_Init_Last */
-  UTIL_TIMER_Start(&JoinLedTimer);
+  // UTIL_TIMER_Start(&JoinLedTimer);
 
   EnvSensors_Init();
 
@@ -731,11 +730,11 @@ static void EventCallback(void)
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: JOINED\r\n");
         APP_LOG(TS_OFF, VLEVEL_H,  "Modem is now joined \r\n");
         /* USER CODE BEGIN EventCallback_1 */
-        if (JoinLedTimer.IsRunning)
-        {
-          UTIL_TIMER_Stop(&JoinLedTimer);
-          HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET); /* LED_RED */
-        }
+        // if (JoinLedTimer.IsRunning)
+        // {
+        //   UTIL_TIMER_Stop(&JoinLedTimer);
+        //   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET); /* LED_RED */
+        // }
         /* USER CODE END EventCallback_1 */
         if (CertMode == false)
         {
@@ -750,11 +749,11 @@ static void EventCallback(void)
         smtc_modem_get_status(STACK_ID, &status_mask);
         /* USER CODE BEGIN EventCallback_2 */
         /* Check if the device has already joined a network */
-        if ((JoinLedTimer.IsRunning) && (status_mask & SMTC_MODEM_STATUS_JOINED) == SMTC_MODEM_STATUS_JOINED)
-        {
-          UTIL_TIMER_Stop(&JoinLedTimer);
-          HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET); /* LED_RED */
-        }
+        // if ((JoinLedTimer.IsRunning) && (status_mask & SMTC_MODEM_STATUS_JOINED) == SMTC_MODEM_STATUS_JOINED)
+        // {
+        //   UTIL_TIMER_Stop(&JoinLedTimer);
+        //   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET); /* LED_RED */
+        // }
         /* USER CODE END EventCallback_2 */
         break;
 
@@ -762,7 +761,7 @@ static void EventCallback(void)
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: DOWNDATA\r\n");
         /* USER CODE BEGIN EventCallback_3 */
         //HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET); /* LED_BLUE */
-        UTIL_TIMER_Start(&RxLedTimer);
+        // UTIL_TIMER_Start(&RxLedTimer);
         /* USER CODE END EventCallback_3 */
         /* Get downlink data */
         ASSERT_SMTC_MODEM_RC(smtc_modem_get_downlink_data(rx_payload, &rx_payload_size, &rx_metadata, &rx_remaining));
@@ -787,10 +786,10 @@ static void EventCallback(void)
         smtc_modem_get_status(STACK_ID, &status_mask);
         /* USER CODE BEGIN EventCallback_4 */
         /* Check if the device has already joined a network */
-        if ((!JoinLedTimer.IsRunning) && (status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)
-        {
-          UTIL_TIMER_Start(&JoinLedTimer);
-        }
+        // if ((!JoinLedTimer.IsRunning) && (status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)
+        // {
+        //   UTIL_TIMER_Start(&JoinLedTimer);
+        // }
         /* USER CODE END EventCallback_4 */
         break;
 
@@ -1043,11 +1042,11 @@ static void SendTxData(uint8_t port)
   CayenneLppCopy(AppDataBuffer);
   bufferSize = CayenneLppGetSize();
 
-  if (JoinLedTimer.IsRunning)
-  {
-    UTIL_TIMER_Stop(&JoinLedTimer);
-    HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-  }
+  // if (JoinLedTimer.IsRunning)
+  // {
+  //   UTIL_TIMER_Stop(&JoinLedTimer);
+  //   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+  // }
 
   ASSERT_SMTC_MODEM_RC(smtc_modem_request_uplink(STACK_ID, port, false, AppDataBuffer, bufferSize));
 
@@ -1180,7 +1179,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
 
 
 /* USER CODE BEGIN PrFD_LedEvents */
-static bool IsAllZero(const uint8_t *buffer, uint8_t size)
+/*static bool IsAllZero(const uint8_t *buffer, uint8_t size)
 {
   for (uint8_t i = 0; i < size; i++)
   {
@@ -1191,22 +1190,22 @@ static bool IsAllZero(const uint8_t *buffer, uint8_t size)
   }
 
   return true;
-}
+}*/
 
-static void OnTxTimerLedEvent(void *context)
-{
-  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET); /* LED_GREEN */
-}
+//static void OnTxTimerLedEvent(void *context)
+//{
+  // HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET); /* LED_GREEN */
+//}
 
-static void OnRxTimerLedEvent(void *context)
-{
+//static void OnRxTimerLedEvent(void *context)
+//{
   //HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET); /* LED_BLUE */
-}
+//}
 
-static void OnJoinTimerLedEvent(void *context)
-{
-  HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin); /* LED_RED */
-}
+//static void OnJoinTimerLedEvent(void *context)
+//{
+  // HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin); /* LED_RED */
+//}
 
 static void OnScd41TimerEvent(void *context)
 {

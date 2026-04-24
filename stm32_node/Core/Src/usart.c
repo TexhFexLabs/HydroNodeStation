@@ -169,10 +169,12 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
       Error_Handler();
     }
 
+#ifndef STM32WLE5xx
     if (HAL_DMA_ConfigChannelAttributes(&hdma_usart1_tx, DMA_CHANNEL_NPRIV) != HAL_OK)
     {
       Error_Handler();
     }
+#endif
 
     __HAL_LINKDMA(uartHandle,hdmatx,hdma_usart1_tx);
 
@@ -229,10 +231,12 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
       Error_Handler();
     }
 
+#ifndef STM32WLE5xx
     if (HAL_DMA_ConfigChannelAttributes(&hdma_usart2_tx, DMA_CHANNEL_NPRIV) != HAL_OK)
     {
       Error_Handler();
     }
+#endif
 
     __HAL_LINKDMA(uartHandle,hdmatx,hdma_usart2_tx);
 

@@ -47,6 +47,20 @@ int32_t BSP_RADIO_Init(void)
 {
   GPIO_InitTypeDef  gpio_init_structure = {0};
   
+#if defined(STM32WLE5xx)
+  /* Enable the Radio Switch Clock */
+  RF_SW_CTRL_GPIO_CLK_ENABLE();
+  
+  /* Configure the Radio Switch pin */
+  gpio_init_structure.Pin   = RF_SW_CTRL_PIN;
+  gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
+  gpio_init_structure.Pull  = GPIO_NOPULL;
+  gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  
+  HAL_GPIO_Init(RF_SW_CTRL_GPIO_PORT, &gpio_init_structure);
+  
+  HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET); 
+#else
   /* Enable the Radio Switch Clock */
   RF_SW_CTRL1_GPIO_CLK_ENABLE();
   
@@ -63,6 +77,7 @@ int32_t BSP_RADIO_Init(void)
 
   HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_RESET); 
   HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_RESET); 
+#endif
 
   return BSP_ERROR_NONE;
 }
@@ -73,6 +88,14 @@ int32_t BSP_RADIO_Init(void)
   */
 int32_t BSP_RADIO_DeInit(void)
 {
+#if defined(STM32WLE5xx)
+  /* Turn off switch */
+  HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET); 
+  
+  /* DeInit the Radio Switch pin */
+  HAL_GPIO_DeInit(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN);
+  RF_SW_CTRL_GPIO_CLK_DISABLE();
+#else
   RF_SW_RX_GPIO_CLK_DISABLE();
 
   /* Turn off switch */
@@ -82,6 +105,7 @@ int32_t BSP_RADIO_DeInit(void)
   /* DeInit the Radio Switch pin */
   HAL_GPIO_DeInit(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN);
   HAL_GPIO_DeInit(RF_SW_CTRL2_GPIO_PORT, RF_SW_CTRL2_PIN);
+#endif
 
   return BSP_ERROR_NONE;
 }
@@ -103,29 +127,48 @@ int32_t BSP_RADIO_ConfigRFSwitch(BSP_RADIO_Switch_TypeDef Config)
     case RADIO_SWITCH_OFF:
     {
       /* Turn off switch */
+#if defined(STM32WLE5xx)
+      HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET);
+#else
       HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_RESET);
       HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_RESET);
+#endif
       break;      
     }
     case RADIO_SWITCH_RX:
     {
       /*Turns On in Rx Mode the RF Switch */
+#if defined(STM32WLE5xx)
+      /* CTRL=LOW -> RX-Pfad (RFC zu RF1) */
+      HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET);
+#else
       HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_SET); 
       HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_RESET); 
+#endif
       break;
     }
     case RADIO_SWITCH_RFO_LP:
     {
       /*Turns On in Tx Low Power the RF Switch */
+#if defined(STM32WLE5xx)
+      /* CTRL=HIGH -> TX-Pfad (RFC zu RF2) */
+      HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_SET);
+#else
       HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_SET); 
       HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_SET); 
+#endif
       break;
     }
     case RADIO_SWITCH_RFO_HP:
     {
       /*Turns On in Tx High Power the RF Switch */
+#if defined(STM32WLE5xx)
+      /* CTRL=HIGH -> TX-Pfad (RFC zu RF2) */
+      HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_SET);
+#else
       HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_RESET); 
       HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_SET); 
+#endif
       break;
     }
     default:
