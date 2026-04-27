@@ -33,7 +33,6 @@
 #include "smtc_modem_hal.h"
 #include "smtc_modem_relay_api.h"
 #include "adc_if.h"
-#include "CayenneLpp.h"
 #include "sys_sensors.h"
 #include "flash_if.h"
 #include "rng.h"
@@ -123,6 +122,10 @@ typedef enum TxEventType_e
 #define RX_CMD_PORT                      LORAWAN_USER_APP_PORT
 #define RX_CMD_TRIGGER_SPS30_CLEANING    0x11U
 #define RX_CMD_SOFTWARE_RESET            0xFFU
+
+#define TX_PORT_ENV_BASE                 2U
+#define TX_PORT_ENV_EXTENDED             3U
+#define TX_PORT_ENV_FULL                 4U
 
 /* USER CODE END PD */
 
@@ -907,11 +910,27 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 /* USER CODE END PB_Callbacks */
 
+static void append_u16_be(uint8_t *buffer, uint8_t *index, uint16_t value)
+{
+  buffer[*index] = (uint8_t)((value >> 8) & 0xFFU);
+  (*index)++;
+  buffer[*index] = (uint8_t)(value & 0xFFU);
+  (*index)++;
+}
+
+static void append_i16_be(uint8_t *buffer, uint8_t *index, int16_t value)
+{
+  append_u16_be(buffer, index, (uint16_t)value);
+}
+
 static void SendTxData(uint8_t port)
 {
   /* USER CODE BEGIN SendTxData_1 */
   sensor_t sensor_data;
   uint8_t bufferSize = 0;
+  uint8_t uplink_port = TX_PORT_ENV_BASE;
+
+  (void)port;
 
   /* Increment tx_counter */
   tx_counter++;
@@ -936,6 +955,8 @@ static void SendTxData(uint8_t port)
           (unsigned)sensor_data.pressure,
           (unsigned)sensor_data.battery_voltage);
 
+  APP_LOG(TS_ON, VLEVEL_M, "LTR390: UV=%lu [raw]\r\n", (unsigned long)sensor_data.uv_raw);
+
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
     APP_LOG(TS_ON, VLEVEL_M, "SCD41: CO2=%u ppm\r\n", (unsigned int)sensor_data.co2_ppm);
@@ -957,49 +978,30 @@ static void SendTxData(uint8_t port)
     APP_LOG(TS_ON, VLEVEL_M, "SPS30 TypSize=%u [nm]\r\n", (unsigned)sensor_data.typ_size);
   }
 
-  enum
+  if ((sensor_flags & SENSOR_FLAG_SPS30) != 0U)
   {
-    LPP_CH_PRESSURE = 0,
-    LPP_CH_TEMPERATURE,
-    LPP_CH_HUMIDITY,
-    LPP_CH_UV_RAW,
-    LPP_CH_BATTERY_V,
-    LPP_CH_CO2,
-    LPP_CH_PM1_0,
-    LPP_CH_PM2_5,
-    LPP_CH_PM4_0,
-    LPP_CH_PM10_0,
-    LPP_CH_NC_0_5,
-    LPP_CH_NC_1_0,
-    LPP_CH_NC_2_5,
-    LPP_CH_NC_4_0,
-    LPP_CH_NC_10_0,
-    LPP_CH_TYP_SIZE,
-  };
+    uplink_port = TX_PORT_ENV_FULL;
+  }
+  else if ((tx_counter % 3U) == 0U)
+  {
+    uplink_port = TX_PORT_ENV_EXTENDED;
+  }
 
-  /* Send all scaled values as raw uint16 via Luminosity (2 bytes, big-endian).
-   * Receiver must know scaling:
-   *  PRESSURE    : uint16 * 0.1 hPa
-   *  TEMPERATURE : int16  * 0.01 degC (bit-cast into uint16 on wire)
-   *  HUMIDITY    : uint16 * 0.01 %
-   *  UV_RAW      : uint16 (LTR390 20-bit counts, clamped)
-   *  BATTERY_V   : uint16 mV
-   *  CO2         : uint16 ppm
-   *  PM*         : uint16 * 0.1 ug/m3 (MC)
-   *  NC_*        : uint16 * 0.1 #/cm3
-   *  TYP_SIZE    : uint16 nm (um*1000)
+  /* Wire format by port, all fields are 2-byte big-endian values:
+   * - fPort 2: T, RH, P, VBAT, UV
+   * - fPort 3: fPort2 + CO2
+   * - fPort 4: fPort3 + PM mass + PM number + typ_size
    */
-  CayenneLppReset();
-  CayenneLppAddLuminosity(LPP_CH_PRESSURE, sensor_data.pressure);
-  CayenneLppAddLuminosity(LPP_CH_TEMPERATURE, (uint16_t)sensor_data.temperature);
-  CayenneLppAddLuminosity(LPP_CH_HUMIDITY, sensor_data.humidity);
-  CayenneLppAddLuminosity(LPP_CH_UV_RAW,
-                          (uint16_t)(sensor_data.uv_raw > 0xFFFFU ? 0xFFFFU : sensor_data.uv_raw));
-  CayenneLppAddLuminosity(LPP_CH_BATTERY_V, sensor_data.battery_voltage);
+  append_i16_be(AppDataBuffer, &bufferSize, sensor_data.temperature);
+  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.humidity);
+  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pressure);
+  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.battery_voltage);
+  append_u16_be(AppDataBuffer, &bufferSize,
+                (uint16_t)(sensor_data.uv_raw > 0xFFFFU ? 0xFFFFU : sensor_data.uv_raw));
 
-  if (sensor_flags & SENSOR_FLAG_CO2)
+  if (uplink_port >= TX_PORT_ENV_EXTENDED)
   {
-    CayenneLppAddLuminosity(LPP_CH_CO2, sensor_data.co2_ppm);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.co2_ppm);
   }
 
   if (sensor_flags & SENSOR_FLAG_SPS30)
@@ -1027,20 +1029,19 @@ static void SendTxData(uint8_t port)
       (void)SPS30_StopMeasurement();
       (void)SPS30_Sleep();
     }
-    CayenneLppAddLuminosity(LPP_CH_PM1_0,    sensor_data.pm1_0);
-    CayenneLppAddLuminosity(LPP_CH_PM2_5,    sensor_data.pm2_5);
-    CayenneLppAddLuminosity(LPP_CH_PM4_0,    sensor_data.pm4_0);
-    CayenneLppAddLuminosity(LPP_CH_PM10_0,   sensor_data.pm10_0);
-    CayenneLppAddLuminosity(LPP_CH_NC_0_5,   sensor_data.nc_0_5);
-    CayenneLppAddLuminosity(LPP_CH_NC_1_0,   sensor_data.nc_1_0);
-    CayenneLppAddLuminosity(LPP_CH_NC_2_5,   sensor_data.nc_2_5);
-    CayenneLppAddLuminosity(LPP_CH_NC_4_0,   sensor_data.nc_4_0);
-    CayenneLppAddLuminosity(LPP_CH_NC_10_0,  sensor_data.nc_10_0);
-    CayenneLppAddLuminosity(LPP_CH_TYP_SIZE, sensor_data.typ_size);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm1_0);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm2_5);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm4_0);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm10_0);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_0_5);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_1_0);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_2_5);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_4_0);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_10_0);
+    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.typ_size);
   }
 
-  CayenneLppCopy(AppDataBuffer);
-  bufferSize = CayenneLppGetSize();
+  APP_LOG(TS_ON, VLEVEL_M, "Uplink payload: fPort=%u, %u bytes\r\n", (unsigned)uplink_port, (unsigned)bufferSize);
 
   // if (JoinLedTimer.IsRunning)
   // {
@@ -1048,7 +1049,7 @@ static void SendTxData(uint8_t port)
   //   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
   // }
 
-  ASSERT_SMTC_MODEM_RC(smtc_modem_request_uplink(STACK_ID, port, false, AppDataBuffer, bufferSize));
+  ASSERT_SMTC_MODEM_RC(smtc_modem_request_uplink(STACK_ID, uplink_port, false, AppDataBuffer, bufferSize));
 
   if (EventType == TX_ON_TIMER)
   {
@@ -1070,8 +1071,9 @@ static void SendTxData(uint8_t port)
 
     ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
 
-    /* Schedule pre-measurement for next TX if it will be a cycle for CO2 or SPS30 */
+    /* Schedule pre-measurement only for the next cycle where data is needed */
     uint8_t next_counter = (tx_counter % 6U) + 1U;
+
     if (next_counter % 3U == 0U)
     {
       UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U) - SCD41_PRE_MEASUREMENT_TIME_MS);
