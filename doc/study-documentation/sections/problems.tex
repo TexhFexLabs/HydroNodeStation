@@ -2,3 +2,8 @@
 Im Projektverlauf traten technische und organisatorische Herausforderungen auf, etwa bei Energieoptimierung, Hardwareintegration und Testbedingungen. Diese Punkte werden hier strukturiert festgehalten.
 
 Die Dokumentation der Probleme hilft, Entscheidungen im Nachhinein zu verstehen und ähnliche Risiken in zukünftigen Projekten frühzeitig zu erkennen.
+
+\paragraph{Versionsverwaltung und Arbeitsablauf}
+Git und GitHub sind seit mehreren Jahren Teil meiner täglichen Arbeit. Ich nutze Pull Requests und GitHub Actions routiniert, was die Zusammenarbeit und die Integrationsprozesse wesentlich erleichtert. Im Verlauf dieses Projekts ist mir jedoch ein wiederkehrendes organisatorisches Problem aufgefallen. Üblicherweise beginne ich mit einem Issue und erstelle davon einen Branch aus \texttt{main}, in dem ich die Umsetzung vorantreibe. Dabei kommt es häufig vor, dass zusätzliche Aufgaben, kleinere Bugfixes oder Ergänzungen der Dokumentation ebenfalls in denselben Branch einfließen. Dies führt zu Branches, die mehrere inhaltlich unterschiedliche Änderungen enthalten und dadurch die Nachvollziehbarkeit von Änderungen sowie das gezielte Review erschweren.
+
+Um die Codequalität und die Review-Prozesse zu verbessern, ist es ratsam, thematisch getrennte Arbeiten konsequent in eigenen Branches zu bearbeiten und für jede Änderung ein separates Issue und einen eigenen Pull Request anzulegen. Auf diese Weise bleiben Änderungen atomar, Revisionshistorie und Verantwortlichkeiten werden klarer und Merge-Konflikte lassen sich leichter adressieren.
