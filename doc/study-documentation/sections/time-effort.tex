@@ -1,64 +1,91 @@
 \chapter{Stundenaufwand}
 Die folgende Tabelle zeigt den dokumentierten zeitlichen Aufwand auf Basis der erfassten Stunden.
 
-\begin{table}[htbp]
-\centering
 \small
-\begin{tabular}{|l|c|l|p{7.5cm}|}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\begin{longtable}{|l|c|l|p{7.5cm}|}
 \hline
 \textbf{Datum} & \textbf{Stundenanzahl} & \textbf{Kategorie} & \textbf{Beschreibung} \\
 \hline
-23.03.2026 & 5 & Hardware & Energieeffiziente Komponenten ausgewählt und bestellt (STM32, Laderegler, Konverter, SCD41). \\
+\endfirsthead
+
 \hline
-27.03.2026 & 4 & Software & Testprojekt auf Basis der Vorlage erstellt, um Dummy-Werte zu senden. \\
+\textbf{Datum} & \textbf{Stundenanzahl} & \textbf{Kategorie} & \textbf{Beschreibung} \\
 \hline
-29.03.2026 & 2 & Hardware & L"otarbeiten f"ur die neuen Komponenten (STM32 und BQ25185) durchgef"uhrt. \\
+\endhead
+
 \hline
-30.03.2026 & 6 & Software & Erster Upload per ST-Link auf den STM32, Verbindungsparameter konfiguriert sowie erfolgreiche Sende- und Low-Power-Tests in den LoRaWAN-Ablauf integriert. \\
+\multicolumn{4}{|r|}{\footnotesize Fortsetzung auf der nächsten Seite} \\
 \hline
-31.03.2026 & 2 & Hardware & Weitere Komponenten bestellt sowie Sensoren f"ur Luftfeuchtigkeit, Temperatur, Druck und UV-Strahlung ausgew"ahlt. \\
+\endfoot
+
 \hline
-31.03.2026 & 1 & Hardware & Sendetests mit und ohne eigenem Gateway sowie mit verschiedenen Antennen durchgef"uhrt. \\
+\endlastfoot
+
+23.03.2026 & 5 & Hardware & Energieeffiziente Kernkomponenten ausgewählt und bestellt (STM32, Laderegler, Konverter, SCD41). \\
 \hline
-01.04.2026 & 1 & Hardware & LoRa-Tests innerhalb von K104 durchgef"uhrt. \\
+27.03.2026 & 4 & Software & Testprojekt auf Basis der Vorlage aufgebaut, um den Versand von Dummy-Werten stabil zu validieren. \\
 \hline
-01.04.2026 & 2 & Software & Projekt angepasst, SCD41 implementiert und den Build "uber Makefiles verbessert. \\
+29.03.2026 & 2 & Hardware & Lötarbeiten für die neuen Komponenten (STM32 und BQ25185) durchgeführt und Inbetriebnahme vorbereitet. \\
 \hline
-03.04.2026 & 2 & Planung & Mindestanforderungen f"ur Batterie und Solarmodul der Station berechnet. \\
+30.03.2026 & 4 & Software & Erste Firmware per ST-Link auf den STM32 geflasht und Verbindungsparameter im LoRaWAN-Setup sauber konfiguriert. \\
 \hline
-05.04.2026 & 4 & Software & Effizienz verbessert, LC7092 implementiert, Tests bei sehr schlechtem Empfang (\textgreater{}10 km) durchgef"uhrt und GitHub-Actions-Tests eingerichtet. \\
+30.03.2026 & 2 & Software & Versandzyklen und Low-Power-Ablauf erfolgreich im regulären LoRaWAN-Sendeprozess getestet. \\
 \hline
-06.04.2026 & 6 & CAD & PCB-Design erstellt sowie Datenblatt- und Leistungsberechnungen durchgef"uhrt. \\
+31.03.2026 & 2 & Hardware & Weitere Sensorik für Luftfeuchtigkeit, Temperatur, Druck und UV-Strahlung ausgewählt und nachbestellt. \\
 \hline
-07.04.2026 & 6 & CAD & PCB-Design weiter ausgearbeitet. \\
+31.03.2026 & 1 & Hardware & Vergleichende Sendetests mit eigenem und externem Gateway sowie mit unterschiedlichen Antennen durchgeführt. \\
 \hline
-10.04.2026 & 6 & Software & Verbesserungen am Stack umgesetzt. \\
+01.04.2026 & 1 & Hardware & LoRa-Funktionstest innerhalb des Gebäudes K104 durchgeführt. \\
 \hline
-11.04.2026 & 3 & Planung & Vorbereitung f"ur das eigene PCB und die neue MCU abgeschlossen. \\
+01.04.2026 & 2 & Software & Projektstruktur überarbeitet, SCD41 integriert und den Build-Prozess über Makefiles verbessert. \\
 \hline
-13.04.2026 & 6 & Software & SHT45, BMP390, LTR390 und MAX17048 implementiert und getestet. \\
+03.04.2026 & 2 & Planung & Mindestanforderungen für Batterie- und Solarversorgung der Station rechnerisch ausgelegt. \\
 \hline
-14.04.2026 & 2 & Hardware & Signalst"arketests an der OTH erfolgreich durchgef"uhrt (Empfang durch mehrere Stationen). \\
+05.04.2026 & 2 & Software & Energieeffizienz verbessert und den Batteriemonitor LC7092 in die Mess- und Telemetriepfade integriert. \\
 \hline
-15.04.2026 & 6 & Software & Remote-Debugging eingerichtet sowie Logik und Pre-Wake-Logik verbessert. \\
+05.04.2026 & 2 & Software & Feldtests bei sehr schwachen Empfangsbedingungen (\textgreater{}10 km) durchgeführt und GitHub-Actions-Tests eingerichtet. \\
 \hline
-16.04.2026 & 3 & Software & SPS30 implementiert, L"ufterreinigung integriert und Bugs behoben. \\
+06.04.2026 & 6 & CAD & PCB-Design erstellt sowie Datenblattabgleich und Leistungsbudget-Berechnungen durchgeführt. \\
 \hline
-18.04.2026 & 7 & CAD & PCB- und RF-Design finalisiert. \\
+07.04.2026 & 6 & CAD & PCB-Layout detailliert ausgearbeitet und für die nächsten Integrationsschritte vorbereitet. \\
 \hline
-20.04.2026 & 5 & Software & CMake- und Projektstruktur f"ur den neuen STM32WLE5CCU6 neu aufgebaut. \\
+10.04.2026 & 6 & Software & Verbesserungen am Kommunikations- und Applikations-Stack umgesetzt und stabilisiert. \\
 \hline
-21.04.2026 & 1 & Planung & LaTeX-Projekt initialisiert. \\
+11.04.2026 & 3 & Planung & Vorbereitung auf eigenes PCB-Design und MCU-Wechsel strukturiert abgeschlossen. \\
 \hline
-22.04.2026 & 1 & Software & RX-Aktionen implementiert. \\
+13.04.2026 & 6 & Software & SHT45, BMP390, LTR390 und MAX17048 implementiert, eingebunden und funktional verifiziert. \\
 \hline
-22.04.2026 & 1 & Software & Manuellen Fan-Cleaning-Bug des SPS30 behoben. \\
+14.04.2026 & 2 & Hardware & Signalstärketests am OTH-Standort durchgeführt; Empfang durch mehrere Stationen erfolgreich nachgewiesen. \\
 \hline
-24.04.2026 & 4 & CAD/Software & PCB finalisiert und Code an das neue PCB angepasst. \\
+15.04.2026 & 6 & Software & Remote-Debugging eingerichtet und zentrale Ablauf- sowie Pre-Wake-Logik gezielt verbessert. \\
 \hline
-\textbf{Gesamt} & \textbf{86} &  &  \\
+16.04.2026 & 2 & Software & SPS30 in den Messzyklus integriert und in Betrieb genommen. \\
 \hline
-\end{tabular}
-\caption{Dokumentierter Stundenaufwand nach Datum, Kategorie und T"atigkeit}
-\label{tab:stundenaufwand}
-\end{table}
+16.04.2026 & 1 & Software & Manuelle Fan-Cleaning-Abläufe nachgeschärft und zugehörige Fehler behoben. \\
+\hline
+18.04.2026 & 7 & CAD & PCB- und RF-Design finalisiert und für den Fertigungs- bzw. Integrationsstand freigegeben. \\
+\hline
+20.04.2026 & 5 & Software & CMake- und Projektstruktur für den STM32WLE5CCU6 neu aufgebaut und migrationssicher eingerichtet. \\
+\hline
+21.04.2026 & 1 & Planung & LaTeX-Dokumentationsprojekt initial angelegt und Grundstruktur erstellt. \\
+\hline
+22.04.2026 & 1 & Software & RX-Aktionen in den Kommunikationsablauf integriert. \\
+\hline
+22.04.2026 & 1 & Software & Fehler im manuellen SPS30-Fan-Cleaning reproduziert und korrigiert. \\
+\hline
+24.04.2026 & 2 & CAD & PCB-Layout finalisiert und letzte Hardwareanpassungen abgeschlossen. \\
+\hline
+24.04.2026 & 2 & Software & Firmware gezielt an das finalisierte PCB angepasst und Regressionen geprüft. \\
+\hline
+26.04.2026 & 6 & Software & Helium SNS in das HydroNodeNetwork integriert und den End-to-End-Datenfluss validiert. \\
+\hline
+27.04.2026 & 5 & Software & HydroNode-App um zusätzliche Funktionen für HydroNodeStationen erweitert. \\
+\hline
+27.04.2026 & 3 & Software & Firmware der HydroNodeStation01 an Netzwerkabläufe angepasst und Station in der App eingerichtet. \\
+\hline
+\textbf{Gesamt} & \textbf{100} &  &  \\
+\hline
+\caption{Dokumentierter Stundenaufwand nach Datum, Kategorie und Tätigkeit (Stand: 27.04.2026)}\label{tab:stundenaufwand}\\
+\end{longtable}
