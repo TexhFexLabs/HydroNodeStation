@@ -1,4 +1,52 @@
 \chapter{Projektbeschreibung}
-Das Projekt \textit{HydroNodeStation01} entwickelt eine energieeffiziente Wetterstation für den autarken Außeneinsatz. Ziel ist die zuverlässige Erfassung und Übertragung von Umweltdaten über LoRaWAN.
 
-Der Fokus liegt auf einem robusten Gesamtsystem aus Elektronik, Firmware und Gehäuse. Die Ergebnisse sollen als Grundlage für einen skalierbaren Einsatz mehrerer Stationen dienen.
+\section*{Zielstellung}
+
+Das Projekt \textit{HydroNodeStation01} entwickelt eine energieeffiziente, solar-betriebene Umweltmessstation für den autonomen, unbeaufsichtigten Außeneinsatz. Die Station erfasst hochauflösend verschiedene meteorologische und luftqualitätsrelevante Parameter und übermittelt diese in Echtzeit über das LoRaWAN-Netzwerk. Ziel ist ein skalierbares, reproduzierbares System, das es Bürgern und Forschern ermöglicht, dezentralisierte Umweltdatennetze aufzubauen.
+
+\section*{Messgröße und Sensorik}
+
+Die Architektur der Station basiert auf einem offenen I2C-Bus, der es ermöglicht, verschiedenste kompatible Sensoren hinzuzufügen. Dadurch ist die Plattform vollständig erweiterbar für Forschungsanwendungen und kundenspezifische Szenarien. Im Referenzdesign werden folgende Sensoren eingesetzt:
+
+\begin{itemize}
+  \item \textbf{CO\textsubscript{2}-Konzentration:} Sensirion SCD41 – Single-Shot Photoacoustic NDIR, $\pm 40$ ppm
+  \item \textbf{Partikelmaterie:} Sensirion SPS30 – PM1.0, PM2.5, PM4, PM10 + Zahlkonzentration
+  \item \textbf{Temperatur / Relative Feuchte:} Sensirion SHT45 – $\pm 0{,}1$ °C / $\pm 1{,}0$ \% rH
+  \item \textbf{Luftdruck:} Bosch BMP390 – $\pm 0{,}5$ hPa absolut
+  \item \textbf{UV-Index:} Lite-On LTR390 – UVA + Umgebungslicht, UV-transparent
+  \item \textbf{Batterieladezustand:} Maxim MAX17048 – Fuel Gauge über I2C
+\end{itemize}
+
+Alle Sensoren werden über einen gemeinsamen I2C-Bus verwaltet. Zur Optimierung des Stromverbrauchs zwischen Übertragungen versetzt die Firmware jeden Sensor einzeln via I2C-Befehle in den Deep-Sleep-Modus, wodurch das Gesamtsystem auf einen Stromverbrauch im einstelligen Mikroampere-Bereich reduziert wird.
+
+\section*{Hardware-Design}
+
+\subsection*{Mikrocontroller und Funkmodul}
+
+Das Herzstück der Station bildet der \textbf{STM32WLE5CCU6}, ein SoC (System-on-Chip), der einen ARM Cortex-M4-Anwendungskern mit einem Sub-GHz-LoRa-Funktransceiver integriert. Im Gegensatz zu modularen Lösungen ermöglicht die Verwendung des Bare-Die-Chips vollständige Kontrolle über das RF-Frontend-Layout, minimiert den Platzbedarf und eliminiert die Kostenaufschläge von fertigen Modulen. Ein kundenspezifischer RF-Pfad mit BALFHB-WL-02D3-Balun und BGS12SN6-Funkschalter garantiert korrekt angepasste TX- und RX-Pfade bei 868 MHz (EU-Frequenzband).
+
+\subsection*{Energieversorgung}
+
+Ein BQ25185-Solarladeregler verwaltet die Energiegewinnung aus einem kleinen Solarmodul und lädt eine Einzelzellen-LiPo-Batterie. Ein primärer TPS63900-Buck-Boost-Wandler stabilisiert die 3,3-V-Betriebsspannung über die gesamte Batterie-Entladekurve (2,5 V bis 4,2 V), wodurch konstante Sensorwerte und Funkleistung unabhängig vom Batteriezustand gewährleistet werden.
+
+Ein sekundärer TPS63900 erzeugt eine stabilisierte 5-V-Versorgungsschiene für Sensoren mit höheren Spannungsanforderungen, etwa den Sensirion SPS30. Dieser Wandler wird über einen Enable-Pin des STM32 software-gesteuert, kann aber alternativ via Jumper-Brücke permanent aktiv geschaltet werden. Da der TPS63900 eine Effizienz von über 95 \% erreicht, stellt der Betrieb eines sekundären Wandlers auch im permanenten Modus keinen signifikanten Stromverbrauch dar.
+
+Im Deep-Sleep-Modus (STOP2) verbraucht das gesamte System weniger als 20 µA, was Multi-Tage-Autonomie auch ohne Solareinspeisung ermöglicht.
+
+\subsection*{Leiterplatte}
+
+Die 4-lagige Leiterplatte wurde von Grund auf in EasyEDA Pro entworfen, mit dedizierten RF-, Digital- und Stromversorgungszonen. Besonderes Augenmerk lag auf dem RF-Layout: Controlledimpedance-Leiterbahnen, eine durchgehende Massefläche unter der Antennenspeisung und korrekte Isolationsbereiche um den Chip-Antennensockel gewährleisten eine zuverlässige Funkreichweite über urbane LoRaWAN-Entfernungen.
+
+\section*{Firmware und Konnektivität}
+
+Die Firmware läuft auf einem deterministischen 5-Minuten-Messzyklus. Die Station wacht aus dem STOP2-Schlafmodus auf, nimmt Single-Shot-Messwerte von allen Sensoren auf, packt diese in ein kompaktes Binär-Payload und überträgt sie via LoRaWAN Class A zum Helium-Netzwerk. Ein \textit{DeviceTimeReq}-Mechanismus hält die Echtzeituhr synchron, ohne dass ein GPS-Modul nötig wäre. Der Spreading Factor SF7 wird standardmäßig verwendet, um die Sendezeit zu minimieren und die Batterielebensdauer zu maximieren, während Adaptive Data Rate (ADR) dem Netzwerk ermöglicht, den Link automatisch zu optimieren.
+
+Die Daten fließen von der Helium-Konsole via Amazon SNS in das in Entwicklung befindliche HydroNode-Netzwerk. Eine iOS-App ermöglicht es Nutzern, eigene Sensoren und Wetterstationen hinzuzufügen, wobei die Daten anschließend visualisiert werden.
+
+\section*{Gehäuse und Einsatzszenario}
+
+Die Elektronik ist in einem IP65-zertifizierten versiegelten Gehäuse untergebracht. Ein 3D-gedrucktes Stevenson-Schutzgitter aus weißem ASA-Kunststoff bietet natürliche Belüftung für die Luftqualitätssensoren, während es sie vor direkter Sonneneinstrahlung und Regen schützt. Eine wasserdichte Kabeleinführung behandelt die Solarmodulzuleitung. Die Station ist für die Befestigung an einer Standard-Stange oder Balkonbrüstung konzipiert und kann monatelang unbeaufsichtigt betrieben werden.
+
+\section*{Kosten und Skalierbarkeit}
+
+Die Reproduktionskosten hängen stark von der gewählten Sensorkonfiguration ab. Das Design ist modular, nicht jeder Sensor muss bestückt sein. Eine Minimalbauform mit nur Temperatur, Feuchte und Druck kann für deutlich unter 30 Euro reproduziert werden, während eine vollständig bestückte Station mit allen Sensoren zwischen 120 und 150 Euro kostet. Diese Flexibilität macht das Design für verschiedene Budgets und Anwendungsszenarien zugänglich.
