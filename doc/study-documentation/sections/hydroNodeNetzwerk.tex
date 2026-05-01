@@ -21,9 +21,7 @@ Das Netzwerk erfüllt dabei drei Kernaufgaben:
 Das Netzwerk ist so konzipiert, dass es heterogene Sensorhardware und unterschiedliche
 Übertragungswege unter einer einheitlichen Abstraktion zusammenfasst.
 
-% ============================================================
 \section*{Historische Entwicklung}
-% ============================================================
 
 Das HydroNodeNetzwerk wurde ursprünglich für HTTPS-basierte Sensorik entwickelt.
 Dabei kommunizieren Sensorstationen direkt über das Internet mit dem Backend-Endpunkt
@@ -43,9 +41,8 @@ Die Integration ist abgeschlossen; offene Punkte betreffen ausschließlich das F
 für nicht verifizierbare Uplinks sowie die Dokumentation des Onboarding-Prozesses für
 Drittanwender.
 
-% ============================================================
+\newpage
 \section*{Systemarchitektur}
-% ============================================================
 
 Das HydroNodeNetzwerk gliedert sich in vier Schichten:
 
@@ -62,31 +59,49 @@ Das HydroNodeNetzwerk gliedert sich in vier Schichten:
         Messwerte, Stationsdaten und KI-Analysen abruft.
 \end{itemize}
 
-% ------ Diagramm-Platzhalter 1 ------
-\begin{figure}[h]
+\begin{figure}[H]
   \centering
-  \fbox{%
-    \parbox{0.85\textwidth}{%
-      \textbf{[Diagramm: HydroNodeNetzwerk — Systemarchitektur-Übersicht]}\\[4pt]
-      Darstellung als Schichtendiagramm (4 Ebenen, vertikal):\\
-      (1) Sensorschicht: HTTPS-Station (Arduino + ESP32) links, LoRaWAN-Station
-          (HydroNodeStation01) rechts.\\
-      (2) Übertragungsschicht: HTTPS-Pfeil direkt zum Backend; LoRaWAN-Pfad über
-          Helium-Gateway $\rightarrow$ Helium Network Server $\rightarrow$
-          ChirpStack $\rightarrow$ Amazon SNS.\\
-      (3) Backend-Schicht: Quarkus-Anwendung mit Kafka-intern (Ingress $\rightarrow$
-          Verified $\rightarrow$ DLQ).\\
-      (4) App-Schicht: iOS-App HydroNode mit REST-API-Verbindung zum Backend.\\
-      Farbkodierung: HTTP-Pfad blau, LoRaWAN-Pfad orange, Kafka-intern grün.
-    }%
-  }
-  \caption{Systemarchitektur des HydroNodeNetzwerks (Platzhalter)}
+  \begin{tikzpicture}[
+      font=\small,
+      box/.style={draw, rounded corners=4pt, minimum height=11mm,
+                  minimum width=40mm, align=center},
+      sensor/.style={box, fill=blue!10, draw=blue!40!black},
+      transport/.style={box, fill=orange!12, draw=orange!55!black},
+      backend/.style={box, fill=green!10, draw=green!45!black},
+      app/.style={box, fill=purple!10, draw=purple!45!black},
+      flow/.style={-{Stealth[length=2.5mm]}, thick},
+      layerlabel/.style={font=\footnotesize\itshape, text=gray!65!black, anchor=west}
+  ]
+    \node[sensor]    (https) at (-2.6,  0.0) {HTTPS-Station\\Arduino / ESP32};
+    \node[sensor]    (lora)  at ( 2.6,  0.0) {LoRaWAN-Station\\HydroNodeStation01};
+
+    \node[transport] (inet)  at (-2.6, -2.2) {HTTPS\\TLS\,1.2+ / HMAC};
+    \node[transport] (hel)   at ( 2.6, -2.2) {Helium $\to$ ChirpStack\\$\to$ Amazon SNS};
+
+    \node[backend, minimum width=84mm] (back) at (0, -4.4)
+      {HydroNode Backend\\Kafka $\cdot$ PostgreSQL $\cdot$ Verifikation};
+
+    \node[app, minimum width=62mm] (appn) at (0, -6.2)
+      {iOS-App \textit{HydroNode} \enspace REST-API};
+
+    \node[layerlabel] at (5.0,  0.0) {Sensorschicht};
+    \node[layerlabel] at (5.0, -2.2) {Übertragungsschicht};
+    \node[layerlabel] at (5.0, -4.4) {Backend-Schicht};
+    \node[layerlabel] at (5.0, -6.2) {Applikationsschicht};
+
+    \draw[flow, blue!60!black]   (https) -- (inet);
+    \draw[flow, orange!60!black] (lora)  -- (hel);
+    \draw[flow, blue!60!black]   (inet)  -- (back.north -| inet);
+    \draw[flow, orange!60!black] (hel)   -- (back.north -| hel);
+    \draw[flow, green!45!black]  (back)  -- (appn);
+  \end{tikzpicture}
+  \caption{Systemarchitektur des HydroNodeNetzwerks}
   \label{fig:hydronode-architektur}
 \end{figure}
 
-% ============================================================
+\newpage
+
 \section*{Datenfluss}
-% ============================================================
 
 \subsection*{HTTPS-Sensorpfad}
 
@@ -132,28 +147,8 @@ Das HydroNodeNetzwerk gliedert sich in vier Schichten:
         Es wird das Gateway mit dem höchsten SNR-Wert ausgewählt (bei Gleichstand: höchster RSSI).
 \end{enumerate}
 
-% ------ Diagramm-Platzhalter 2 ------
-\begin{figure}[h]
-  \centering
-  \fbox{%
-    \parbox{0.85\textwidth}{%
-      \textbf{[Diagramm: Datenfluss LoRaWAN-Pfad (Sequenzdiagramm)]}\\[4pt]
-      Sequenzdiagramm mit folgenden Akteuren (von links nach rechts):\\
-      HydroNodeStation01 — Helium Gateway — ChirpStack — Amazon SNS —
-      HydroNode Backend (SnsWebhookResource) — Kafka — SensorValueProcessor — PostgreSQL.\\
-      Nachrichten: LoRaWAN-Uplink (verschlüsselt), HTTP POST (ChirpStack JSON),
-      SNS-Notification, Kafka-Event (SensorVerifiedEvent), DB-INSERT (SensorValue).\\
-      Hervorheben: Auto-Confirmation bei SNS-Subscription (gestrichelter Rückpfeil von
-      Backend zu SNS: GET SubscribeURL).
-    }%
-  }
-  \caption{Sequenzdiagramm: LoRaWAN-Datenpfad von Station bis Datenbank (Platzhalter)}
-  \label{fig:datenfluss-lorawan}
-\end{figure}
 
-% ============================================================
 \section*{Schnittstellen und Integrationspunkte}
-% ============================================================
 
 \subsection*{HTTPS-Webhook}
 
@@ -198,22 +193,46 @@ https://<host>/api/webhook/lorawan/sns
         die das Payload-Layout beschreibt (\texttt{POST /api/sensors/\{id\}/fport-configs}).
 \end{enumerate}
 
-% ------ Diagramm-Platzhalter 3 ------
-\begin{figure}[h]
+\begin{figure}[H]
   \centering
-  \fbox{%
-    \parbox{0.85\textwidth}{%
-      \textbf{[Diagramm: Helium/SNS-Integrationsschema]}\\[4pt]
-      Blockdiagramm (horizontal):
-      Helium Console $\rightarrow$ ChirpStack Application Server $\rightarrow$ AWS SNS Topic
-      $\rightarrow$ HydroNode Backend.\\
-      Über dem SNS-Pfeil: „HTTPS Subscription (auto-confirmed)".\\
-      Kasten „HydroNode Backend" intern unterteilt in: SnsWebhookResource (Boundary),
-      SensorLookupCache + FPortConfigCache (Control), Kafka-Topic (verified-sensor-out).\\
-      Unter dem Diagramm: Hinweis auf erforderliche AWS IAM-Policy (\texttt{sns:Publish}).
-    }%
-  }
-  \caption{Integrationspfad: Helium / ChirpStack / Amazon SNS (Platzhalter)}
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+      font=\small,
+      ext/.style={draw, rounded corners=4pt, minimum height=11mm,
+                  minimum width=30mm, align=center, fill=gray!8},
+      inn/.style={draw, rounded corners=3pt, fill=white,
+                  minimum width=46mm, minimum height=9mm, align=center},
+      flow/.style={-{Stealth[length=2.5mm]}, thick}
+  ]
+    \node[ext] (console) at (0, 0) {Helium Console};
+    \node[ext, right=12mm of console] (chirp)  {ChirpStack\\App Server};
+    \node[ext, right=12mm of chirp]   (awssns) {AWS SNS\\Topic};
+
+    \node[inn, right=22mm of awssns]      (resource) {SnsWebhookResource};
+    \node[inn, below=8mm of resource]     (lookups)  {SensorLookupCache\\FPortConfigCache};
+    \node[inn, below=8mm of lookups]      (topic)    {Kafka: \texttt{verified.sensor}};
+
+    \begin{pgfonlayer}{background}
+      \node[draw, rounded corners=6pt, fill=green!8, draw=green!40!black,
+            fit=(resource)(lookups)(topic), inner sep=9pt,
+            label={[font=\small\bfseries, inner sep=5pt]above:HydroNode Backend}]
+            (backbox) {};
+    \end{pgfonlayer}
+
+    \draw[flow] (console) -- (chirp);
+    \draw[flow] (chirp)   -- (awssns);
+    \draw[flow] (awssns)  -- (resource);
+    \node[font=\footnotesize, above, align=center]
+      at ($(awssns.east)!0.5!(backbox.west) + (0, 1.5)$)
+      {HTTPS POST\\(auto-confirmed)};
+
+    \draw[flow] (resource) -- (lookups);
+    \draw[flow] (lookups)  -- (topic);
+
+    \node[font=\footnotesize\itshape, below=5mm of backbox]
+      {IAM-Policy: \texttt{sns:Publish}};
+  \end{tikzpicture}}
+  \caption{Integrationspfad: Helium / ChirpStack / Amazon SNS}
   \label{fig:helium-sns-integration}
 \end{figure}
 
@@ -251,9 +270,9 @@ Relevante Endpunkte für das Netzwerkkonzept:
         kartenbasierte Darstellungen.
 \end{itemize}
 
-% ============================================================
+\newpage
+
 \section*{Betrieb, Skalierung und Zuverlässigkeit}
-% ============================================================
 
 \subsection*{Caching}
 
@@ -300,9 +319,9 @@ ausgelegt. Für eine horizontale Skalierung des Backends sind folgende Punkte re
         parallel Uplinks empfangen können — sofern das Cache-Problem gelöst ist.
 \end{itemize}
 
-% ============================================================
+\newpage
+
 \section*{Offene Punkte und Ausblick}
-% ============================================================
 
 Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend behandelt:
 
@@ -350,12 +369,10 @@ Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend 
   (\emph{action\_items}). Die App stellt diese Ausgabe im                                                                                            
   \texttt{AnomalyDetailView} übersichtlich dar: Erklärungstext, qualitative                                                                          
   Kennzahlen mit farbcodierten Badges sowie eine nummerierte Maßnahmenliste.                                                                         
-  Administratoren können zudem über ein dediziertes Analytics-Dashboard den                                                                          
-  Token-Verbrauch und die geschätzten Kosten je Analysezeitraum einsehen.                                                                            
-                                                                                                                                                     
-  % ---------------------------------------------------------------                                                                                  
-                                                                                                                                                     
-  \section*{Datenvisualisierung und Benutzerinteraktion}                                                                                             
+      Administratoren können zudem über ein dediziertes Analytics-Dashboard den
+      Token-Verbrauch und die geschätzten Kosten je Analysezeitraum einsehen.
+
+      \section*{Datenvisualisierung und Benutzerinteraktion}
                                                             
   Die Detailansicht einer Sensorstation (\texttt{SensorDetailView}) stellt                                                                           
   Messzeitreihen als interaktiven Linien- und Flächengraphen dar, der auf
