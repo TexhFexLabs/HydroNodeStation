@@ -1,0 +1,99 @@
+\chapter{Tests und Validierung}
+\label{cha:testing}
+
+\section*{Teststrategie}
+
+Die Validierung der HydroNodeStation01 erfolgt in zwei Phasen: Zunächst auf dem Steckbrett-Prototyp mit dem Wio-E5 Mini Entwicklungsboard, anschließend auf dem Custom PCB nach dessen Lieferung von JLCPCB. Beide Phasen werden durch die Remote-Entwicklungsinfrastruktur unterstützt, die das Flashen, die serielle Konsole und eigene Analyse-Dashboards von beliebigen Standorten aus ermöglicht (s.\ Kapitel~\ref{cha:software}).
+
+\section*{Tests mit dem Entwicklungsprototyp}
+
+\subsection*{LoRaWAN-Konnektivität und Uplinks}
+
+Der vollständige LoRaWAN-Uplink-Pfad wurde auf dem Wio-E5 Mini Entwicklungsboard erfolgreich verifiziert. Die Station verbindet sich zuverlässig über OTAA-Join mit dem Helium-Netzwerk und sendet reguläre Uplinks auf allen drei konfigurierten Ports (fPort 2, 3 und 4). Der eigene \textbf{SenseCAP M2 Helium-Miner} in der Entwicklerwohnung garantiert dabei perfekten Empfang auch im Innenbereich ohne externe Antenne, sodass Konnektivitätsprobleme als Fehlerquelle während der Entwicklung sicher ausgeschlossen werden können.
+
+Im Feldtest wurde eine Reichweite von über \textbf{10~km} bei schwachem Signal nachgewiesen — weit über der für typische Einsatzszenarien im städtischen und ländlichen Raum benötigten Reichweite.
+
+\subsection*{Sensor-Verifikation}
+
+Alle sechs Sensoren wurden einzeln und im integrierten Betrieb auf Plausibilität und korrekte I2C-Kommunikation verifiziert:
+
+\begin{itemize}
+  \item \textbf{SHT45:} Temperatur- und Feuchtigkeitswerte konsistent und im erwarteten Bereich; Vergleich mit Referenzgerät zeigt gute Übereinstimmung.
+  \item \textbf{BMP390:} Luftdruckwerte plausibel und stabil; Forced-Mode-Betrieb (Single-Shot + automatisches Sleep) verifiziert.
+  \item \textbf{LTR390:} UV-Rohwerte reagieren korrekt auf UV-Exposition und zeigen erwartetes Verhalten bei Abdeckung des Sensors.
+  \item \textbf{SCD41:} CO\textsubscript{2}-Single-Shot-Messungen liefern plausible Werte im typischen Innenraum-Bereich (400–1500~ppm). Das Pre-Measurement-Timing ist verifiziert: Die CO\textsubscript{2}-Messung ist stets fertig, wenn der Uplink-Zyklus beginnt.
+  \item \textbf{SPS30:} Partikelmassenkonzentration und Zahlkonzentration reagieren korrekt auf Änderungen der Umgebungsluft (z.\,B.\ Zigarettenrauch-Exposition als Testfall). Fan-Cleaning-Mechanismus sowohl per Downlink-Befehl als auch automatisch nach 120~h verifiziert.
+  \item \textbf{MAX17048:} Akkuspannungsmessung korrekt; batterie-adaptive Logik (Intervall-Verdopplung bei $< 3200\,\text{mV}$, Intervall-$\times6$ bei $< 2900\,\text{mV}$) im Testbetrieb verifiziert.
+\end{itemize}
+
+\subsection*{Downlink-Verifikation}
+
+Beide Downlink-Befehle wurden erfolgreich getestet:
+
+\begin{itemize}
+  \item \textbf{0x11 — SPS30 Fan Cleaning:} Der SPS30 wird korrekt aufgeweckt, die Lüfterreinigung startet, der Cleanup-Timer stoppt den Sensor nach $10\,\text{s}$ automatisch und versetzt ihn in den Sleep-Modus.
+  \item \textbf{0xFF — Software Reset:} Der STM32 führt einen sauberen Neustart durch; LoRaWAN-Join und periodische Uplinks werden korrekt aus dem NVM-Zustand wiederaufgenommen, ohne dass ein erneuter Join-Prozess nötig ist.
+\end{itemize}
+
+\subsection*{NVM-Persistenz}
+
+Die Flash-basierte Persistenz des LoRaWAN-Zustands wurde durch mehrere absichtliche Neustarts verifiziert. In allen Fällen nahm die Station nach dem Neustart den Betrieb mit der bestehenden Session ohne erneuten Join wieder auf.
+
+\subsection*{Strommessung am Prototyp}
+
+Strommessungen mit dem PPK2 wurden am Steckbrett-Prototyp durchgeführt. Die Ergebnisse und deren Interpretation sind in Kapitel~\ref{cha:energie} vollständig dokumentiert. Der erhöhte Ruhestrom von ca.\ 3~mA wurde als prototyping-bedingt identifiziert und beeinträchtigt die Validität der Software und des Designs nicht.
+
+\subsection*{I2C-Bus-Robustheit}
+
+Der automatische I2C-Bus-Recovery-Mechanismus wurde durch absichtlich induzierte I2C-Fehler (Trennen und Wiederanschließen von Sensoren im Betrieb) verifiziert. In allen Fällen erkannte die Firmware den Fehler, führte den Bus-Recovery durch und setzte den Betrieb korrekt fort.
+
+\newpage
+
+\section*{Tests mit dem Custom PCB}
+\label{sec:testing-pcb}
+
+\textbf{TODO:} Dieser Abschnitt wird nach Lieferung und Inbetriebnahme der Custom-PCBs von JLCPCB ergänzt. Geplante Tests:
+
+\subsection*{Elektrische Inspektion}
+
+\begin{itemize}
+  \item Visuelle Kontrolle aller Lötstellen auf Brücken, Lötbälle und fehlende Bauteile
+  \item Messung der Versorgungsspannungen ($3{,}3\,\text{V}$, $5\,\text{V}$) unter Last
+  \item Prüfung der I2C-Busleitungen auf korrekte Pull-up-Spannung
+  \item Kontrolle des RF-Pfads auf korrekte Bestückung von Balun und RF-Switch
+\end{itemize}
+
+\subsection*{Strommessung}
+
+\begin{itemize}
+  \item PPK2-Messung des STOP2-Ruhestroms (Zielwert: $< 10\,\mu\text{A}$)
+  \item Messung des TX-Spitzenstroms beim LoRa-Senden (erwartet: $\approx 22\,\text{mA}$)
+  \item Aufzeichnung eines vollständigen 30-Minuten-Superzyklus und Vergleich der Ladung mit der theoretischen Berechnung
+\end{itemize}
+
+\subsection*{Funktionstest}
+
+\begin{itemize}
+  \item Verifikation aller sechs Sensorlesungen via I2C auf dem Custom PCB
+  \item LoRaWAN-OTAA-Join und Uplinks über das Helium-Netzwerk
+  \item Empfangsqualität (RSSI, SNR) mit und ohne externe Antenne
+  \item Prüfung der Solar-Ladefunktion (BQ25185) unter verschiedenen Lichtbedingungen
+  \item Test des softwaregesteuerten $5\,\text{V}$-Enable-Pins für den sekundären TPS63900
+\end{itemize}
+
+\subsection*{Langzeit-Stabilitätstest}
+
+\begin{itemize}
+  \item Kontinuierlicher Betrieb über $\geq 24\,\text{h}$ mit Aufzeichnung aller Uplinks
+  \item Uplink-Erfolgsrate $\geq 90\,\%$ als Akzeptanzkriterium
+  \item Temperaturtest bei Außentemperaturen (Ziel: $-10\,{^\circ}$C bis $+50\,{^\circ}$C)
+  \item Betrieb im Stevenson-Screen-Gehäuse über mehrere Tage mit Solar-Einspeisung
+\end{itemize}
+
+\subsection*{Verifikation der Batterielaufzeit}
+
+\begin{itemize}
+  \item Vergleich gemessener vs.\ theoretisch berechneter Schlafstrom und mittlerer Strom
+  \item Extrapolierte Batterielaufzeit auf Basis der PPK2-Messdaten
+  \item Bei Abweichungen: Identifikation der Ursachen und ggf.\ Layout-Anpassung für zukünftige Revisionen
+\end{itemize}
