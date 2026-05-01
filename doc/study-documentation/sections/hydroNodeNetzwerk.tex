@@ -1,0 +1,383 @@
+\chapter{HydroNodeNetzwerk}
+
+\section*{Zielstellung}
+
+Das HydroNodeNetzwerk bildet die kommunikationstechnische Grundlage des gesamten HydroNode-Systems.
+Es verbindet physische Sensorstationen mit dem cloudbasierten Backend und der mobilen Anwendung.
+Ziel des Netzwerks ist es, Messdaten von Hydroponik- und Umgebungssensoren zuverlässig, energieeffizient
+und skalierbar zu übertragen, zu verarbeiten und für Nutzer verfügbar zu machen.
+
+Das Netzwerk erfüllt dabei drei Kernaufgaben:
+
+\begin{itemize}
+  \item \textbf{Datenerfassung:} Periodisches Auslesen von Sensorwerten (Temperatur, Feuchte, pH-Wert u.\,a.)
+        durch die eingebettete Hardware auf den Sensorstationen.
+  \item \textbf{Datenübertragung:} Transport der Messdaten zum Backend über standardisierte Protokolle
+        (HTTPS oder LoRaWAN), abhängig von Sensortyp und Infrastruktur.
+  \item \textbf{Datenbereitstellung:} Persistierung, Anomalieerkennung und Ausgabe der Daten über
+        eine REST-API an die iOS-Applikation \textit{HydroNode}.
+\end{itemize}
+
+Das Netzwerk ist so konzipiert, dass es heterogene Sensorhardware und unterschiedliche
+Übertragungswege unter einer einheitlichen Abstraktion zusammenfasst.
+
+% ============================================================
+\section*{Historische Entwicklung}
+% ============================================================
+
+Das HydroNodeNetzwerk wurde ursprünglich für HTTPS-basierte Sensorik entwickelt.
+Dabei kommunizieren Sensorstationen direkt über das Internet mit dem Backend-Endpunkt
+\texttt{POST /api/webhook/sensor-value}.
+Zur Vereinfachung der Entwicklung eigener Stationen wurde die
+\textit{HydroNode Arduino Library}\footnote{\url{https://github.com/TexhFexLabs/HydroNode-Library}}
+veröffentlicht, die HMAC-SHA256-Signierung, Zeitstempelgenerierung und Payload-Serialisierung
+für Arduino-kompatible Mikrocontroller kapselt.
+
+Im Zuge der Weiterentwicklung wurde das Netzwerk um LoRaWAN-Konnektivität erweitert.
+Dabei wurde die bestehende Infrastruktur nicht ersetzt, sondern um einen zweiten
+Übertragungskanal ergänzt.
+Sensorstationen wie die \textit{HydroNodeStation01} können seitdem über das
+Helium-LoRaWAN-Netzwerk Daten übertragen, ohne auf eine direkte Internetverbindung
+angewiesen zu sein.
+Die Integration ist abgeschlossen; offene Punkte betreffen ausschließlich das Fehlerhandling
+für nicht verifizierbare Uplinks sowie die Dokumentation des Onboarding-Prozesses für
+Drittanwender.
+
+% ============================================================
+\section*{Systemarchitektur}
+% ============================================================
+
+Das HydroNodeNetzwerk gliedert sich in vier Schichten:
+
+\begin{itemize}
+  \item \textbf{Sensorschicht:} Eingebettete Hardware (Mikrocontroller, Sensoren, Funkmodul).
+        Zwei Varianten: HTTPS-Stationen mit direkter Internetverbindung und LoRaWAN-Stationen
+        mit Funkanbindung über Gateways.
+  \item \textbf{Übertragungsschicht:} HTTPS (TLS 1.2+, HMAC-gesichert) oder LoRaWAN
+        (AES-128, 868~MHz / 915~MHz je nach Region), Weiterleitung über Helium Network Server
+        und ChirpStack Application Server zu Amazon SNS.
+  \item \textbf{Backend-Schicht:} Quarkus-3-Anwendung (\textit{HydroNode Backend}).
+        Empfang, Verifizierung, Kafka-basierte Verarbeitung und Persistierung in PostgreSQL.
+  \item \textbf{Applikationsschicht:} iOS-App \textit{HydroNode}, die über die REST-API
+        Messwerte, Stationsdaten und KI-Analysen abruft.
+\end{itemize}
+
+% ------ Diagramm-Platzhalter 1 ------
+\begin{figure}[h]
+  \centering
+  \fbox{%
+    \parbox{0.85\textwidth}{%
+      \textbf{[Diagramm: HydroNodeNetzwerk — Systemarchitektur-Übersicht]}\\[4pt]
+      Darstellung als Schichtendiagramm (4 Ebenen, vertikal):\\
+      (1) Sensorschicht: HTTPS-Station (Arduino + ESP32) links, LoRaWAN-Station
+          (HydroNodeStation01) rechts.\\
+      (2) Übertragungsschicht: HTTPS-Pfeil direkt zum Backend; LoRaWAN-Pfad über
+          Helium-Gateway $\rightarrow$ Helium Network Server $\rightarrow$
+          ChirpStack $\rightarrow$ Amazon SNS.\\
+      (3) Backend-Schicht: Quarkus-Anwendung mit Kafka-intern (Ingress $\rightarrow$
+          Verified $\rightarrow$ DLQ).\\
+      (4) App-Schicht: iOS-App HydroNode mit REST-API-Verbindung zum Backend.\\
+      Farbkodierung: HTTP-Pfad blau, LoRaWAN-Pfad orange, Kafka-intern grün.
+    }%
+  }
+  \caption{Systemarchitektur des HydroNodeNetzwerks (Platzhalter)}
+  \label{fig:hydronode-architektur}
+\end{figure}
+
+% ============================================================
+\section*{Datenfluss}
+% ============================================================
+
+\subsection*{HTTPS-Sensorpfad}
+
+\begin{enumerate}
+  \item Die Sensorstation misst periodisch Umgebungswerte und serialisiert diese als JSON-Payload.
+  \item Der Payload wird mit dem geräteindividuellen Secret mittels HMAC-SHA256 signiert.
+        Der Signaturwert wird im HTTP-Header \texttt{X-Signature} übertragen;
+        ein Unix-Zeitstempel im Header \texttt{X-Timestamp} schützt vor Replay-Angriffen
+        (Toleranz: $\pm20$~Minuten).
+  \item Das Backend empfängt den Request unter \texttt{POST /api/webhook/sensor-value},
+        publiziert den Rohpayload in das Kafka-Topic \texttt{hydronode.ingress.sensor} und
+        antwortet sofort mit \texttt{202 Accepted}.
+  \item Der \texttt{DeviceKeyVerifier}-Consumer liest den Ingress-Topic, prüft HMAC und
+        Zeitstempel und publiziert bei Erfolg ein \texttt{SensorVerifiedEvent} nach
+        \texttt{hydronode.verified.sensor}. Fehlerhafte Nachrichten landen im
+        Dead Letter Queue-Topic \texttt{hydronode.invalid.sensor}.
+  \item Der \texttt{SensorValueProcessor}-Consumer persistiert die Messwerte in PostgreSQL,
+        aktualisiert die statistischen Baselines und übergibt neue Werte an den
+        \texttt{AnomalyDetector}.
+\end{enumerate}
+
+\subsection*{LoRaWAN-Sensorpfad (Helium / ChirpStack~v4)}
+
+\begin{enumerate}
+  \item Die LoRaWAN-Station sendet einen verschlüsselten Uplink über das Helium-Funknetz.
+        Das Helium Network Server leitet den Uplink an einen konfigurierten ChirpStack
+        Application Server weiter.
+  \item ChirpStack kodiert das Uplink-Event als JSON im ChirpStack-v4-Format und
+        sendet es als SNS-Notification an das konfigurierte Amazon SNS Topic.
+  \item Amazon SNS stellt die Nachricht per HTTP POST an den Backend-Endpunkt
+        \texttt{POST /api/webhook/lorawan/sns} zu.
+  \item Das Backend extrahiert \texttt{devEui}, \texttt{applicationId}, \texttt{fPort} sowie
+        den Base64-kodierten Payload aus dem ChirpStack-Event.
+        Über den \texttt{SensorLookupCache} wird die interne Sensor-UUID ermittelt.
+  \item Der konfigurierte \texttt{LoRaFPortConfig}-Eintrag für den jeweiligen \texttt{fPort}
+        definiert das Kanal-Layout (Byteanzahl, Vorzeichen, Skalierungsfaktor je Kanal).
+        Der \texttt{LoRaFPortDecoder} dekodiert den Payload nach diesem Schema (Big-Endian).
+  \item Die dekodieren Werte werden als \texttt{SensorVerifiedEvent} direkt nach
+        \texttt{hydronode.verified.sensor} publiziert und vom \texttt{SensorValueProcessor}
+        identisch zum HTTPS-Pfad weiterverarbeitet.
+  \item Parallel aktualisiert der \texttt{StationSignalUpdateService} die Signalmetriken
+        der Station (RSSI, SNR, Gateway-Koordinaten) anhand der \texttt{rxInfo}-Daten.
+        Es wird das Gateway mit dem höchsten SNR-Wert ausgewählt (bei Gleichstand: höchster RSSI).
+\end{enumerate}
+
+% ------ Diagramm-Platzhalter 2 ------
+\begin{figure}[h]
+  \centering
+  \fbox{%
+    \parbox{0.85\textwidth}{%
+      \textbf{[Diagramm: Datenfluss LoRaWAN-Pfad (Sequenzdiagramm)]}\\[4pt]
+      Sequenzdiagramm mit folgenden Akteuren (von links nach rechts):\\
+      HydroNodeStation01 — Helium Gateway — ChirpStack — Amazon SNS —
+      HydroNode Backend (SnsWebhookResource) — Kafka — SensorValueProcessor — PostgreSQL.\\
+      Nachrichten: LoRaWAN-Uplink (verschlüsselt), HTTP POST (ChirpStack JSON),
+      SNS-Notification, Kafka-Event (SensorVerifiedEvent), DB-INSERT (SensorValue).\\
+      Hervorheben: Auto-Confirmation bei SNS-Subscription (gestrichelter Rückpfeil von
+      Backend zu SNS: GET SubscribeURL).
+    }%
+  }
+  \caption{Sequenzdiagramm: LoRaWAN-Datenpfad von Station bis Datenbank (Platzhalter)}
+  \label{fig:datenfluss-lorawan}
+\end{figure}
+
+% ============================================================
+\section*{Schnittstellen und Integrationspunkte}
+% ============================================================
+
+\subsection*{HTTPS-Webhook}
+
+Der Endpunkt \texttt{POST /api/webhook/sensor-value} empfängt Messdaten von HTTPS-fähigen
+Stationen. Authentifizierung erfolgt über HMAC-SHA256; das Secret wird bei der Sensor-Aktivierung
+generiert und ist nur dem Geräteeigentümer zugänglich (\texttt{GET /api/sensors/\{id\}/credentials}).
+
+\subsection*{Amazon SNS / LoRaWAN}
+
+Der Endpunkt \texttt{POST /api/webhook/lorawan/sns} nimmt SNS-Notifications entgegen.
+Er behandelt drei SNS-Nachrichtentypen:
+
+\begin{itemize}
+  \item \texttt{SubscriptionConfirmation} — Das Backend bestätigt die SNS-Subscription automatisch,
+        indem es die im Feld \texttt{SubscribeURL} enthaltene URL per GET-Request aufruft.
+        Es ist kein manueller Eingriff erforderlich.
+  \item \texttt{Notification} — Enthält im Feld \texttt{Message} das JSON-kodierte ChirpStack-v4-Uplink-Event.
+  \item \texttt{UnsubscribeConfirmation} — Wird quittiert, ohne weitere Aktion.
+\end{itemize}
+
+\subsection*{Helium-Onboarding für Drittanwender}
+
+Nutzer, die eine eigene LoRaWAN-Station über das Helium-Netzwerk anbinden möchten, folgen
+diesen Schritten:
+
+\begin{enumerate}
+  \item In der Helium Console eine \textit{Integration} vom Typ \textit{HTTP} oder über einen
+        verbundenen ChirpStack Application Server anlegen.
+  \item In ChirpStack unter \textit{Applications $\rightarrow$ Integrations} eine
+        \textit{AWS SNS}-Integration konfigurieren:
+        AWS Region, SNS Topic ARN sowie IAM-Zugangsdaten mit \texttt{sns:Publish}-Berechtigung eintragen.
+  \item Im AWS SNS-Topic ein Subscription vom Typ \textit{HTTPS} erstellen mit der Endpoint-URL:
+\begin{verbatim}
+https://<host>/api/webhook/lorawan/sns
+\end{verbatim}
+  \item Nach Anlage der Subscription sendet AWS eine \texttt{SubscriptionConfirmation}-Nachricht
+        an den Endpunkt. Das HydroNode-Backend bestätigt diese automatisch.
+        Im AWS-Console-Status erscheint die Subscription anschließend als \textit{Confirmed}.
+  \item Die DevEUI und ApplicationId des Geräts müssen im HydroNode-Backend dem Sensor zugeordnet
+        sein (Felder \texttt{devEui} und \texttt{heliumApplicationId} in der \texttt{Sensor}-Entität).
+  \item Für den genutzten \texttt{fPort} muss eine \texttt{LoRaFPortConfig} hinterlegt sein,
+        die das Payload-Layout beschreibt (\texttt{POST /api/sensors/\{id\}/fport-configs}).
+\end{enumerate}
+
+% ------ Diagramm-Platzhalter 3 ------
+\begin{figure}[h]
+  \centering
+  \fbox{%
+    \parbox{0.85\textwidth}{%
+      \textbf{[Diagramm: Helium/SNS-Integrationsschema]}\\[4pt]
+      Blockdiagramm (horizontal):
+      Helium Console $\rightarrow$ ChirpStack Application Server $\rightarrow$ AWS SNS Topic
+      $\rightarrow$ HydroNode Backend.\\
+      Über dem SNS-Pfeil: „HTTPS Subscription (auto-confirmed)".\\
+      Kasten „HydroNode Backend" intern unterteilt in: SnsWebhookResource (Boundary),
+      SensorLookupCache + FPortConfigCache (Control), Kafka-Topic (verified-sensor-out).\\
+      Unter dem Diagramm: Hinweis auf erforderliche AWS IAM-Policy (\texttt{sns:Publish}).
+    }%
+  }
+  \caption{Integrationspfad: Helium / ChirpStack / Amazon SNS (Platzhalter)}
+  \label{fig:helium-sns-integration}
+\end{figure}
+
+\subsection*{Kafka-interne Kommunikation}
+
+Das Backend nutzt Apache Kafka als internen Nachrichtenbus:
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{ll}
+    \hline
+    \textbf{Topic} & \textbf{Zweck} \\
+    \hline
+    \texttt{hydronode.ingress.sensor}    & Rohe HTTPS-Payloads (unverified) \\
+    \texttt{hydronode.verified.sensor}   & Verifizierte Messwerte (beide Pfade) \\
+    \texttt{hydronode.invalid.sensor}    & Dead Letter Queue (HMAC-Fehler, unbekannte Geräte) \\
+    \texttt{hydronode.ingress.lorawan}   & Archiv aller LoRaWAN-Rohpayloads (fire-and-forget) \\
+    \hline
+  \end{tabular}
+  \caption{Kafka-Topics im HydroNodeNetzwerk}
+  \label{tab:kafka-topics}
+\end{table}
+
+\subsection*{REST-API / iOS-App}
+
+Die iOS-App \textit{HydroNode} kommuniziert ausschließlich über die REST-API des Backends.
+Relevante Endpunkte für das Netzwerkkonzept:
+
+\begin{itemize}
+  \item \texttt{GET /api/stations/\{id\}} — Stationsdaten inkl.\ Signalmetriken (RSSI, SNR,
+        Gateway-Koordinaten, Zeitpunkt des letzten Uplinks).
+  \item \texttt{GET /api/stations/\{id\}/measurements} — Aggregierte Messwerte aller
+        Sensoren einer Station.
+  \item \texttt{GET /api/stations/public} — Öffentlich sichtbare Stationen für
+        kartenbasierte Darstellungen.
+\end{itemize}
+
+% ============================================================
+\section*{Betrieb, Skalierung und Zuverlässigkeit}
+% ============================================================
+
+\subsection*{Caching}
+
+Zur Reduzierung von Datenbankabfragen im kritischen Empfangspfad setzt das Backend
+auf drei In-Process-Caches mit einer TTL von jeweils 90~Minuten:
+
+\begin{itemize}
+  \item \texttt{DeviceKeyCache} — Abbildung Sensor-UUID auf Secret (HTTPS-Authentifizierung).
+  \item \texttt{SensorLookupCache} — Abbildung DevEUI auf Sensor-UUID (LoRaWAN-Authentifizierung).
+  \item \texttt{FPortConfigCache} — Abbildung (Sensor-UUID, fPort) auf Kanalstruktur
+        (LoRaWAN-Dekodierung).
+\end{itemize}
+
+Cache-Invalidierung erfolgt nach jeder Konfigurationsänderung sowie manuell über die
+Admin-API (\texttt{/api/admin/cache/*}).
+
+\subsection*{Entkopplung durch Kafka}
+
+Die Kafka-basierte Architektur entkoppelt Empfang und Verarbeitung von Nachrichten.
+Ein kurzfristiger Ausfall des \texttt{SensorValueProcessor} führt nicht zu Datenverlust,
+da Nachrichten im Topic erhalten bleiben bis sie konsumiert werden.
+Der HTTPS-Webhook-Endpunkt antwortet dem Sender mit \texttt{202 Accepted}, sobald die
+Nachricht im Ingress-Topic liegt — unabhängig von der weiteren Verarbeitungszeit.
+
+\subsection*{Datenbankschema-Management}
+
+Die Datenbankschemata werden automatisch durch Quarkus verwaltet.
+In Entwicklungs- und Produktionsumgebung gilt die Strategie \texttt{update}:
+neue Tabellen und Spalten werden ergänzt, bestehende Daten bleiben erhalten.
+Manuelle SQL-Skripte sind nach Deployments nicht erforderlich, solange ausschließlich
+additive Schemaänderungen vorgenommen werden.
+
+\subsection*{Skalierungsüberlegungen}
+
+Das System ist für den aktuellen Betriebsumfang (einzelne bis wenige Dutzend Stationen)
+ausgelegt. Für eine horizontale Skalierung des Backends sind folgende Punkte relevant:
+
+\begin{itemize}
+  \item Die In-Process-Caches sind nicht über mehrere Backend-Instanzen hinweg synchronisiert.
+        Bei mehreren Instanzen ist ein verteiltes Cache-Backend (z.\,B. Redis) erforderlich.
+  \item Kafka-Consumer sind als Single-Consumer konfiguriert; eine Partitionierung
+        der Topics ermöglicht parallele Verarbeitung durch mehrere Instanzen.
+  \item Amazon SNS unterstützt nativ mehrere Subscriptions, sodass mehrere Backend-Instanzen
+        parallel Uplinks empfangen können — sofern das Cache-Problem gelöst ist.
+\end{itemize}
+
+% ============================================================
+\section*{Offene Punkte und Ausblick}
+% ============================================================
+
+Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend behandelt:
+
+\begin{itemize}
+  \item \textbf{Fehlerbehandlung nicht verifizierbarer Uplinks:} LoRaWAN-Uplinks, für die kein
+        passender Sensor-Eintrag oder keine \texttt{fPortConfig} existiert, werden aktuell
+        in den DLQ-Topic (\texttt{hydronode.invalid.sensor}) geschrieben. Eine automatische
+        Benachrichtigung des Gerätebesitzers oder ein Retry-Mechanismus ist nicht implementiert.
+  \item \textbf{Verteiltes Caching:} Bei Betrieb mehrerer Backend-Instanzen müssen die
+        In-Process-Caches durch eine verteilte Lösung ersetzt werden.
+  \item \textbf{Erweiterung der Arduino-Bibliothek:} Die HydroNode Arduino Library unterstützt
+        aktuell ausschließlich den HTTPS-Pfad. Eine Erweiterung um LoRaWAN-spezifische
+        Hilfsfunktionen (fPort-Payload-Kodierung) ist geplant.
+  \item \textbf{Onboarding-Automatisierung:} Die manuelle Zuordnung von DevEUI und
+        \texttt{fPortConfig} soll durch einen geführten Einrichtungsassistenten in der
+        iOS-App vereinfacht werden.
+\end{itemize}
+
+\newpage
+
+\section*{KI-gestützte Analyse in der HydroNode App}                                                                                               
+                                                                                                                                                     
+  Die HydroNode iOS-App integriert OpenAI GPT-5 Nano als KI-Komponente zur                                                                               
+  automatisierten Analyse von Sensoranomalien. Erkennt das Quarkus-Backend                                                                           
+  eine statistische Auffälligkeit in den Messdaten – etwa einen plötzlichen                                                                          
+  Wertesprung (\emph{SPIKE}), einen unerwarteten Einbruch (\emph{DROP}),                                                                             
+  einen schleichenden Drift (\emph{GRADUAL\_DRIFT}) oder eine                                                                                        
+  Schwellenwertüberschreitung (\emph{THRESHOLD\_BREACH}) – wird die                                                                                  
+  Anomalie serverseitig an OpenAI GPT-5 Nano übergeben. Dabei übermittelt das                                                                            
+  Backend folgende Kontextdaten:                                                                                                                     
+                                                                                                                                                     
+  \begin{itemize}                                                                                                                                    
+    \item den aktuellen Messwert sowie den statistisch erwarteten Referenzwert
+          und die Standardabweichung~($\sigma$),                                                                                                     
+    \item den Anomalietyp und den zugehörigen Messkanal (z.\,B.\
+          Temperatur in~°C, Luftfeuchte in~\%, CO\textsubscript{2} in~ppm),                                                                          
+    \item jüngste Mittelwerte des betroffenen Kanals als gleitenden                                                                                  
+          Verlaufskontext,                                                                                                                           
+    \item Stationskennung und Erfassungszeitpunkt.                                                                                                   
+  \end{itemize}                                                                                                                                      
+                                                            
+  OpenAI GPT-5 Nano liefert als strukturierte JSON-Antwort eine Erklärung der                                                                            
+  Ursache, eine Einschätzung der Schwere (\emph{severity}) und Zuverlässigkeit
+  (\emph{confidence}) sowie priorisierte Handlungsempfehlungen                                                                                       
+  (\emph{action\_items}). Die App stellt diese Ausgabe im                                                                                            
+  \texttt{AnomalyDetailView} übersichtlich dar: Erklärungstext, qualitative                                                                          
+  Kennzahlen mit farbcodierten Badges sowie eine nummerierte Maßnahmenliste.                                                                         
+  Administratoren können zudem über ein dediziertes Analytics-Dashboard den                                                                          
+  Token-Verbrauch und die geschätzten Kosten je Analysezeitraum einsehen.                                                                            
+                                                                                                                                                     
+  % ---------------------------------------------------------------                                                                                  
+                                                                                                                                                     
+  \section*{Datenvisualisierung und Benutzerinteraktion}                                                                                             
+                                                            
+  Die Detailansicht einer Sensorstation (\texttt{SensorDetailView}) stellt                                                                           
+  Messzeitreihen als interaktiven Linien- und Flächengraphen dar, der auf
+  dem Swift-Charts-Framework basiert. Für jeden Messkanal – darunter                                                                                 
+  Temperatur, Luftfeuchte, pH-Wert und TDS – lässt sich ein Zeitfenster                                                                              
+  zwischen~6~Stunden und~7~Tagen auswählen; ein benutzerdefinierter                                                                                  
+  Datumsbereich ist ebenfalls möglich. Zur Performanzoptimierung aggregiert                                                                          
+  die App Messwerte intervallabhängig (z.\,B.\ 20-Minuten-Mittel für                                                                                 
+  24-Stunden-Ansichten). Erkannte Anomalien werden als farbige Markierungen                                                                          
+  direkt im Graphen eingeblendet.                                                                                                                    
+                                                                                                                                                     
+  Für LoRaWAN-verbundene Stationen zeigt die                                                                                                         
+  \texttt{StationSignalInfoView} die Funkqualitätsindikatoren RSSI                                                                                   
+  (in~dBm) und SNR (in~dB) sowie die geografischen Koordinaten von Station                                                                           
+  und Gateway. Eine eingebettete Kartenansicht visualisiert die                                                                                      
+  Funkstrecke zwischen Sensorstation und nächstem Helium-Gateway.                                                                                    
+                                                                                                                                                     
+  Die Benutzerverwaltung umfasst das Teilen einer Station über                                                                                       
+  \texttt{ShareSensorView}, die Zugriffsverwaltung per                                                                                               
+  \texttt{SensorAccessListView} sowie die fPort-Konfiguration zur                                                                                    
+  Steuerung des LoRaWAN-Dekodierungsverhaltens über                                                                                                  
+  \texttt{FPortConfigsView}. Über das Kontextmenü der Detailansicht kann                                                                             
+  der Nutzer außerdem Steuerbefehle in die Sensor-Queue einreihen                                                                                    
+  (z.\,B.\ Pumpsteuerung) und die KI-Analyseansicht der jeweils                                                                                      
+  ausgewählten Anomalie direkt aufrufen. 
