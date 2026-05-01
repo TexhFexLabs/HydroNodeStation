@@ -142,19 +142,19 @@ Die gesamte Sendelogik basiert auf einem \textbf{Tx-Zähler} (\texttt{tx\_counte
 
 \begin{table}[H]
   \centering
-  \begin{tabular}{cclccc}
+  \begin{tabular}{cccccp{3cm}}
     \hline
-    \textbf{Zähler} & \textbf{t (min)} & \textbf{Gelesene Sensoren} & \textbf{CO\textsubscript{2}} & \textbf{SPS30} & \textbf{fPort / Bytes} \\
+    \textbf{Zähler} & \textbf{t (min)} & \textbf{CO\textsubscript{2}} & \textbf{SPS30} & \textbf{fPort} & \textbf{Bytes} \\
     \hline
-    1 &  0 & SHT45, BMP390, LTR390, MAX17048 & — & — & fPort 2 / 10 B \\
-    2 &  5 & SHT45, BMP390, LTR390, MAX17048 & — & — & fPort 2 / 10 B \\
-    3 & 10 & SHT45, BMP390, LTR390, MAX17048, SCD41 & \checkmark & — & fPort 3 / 12 B \\
-    4 & 15 & SHT45, BMP390, LTR390, MAX17048 & — & — & fPort 2 / 10 B \\
-    5 & 20 & SHT45, BMP390, LTR390, MAX17048 & — & — & fPort 2 / 10 B \\
-    6 & 25 & SHT45, BMP390, LTR390, MAX17048, SCD41, SPS30 & \checkmark & \checkmark & fPort 4 / 32 B \\
+    1 &  0 & — & — & 2 & 10 \\
+    2 &  5 & — & — & 2 & 10 \\
+    3 & 10 & \checkmark & — & 3 & 12 \\
+    4 & 15 & — & — & 2 & 10 \\
+    5 & 20 & — & — & 2 & 10 \\
+    6 & 25 & \checkmark & \checkmark & 4 & 32 \\
     \hline
   \end{tabular}
-  \caption{Sendezyklus: Sensorauswahl und Payload je Tx-Zähler}
+  \caption{Sendezyklus: bei jedem Zähler werden SHT45, BMP390, LTR390 und MAX17048 gelesen; SCD41 zusätzlich bei Zähler 3 und 6, SPS30 bei Zähler 6.}
   \label{tab:txcycle}
 \end{table}
 
