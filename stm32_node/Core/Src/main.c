@@ -99,7 +99,7 @@ int main(void)
       HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
       HAL_Delay(1000U);
     }
-    HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
   }
   /* USER CODE END 2 */
 

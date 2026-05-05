@@ -1372,7 +1372,7 @@ void SUBGRF_WriteCommand( SUBGHZ_RadioSetCmd_t Command, uint8_t *pBuffer,
     status = HAL_SUBGHZ_ExecSetCmd( &hsubghz, Command, pBuffer, Size );
     CRITICAL_SECTION_END();
     if(status !=0)
-    	MW_LOG( TS_ON, VLEVEL_M,  " write CMD error %d", status);
+    	MW_LOG( TS_ON, VLEVEL_M,  " write CMD error %d\r\n", status);
 }
 
 void SUBGRF_ReadCommand( SUBGHZ_RadioGetCmd_t Command, uint8_t *pBuffer,
@@ -1410,6 +1410,7 @@ void HAL_SUBGHZ_RxCpltCallback(SUBGHZ_HandleTypeDef *hsubghz)
 
 void HAL_SUBGHZ_CRCErrorCallback (SUBGHZ_HandleTypeDef *hsubghz)
 {
+    hsubghz->ErrorCode &= ~HAL_SUBGHZ_ERROR_CRC_MISMATCH;
     RadioOnDioIrqCb( IRQ_RADIO_CRC_ERROR);
 }
 
