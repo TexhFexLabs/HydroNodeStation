@@ -81,6 +81,9 @@
 
 /* USER CODE BEGIN EC */
 
+/* Custom board: BGS12 RF switch uses single CTRL pin PC13 */
+#define USE_RF_SW_SINGLE_CTRL_PC13         1U
+
 /* USER CODE END EC */
 
 /* External variables --------------------------------------------------------*/

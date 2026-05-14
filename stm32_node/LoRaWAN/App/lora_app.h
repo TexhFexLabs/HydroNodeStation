@@ -53,11 +53,11 @@ extern "C" {
 /*!
   * Defines the application data transmission duty cycle in seconds.
   */
-#define APP_TX_DUTYCYCLE                            300
+#define APP_TX_DUTYCYCLE                            30
 
 /**
   * @brief SCD41 pre-measurement time in milliseconds.
-  * @note This is the time the node wakes up before the uplink to start the CO2 measurement.
+  * @note TThis is the time the node wakes up before the uplink to start the CO2 measurement.
   */
 #define SCD41_PRE_MEASUREMENT_TIME_MS               5500
 

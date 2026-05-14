@@ -22,6 +22,7 @@
 #include "usart_if.h"
 
 /* USER CODE BEGIN Includes */
+#include "sw_uart.h"
 
 /* USER CODE END Includes */
 
@@ -104,9 +105,7 @@ UTIL_ADV_TRACE_Status_t vcom_Init(void (*cb)(void *))
 
   /* USER CODE END vcom_Init_1 */
   TxCpltCallback = cb;
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  LL_EXTI_EnableIT_0_31(LL_EXTI_LINE_26);
+  SW_UART_Init();
   return UTIL_ADV_TRACE_OK;
   /* USER CODE BEGIN vcom_Init_2 */
 
@@ -141,7 +140,12 @@ void vcom_Trace(uint8_t *p_data, uint16_t size)
   /* USER CODE BEGIN vcom_Trace_1 */
 
   /* USER CODE END vcom_Trace_1 */
-  HAL_UART_Transmit(&huart1, p_data, size, 1000);
+  uint16_t i;
+
+  for (i = 0U; i < size; i++)
+  {
+    SW_UART_WriteByte(p_data[i]);
+  }
   /* USER CODE BEGIN vcom_Trace_2 */
 
   /* USER CODE END vcom_Trace_2 */
@@ -152,7 +156,11 @@ UTIL_ADV_TRACE_Status_t vcom_Trace_DMA(uint8_t *p_data, uint16_t size)
   /* USER CODE BEGIN vcom_Trace_DMA_1 */
 
   /* USER CODE END vcom_Trace_DMA_1 */
-  HAL_UART_Transmit_DMA(&huart1, p_data, size);
+  vcom_Trace(p_data, size);
+  if (TxCpltCallback != NULL)
+  {
+    TxCpltCallback(NULL);
+  }
   return UTIL_ADV_TRACE_OK;
   /* USER CODE BEGIN vcom_Trace_DMA_2 */
 
@@ -164,30 +172,7 @@ UTIL_ADV_TRACE_Status_t vcom_ReceiveInit(void (*RxCb)(uint8_t *rxChar, uint16_t 
   /* USER CODE BEGIN vcom_ReceiveInit_1 */
 
   /* USER CODE END vcom_ReceiveInit_1 */
-  UART_WakeUpTypeDef WakeUpSelection;
-
-  /*record call back*/
   RxCpltCallback = RxCb;
-
-  /*Set wakeUp event on start bit*/
-  WakeUpSelection.WakeUpEvent = UART_WAKEUP_ON_STARTBIT;
-
-  HAL_UARTEx_StopModeWakeUpSourceConfig(&huart1, WakeUpSelection);
-
-  /* Make sure that no UART transfer is on-going */
-  while (__HAL_UART_GET_FLAG(&huart1, USART_ISR_BUSY) == SET);
-
-  /* Make sure that UART is ready to receive)   */
-  while (__HAL_UART_GET_FLAG(&huart1, USART_ISR_REACK) == RESET);
-
-  /* Enable USART interrupt */
-  __HAL_UART_ENABLE_IT(&huart1, UART_IT_WUF);
-
-  /*Enable wakeup from stop mode*/
-  HAL_UARTEx_EnableStopMode(&huart1);
-
-  /*Start LPUART receive on IT*/
-  HAL_UART_Receive_IT(&huart1, &charRx, 1);
 
   return UTIL_ADV_TRACE_OK;
   /* USER CODE BEGIN vcom_ReceiveInit_2 */
@@ -200,17 +185,7 @@ void vcom_Resume(void)
   /* USER CODE BEGIN vcom_Resume_1 */
 
   /* USER CODE END vcom_Resume_1 */
-  /*to re-enable lost UART settings*/
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /*to re-enable lost DMA settings*/
-  if (HAL_DMA_Init(&hdma_usart1_tx) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  SW_UART_Init();
   /* USER CODE BEGIN vcom_Resume_2 */
 
   /* USER CODE END vcom_Resume_2 */
@@ -250,6 +225,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 /* USER CODE BEGIN EF */
+
+int __io_putchar(int ch)
+{
+  SW_UART_WriteByte((uint8_t)ch);
+  return ch;
+}
 
 /* USER CODE END EF */
 

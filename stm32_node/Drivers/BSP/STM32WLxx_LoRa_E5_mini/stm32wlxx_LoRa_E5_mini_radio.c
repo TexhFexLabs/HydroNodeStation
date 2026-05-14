@@ -47,7 +47,7 @@ int32_t BSP_RADIO_Init(void)
 {
   GPIO_InitTypeDef  gpio_init_structure = {0};
   
-#if defined(STM32WLE5xx)
+#if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
   /* Enable the Radio Switch Clock */
   RF_SW_CTRL_GPIO_CLK_ENABLE();
   
@@ -88,7 +88,7 @@ int32_t BSP_RADIO_Init(void)
   */
 int32_t BSP_RADIO_DeInit(void)
 {
-#if defined(STM32WLE5xx)
+#if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
   /* Turn off switch */
   HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET); 
   
@@ -127,7 +127,7 @@ int32_t BSP_RADIO_ConfigRFSwitch(BSP_RADIO_Switch_TypeDef Config)
     case RADIO_SWITCH_OFF:
     {
       /* Turn off switch */
-#if defined(STM32WLE5xx)
+#if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
       HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET);
 #else
       HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_RESET);
@@ -138,7 +138,7 @@ int32_t BSP_RADIO_ConfigRFSwitch(BSP_RADIO_Switch_TypeDef Config)
     case RADIO_SWITCH_RX:
     {
       /*Turns On in Rx Mode the RF Switch */
-#if defined(STM32WLE5xx)
+#if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
       /* CTRL=LOW -> RX-Pfad (RFC zu RF1) */
       HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET);
 #else
@@ -150,7 +150,7 @@ int32_t BSP_RADIO_ConfigRFSwitch(BSP_RADIO_Switch_TypeDef Config)
     case RADIO_SWITCH_RFO_LP:
     {
       /*Turns On in Tx Low Power the RF Switch */
-#if defined(STM32WLE5xx)
+#if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
       /* CTRL=HIGH -> TX-Pfad (RFC zu RF2) */
       HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_SET);
 #else
@@ -162,7 +162,7 @@ int32_t BSP_RADIO_ConfigRFSwitch(BSP_RADIO_Switch_TypeDef Config)
     case RADIO_SWITCH_RFO_HP:
     {
       /*Turns On in Tx High Power the RF Switch */
-#if defined(STM32WLE5xx)
+#if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
       /* CTRL=HIGH -> TX-Pfad (RFC zu RF2) */
       HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_SET);
 #else

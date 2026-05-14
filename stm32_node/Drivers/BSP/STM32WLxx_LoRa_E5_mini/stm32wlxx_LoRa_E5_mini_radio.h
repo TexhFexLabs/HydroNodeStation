@@ -95,7 +95,7 @@ typedef enum
   * @{
   */ 
   
-#if defined(STM32WLE5xx)
+#if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
 /* BGS12SN6E6327: SPDT, ein CTL-Pin an PC13 */
 #define RF_SW_CTRL_PIN                           GPIO_PIN_13
 #define RF_SW_CTRL_GPIO_PORT                     GPIOC
@@ -161,4 +161,3 @@ int32_t BSP_RADIO_GetRFOMaxPowerConfig(BSP_RADIO_RFOMaxPowerConfig_TypeDef Confi
 #endif /* STM32WLXX_NUCLEO_RADIO_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
-

@@ -92,6 +92,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/timer_if.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/adc_if.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/usart_if.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sw_uart.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/rng.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/rtc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/subghz.c
