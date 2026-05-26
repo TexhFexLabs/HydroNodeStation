@@ -18,7 +18,7 @@ else()
         ENDNODE
         CORE_CM4
         USE_HAL_DRIVER
-        STM32WL55xx
+        STM32WLE5xx
         DEBUG
     )
 endif()
@@ -112,7 +112,7 @@ set(MX_Application_Src
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND MX_Application_Src ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32wle5xx.s)
 else()
-    list(APPEND MX_Application_Src ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32wl55xx_cm4.s)
+    list(APPEND MX_Application_Src ${CMAKE_CURRENT_SOURCE_DIR}/../../startup_stm32wle5xx.s)
 endif()
 
 # STM32 HAL/LL Drivers

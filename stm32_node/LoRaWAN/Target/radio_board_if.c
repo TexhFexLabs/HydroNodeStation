@@ -179,7 +179,7 @@ int32_t RBI_IsTCXO(void)
   return BSP_RADIO_IsTCXO();
 #else
   /* 2/ Or implement RBI_IsTCXO here */
-  int32_t retcode = IS_TCXO_SUPPORTED;
+  int32_t retcode = IS_TCXO_NOT_SUPPORTED;
   /* USER CODE BEGIN RBI_IsTCXO_2 */
 #warning user to provide its board code or to call his board driver functions
   /* USER CODE END RBI_IsTCXO_2 */

@@ -46,20 +46,29 @@
 int32_t BSP_RADIO_Init(void)
 {
   GPIO_InitTypeDef  gpio_init_structure = {0};
-  
+
+  /* PB0 = BGS12SN6 VDD supply enable (not TCXO - no TCXO on this board) */
+  RF_TCXO_VCC_CLK_ENABLE();
+  gpio_init_structure.Pin   = RF_TCXO_VCC_PIN;
+  gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
+  gpio_init_structure.Pull  = GPIO_NOPULL;
+  gpio_init_structure.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(RF_TCXO_VCC_GPIO_PORT, &gpio_init_structure);
+  HAL_GPIO_WritePin(RF_TCXO_VCC_GPIO_PORT, RF_TCXO_VCC_PIN, GPIO_PIN_SET);
+
 #if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
   /* Enable the Radio Switch Clock */
   RF_SW_CTRL_GPIO_CLK_ENABLE();
-  
+
   /* Configure the Radio Switch pin */
   gpio_init_structure.Pin   = RF_SW_CTRL_PIN;
   gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
   gpio_init_structure.Pull  = GPIO_NOPULL;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  
+
   HAL_GPIO_Init(RF_SW_CTRL_GPIO_PORT, &gpio_init_structure);
-  
-  HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET); 
+
+  HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET);
 #else
   /* Enable the Radio Switch Clock */
   RF_SW_CTRL1_GPIO_CLK_ENABLE();
@@ -90,8 +99,8 @@ int32_t BSP_RADIO_DeInit(void)
 {
 #if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
   /* Turn off switch */
-  HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET); 
-  
+  HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET);
+
   /* DeInit the Radio Switch pin */
   HAL_GPIO_DeInit(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN);
   RF_SW_CTRL_GPIO_CLK_DISABLE();
@@ -139,8 +148,8 @@ int32_t BSP_RADIO_ConfigRFSwitch(BSP_RADIO_Switch_TypeDef Config)
     {
       /*Turns On in Rx Mode the RF Switch */
 #if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
-      /* CTRL=LOW -> RX-Pfad (RFC zu RF1) */
-      HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_RESET);
+      /* CTRL=HIGH -> RX-Pfad (RFC zu RF2, same balun path as TX) */
+      HAL_GPIO_WritePin(RF_SW_CTRL_GPIO_PORT, RF_SW_CTRL_PIN, GPIO_PIN_SET);
 #else
       HAL_GPIO_WritePin(RF_SW_CTRL1_GPIO_PORT, RF_SW_CTRL1_PIN, GPIO_PIN_SET); 
       HAL_GPIO_WritePin(RF_SW_CTRL2_GPIO_PORT, RF_SW_CTRL2_PIN, GPIO_PIN_RESET); 
@@ -199,7 +208,7 @@ int32_t BSP_RADIO_GetTxConfig(void)
   */
 int32_t BSP_RADIO_IsTCXO(void)
 {
-  return RADIO_CONF_TCXO_SUPPORTED;
+  return RADIO_CONF_TCXO_NOT_SUPPORTED;
 }
 
 /**

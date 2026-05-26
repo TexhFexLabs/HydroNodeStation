@@ -712,6 +712,7 @@ static void EventCallback(void)
         if (CertMode == false)
         {
           /* Schedule a Join LoRaWAN network */
+          ASSERT_SMTC_MODEM_RC(smtc_modem_set_join_duty_cycle_backoff_bypass(stack_id, true));
           ASSERT_SMTC_MODEM_RC(smtc_modem_join_network(stack_id));
         }
         break;
