@@ -53,7 +53,7 @@ extern "C" {
 /*!
   * Defines the application data transmission duty cycle in seconds.
   */
-#define APP_TX_DUTYCYCLE                            30
+#define APP_TX_DUTYCYCLE                            300
 
 /**
   * @brief SCD41 pre-measurement time in milliseconds.
