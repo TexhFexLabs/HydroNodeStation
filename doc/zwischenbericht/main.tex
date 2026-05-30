@@ -1,0 +1,450 @@
+\documentclass[11pt,a4paper]{scrartcl}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+% xcolor loaded below with table option
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+
+\definecolor{accent}{HTML}{0B4F6C}
+\definecolor{colgreen}{HTML}{2E7D32}
+\definecolor{colorange}{HTML}{E65100}
+\definecolor{colred}{HTML}{C62828}
+\definecolor{colblue}{HTML}{0B4F6C}
+\definecolor{rowgray}{HTML}{F5F5F5}
+
+\setstretch{1.15}
+\setkomafont{disposition}{\color{accent}\bfseries}
+
+\newcommand{\status}[1]{%
+  \ifstrequal{#1}{Fertig}{\textcolor{colgreen}{\textbf{Fertig}}}{}%
+  \ifstrequal{#1}{In Arbeit}{\textcolor{colorange}{\textbf{In Arbeit}}}{}%
+  \ifstrequal{#1}{Geplant}{\textcolor{colblue}{\textbf{Geplant}}}{}%
+  \ifstrequal{#1}{Weggelassen}{\textcolor{colred}{\textbf{Weggelassen}}}{}%
+}
+
+\begin{document}
+
+% ───────────────────────────────────────────────────────
+%  Titelseite
+% ───────────────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+
+  {\color{accent}\rule{\linewidth}{2pt}}
+  \vspace{0.8cm}
+
+  {\LARGE\bfseries\color{accent} DAPI Zwischenstatusbericht\par}
+  \vspace{0.4cm}
+  {\large HydroNodeStation 01\par}
+  {\normalsize Autarke Wetterstation inkl.\ KI-Analyse im HydroNode-Netzwerk\par}
+
+  \vspace{0.8cm}
+  {\color{accent}\rule{\linewidth}{1pt}}
+  \vspace{2cm}
+
+  \begin{tabular}{ll}
+    \textbf{Autor:}       & Felix Knoll \\[4pt]
+    \textbf{Kurs:}        & DAPI, Einzel-Projekt \\[4pt]
+    \textbf{Datum:}       & 30.\ Mai 2026 \\
+  \end{tabular}
+
+  \vfill
+  {\color{accent}\rule{\linewidth}{2pt}}
+\end{titlepage}
+
+% ───────────────────────────────────────────────────────
+\section{Projektstatus}
+% ───────────────────────────────────────────────────────
+
+Das Projekt \textit{HydroNodeStation 01} befindet sich auf der Zielgeraden.
+Der technische Kern ist abgeschlossen: Alle fünf Kernsensoren (Temperatur,
+Luftfeuchtigkeit, Luftdruck, UV-Index, Feinstaub, CO${}_2$) liefern zuverlässige
+Messwerte.
+Die Station sendet Daten über LoRaWAN im Helium-Netzwerk; die Datenpipeline über
+Amazon SNS zum HydroNode-Backend ist aktiv.
+Website und iOS-App zeigen Echtzeit- und Verlaufsdaten an.
+
+Der aktuelle Schwerpunkt liegt auf dem Hardwaretest im 3D-gedruckten
+Stevenson-Screen-Gehäuse im Ausseneinsatz, die bisherigen Ergebnisse sehen gut aus.
+Der TPS63900-Spannungsregler des PCBs hatte einen Fehler; als Workaround läuft
+der Chip derzeit als externes Breakout-Board an den PCB-Headern, mit minimalem
+Mehraufwand und gleicher Effizienz.
+Das korrigierte PCB-Design ist bereits erarbeitet.
+Offen sind noch die finale Solar-Verifikation, die KI-Evaluation und die
+Abschlussdokumentation.
+
+
+% ───────────────────────────────────────────────────────
+\section{Soll-Zustand (Projektplan)}
+% ───────────────────────────────────────────────────────
+
+Im Projektplan wurden 20 Features mit insgesamt \textbf{160 Stunden} eingeplant
+(Tabelle~\ref{tab:features}).
+
+\begin{longtable}{>{\bfseries}p{0.5cm} p{13.5cm} r}
+  \toprule
+  \# & Feature / Aufgabe & Std. \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \# & Feature / Aufgabe & Std. \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  \bottomrule
+  \endlastfoot
+
+  1  & Hardware-Auswahl \& Beschaffung (MCU, Sensoren, Solar, Akku, Gehäuse) & 8 \\
+  \rowcolor{rowgray}
+  2  & Schaltplan \& Aufbau der Wetterstation-Elektronik & 9 \\
+  3  & Sensor: Temperatur, Luftfeuchtigkeit \& Luftdruck & 2 \\
+  \rowcolor{rowgray}
+  4  & Sensor: UV-Index \& Lichtstärke & 2 \\
+  5  & Sensor: Partikelkonzentration (SPS30) & 4 \\
+  \rowcolor{rowgray}
+  6  & Sensor: CO${}_2$-Konzentration (SCD41) & 4 \\
+  7  & Sensor: Umgebungslautstärke (MEMS-Mikrofon) & 3 \\
+  \rowcolor{rowgray}
+  8  & Standalone-Test: Sensoren \& LoRaWAN ohne Systemanbindung & 8 \\
+  9  & PCB-Design, Bestellung \& Bestückung & 9 \\
+  \rowcolor{rowgray}
+  10 & Autarke Stromversorgung: Solar-Laderegler \& LiPo-Akku-Management & 13 \\
+  11 & Deep-Sleep \& Power-Management Firmware & 7 \\
+  \rowcolor{rowgray}
+  12 & LoRaWAN-Firmware: Payload-Codec, Sendezyklus, Duty-Cycle-Management & 12 \\
+  13 & Helium-Netzwerk: Registrierung, Console-Integration, Decoder & 5 \\
+  \rowcolor{rowgray}
+  14 & Backend: LoRaWAN-Datenpipeline zu HydroNode (Amazon SNS) & 8 \\
+  15 & Website: Echtzeit-Dashboard für alle Stationssensoren & 14 \\
+  \rowcolor{rowgray}
+  16 & App: Historische Verlaufsdiagramme (alle Sensorkanäle) & 6 \\
+  17 & App: Stations-Verwaltung (Hinzufügen, Benennen, Statusanzeige) & 4 \\
+  \rowcolor{rowgray}
+  18 & KI-Evaluation: Datensatz-Aufbereitung \& Modellauswahl & 8 \\
+  19 & KI-Evaluation: Testing, Benchmarking \& Ergebnisdokumentation & 8 \\
+  \rowcolor{rowgray}
+  20 & Feldtest, Integrationstests \& Abschlussdokumentation & 16 \\
+  \midrule
+  \multicolumn{2}{r}{\textbf{Gesamt}} & \textbf{160} \\
+\end{longtable}
+\vspace{-1em}
+\begin{center}
+  \small\textit{Tabelle 1: Geplante Features mit Aufwandsschätzung aus dem Projektplan (Pitch, 26.03.2026)}
+  \label{tab:features}
+\end{center}
+
+
+% ───────────────────────────────────────────────────────
+\section{Ist-Zustand (aktueller Stand)}
+% ───────────────────────────────────────────────────────
+
+Bis zum 30.\ Mai 2026 wurden insgesamt \textbf{154 Stunden} in das Projekt investiert.
+Der grösste Teil der geplanten Features ist abgeschlossen oder befindet sich in einem
+fortgeschrittenen Stadium.
+
+\subsection{Abgeschlossene Bereiche}
+
+\begin{itemize}
+  \item \textbf{Hardware \& Beschaffung:} Alle Komponenten wurden ausgewählt und bestellt.
+        Als Hauptchip wird der STM32WLE5JC verwendet, der MCU und LoRa-Transceiver
+        in einem einzigen Chip integriert und dadurch sehr energieeffizient ist.
+
+  \item \textbf{Sensorik:} Folgende Sensoren sind in Betrieb und liefern zuverlässige
+        Messwerte: SHT45 (Temperatur und Luftfeuchtigkeit), BMP390 (Luftdruck),
+        LTR390 (UV-Index), SPS30 (Feinstaub) und SCD41 (CO${}_2$).
+        Der im Plan vorgesehene Lautstärkesensor (MAX4466) wurde aus dem Scope
+        genommen, da der Fokus auf den Kernsensoren liegt.
+
+  \item \textbf{PCB-Design und Bestückung:} Ein eigenes PCB wurde in EasyEDA entworfen
+        und über JLCPCB produziert. Das PCB ist bestückt und läuft stabil.
+        Ein Fehler im TPS63900-Spannungsregler wurde identifiziert: Der Chip arbeitet
+        nicht wie geplant. In Absprache mit einem Experten wurden Anpassungen erarbeitet;
+        das korrigierte PCB-Design sollte für die bereits bestellten Boards passen.
+        Als physischer Workaround wurde der fehlerhafte IC vom LiPo-Akku-Plus und dem
+        3{,}3-V-Netz getrennt und der gleiche Chip als Breakout-Board an die PCB-Header
+        angesteckt. Das System läuft damit identisch wie zuvor, mit minimalem
+        Overhead und gleicher Effizienz.
+        Das PCB-Design wird auf OSHWLab als Open-Source-Projekt veröffentlicht und
+        nimmt am OSHWLab Open-Source-Contest teil.
+
+  \item \textbf{Firmware:} Deep-Sleep und Power-Management sind implementiert und
+        getestet. Der LoRaWAN-Stack mit Payload-Codec, Sendezyklus und
+        Duty-Cycle-Management läuft stabil.
+
+  \item \textbf{Helium-Netzwerk \& Backend:} Die Station sendet Daten erfolgreich
+        über das Helium-Netzwerk. Die Datenpipeline über Amazon SNS zum HydroNode-
+        Backend ist aktiv.
+
+  \item \textbf{Website:} Ein Echtzeit-Dashboard für alle Stationssensoren wurde
+        erstellt und ist öffentlich erreichbar. Die aktuellen Messwerte der Station
+        können bereits live eingesehen werden unter:\\
+        \url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658}
+
+  \item \textbf{App-Erweiterungen:} Die iOS-App wurde um historische Verlaufsdiagramme
+        für alle Sensorkanäle sowie um die Stationsverwaltung erweitert.
+
+  \item \textbf{Gehäuse:} Das Gehäuse folgt dem Stevenson-Screen-Prinzip: übereinander
+        angeordnete Lamellen halten Sonne und Regen ab, lassen aber Luft frei
+        zirkulieren. Gedruckt in UV-beständigem ASA-Filament auf einem eigens
+        angeschafften 3D-Drucker. Die Sensorik ist eingebaut; der Freilufttest läuft
+        mit bisher guten Ergebnissen.
+\end{itemize}
+
+\subsection{Laufende Bereiche}
+
+\begin{itemize}
+  \item \textbf{Solarladung:} Das PCB läuft bereits mit Akku-Betrieb. Der TPS63900
+        wird repariert, danach ist die vollständige Autarkie mit Solar gegeben.
+
+  \item \textbf{KI-Evaluation:} Im HydroNode-Backend werden Sensordaten bereits
+        automatisch auf Anomalien analysiert, auch mit den neuen Outdoor-Daten.
+        Eine formale Evaluation mit Modellauswahl, Benchmarking und Dokumentation
+        steht noch aus.
+
+  \item \textbf{Feldtest \& Abschlussdokumentation:} Erste Langzeittests laufen
+        bereits. Ein finaler Feldtest mit Aufstellung an der OTH Regensburg ist geplant.
+\end{itemize}
+
+
+% ───────────────────────────────────────────────────────
+\section{Soll / Ist Vergleich}
+% ───────────────────────────────────────────────────────
+
+Tabelle~\ref{tab:vergleich} zeigt den Vergleich zwischen dem geplanten und dem
+aktuellen Status für alle Features.
+
+\begin{longtable}{>{\bfseries}p{0.5cm} p{6.5cm} r r l}
+  \toprule
+  \# & Feature & Geplant & Ist (est.) & Status \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \# & Feature & Geplant & Ist (est.) & Status \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  \bottomrule
+  \endlastfoot
+
+  1  & Hardware-Auswahl \& Beschaffung & 8\,h & 7\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  2  & Schaltplan \& Elektronik-Aufbau & 9\,h & 4\,h & \status{Fertig} \\
+  3  & Sensor: Temperatur / Feuchte / Druck & 2\,h & 3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  4  & Sensor: UV-Index (LTR390 statt VEML6075) & 2\,h & 2\,h & \status{Fertig} \\
+  5  & Sensor: Feinstaub SPS30 & 4\,h & 3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  6  & Sensor: CO${}_2$ SCD41 & 4\,h & 3\,h & \status{Fertig} \\
+  7  & Sensor: Lautstärke (MAX4466) & 3\,h & 0\,h & \status{Weggelassen} \\
+  \rowcolor{rowgray}
+  8  & Standalone-Tests Sensoren \& LoRaWAN & 8\,h & 3\,h & \status{Fertig} \\
+  9  & PCB-Design, Bestellung \& Bestückung & 9\,h & \textasciitilde56\,h & \status{In Arbeit} \\
+  \rowcolor{rowgray}
+  10 & Autarke Stromversorgung Solar \& Akku & 13\,h & \textasciitilde7\,h & \status{In Arbeit} \\
+  11 & Deep-Sleep \& Power-Management & 7\,h & \textasciitilde10\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  12 & LoRaWAN-Firmware & 12\,h & \textasciitilde11\,h & \status{Fertig} \\
+  13 & Helium-Netzwerk Registrierung \& Decoder & 5\,h & \textasciitilde3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  14 & Backend: Pipeline zu HydroNode & 8\,h & \textasciitilde3\,h & \status{Fertig} \\
+  15 & Website Echtzeit-Dashboard & 14\,h & 10\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  16 & App: Verlaufsdiagramme & 6\,h & \textasciitilde6\,h & \status{Fertig} \\
+  17 & App: Stationsverwaltung & 4\,h & \textasciitilde6\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  18 & KI-Eval: Datensatz \& Modellauswahl & 8\,h & \textasciitilde2\,h & \status{In Arbeit} \\
+  19 & KI-Eval: Testing \& Benchmarking & 8\,h & 0\,h & \status{Geplant} \\
+  \rowcolor{rowgray}
+  20 & Feldtest \& Abschlussdokumentation & 16\,h & \textasciitilde7\,h & \status{In Arbeit} \\
+  \midrule
+  \multicolumn{2}{l}{\textbf{Gesamt (inkl.\ 3D-Gehäuse, nicht geplant)}} & \textbf{160\,h} & \textbf{154\,h} & \\
+\end{longtable}
+\vspace{-1em}
+\begin{center}
+  \small\textit{Tabelle 2: Soll/Ist-Vergleich aller Features.}
+  \label{tab:vergleich}
+\end{center}
+
+\noindent\textbf{Hinweis:} Die Ist-Stunden pro Feature sind Schätzungen. Im Arbeitstagebuch
+wird nach Datum und Tätigkeit erfasst, nicht nach Feature-Nummer. Deshalb lassen sich
+die Stunden nur näherungsweise zuordnen.
+
+
+% ───────────────────────────────────────────────────────
+\section{Stundenvergleich}
+% ───────────────────────────────────────────────────────
+
+Tabelle~\ref{tab:stunden} vergleicht die geplanten und tatsächlich aufgewendeten Stunden
+gruppiert nach Bereich.
+
+\begin{table}[H]
+  \centering
+  \begin{tabularx}{\textwidth}{X r r r}
+    \toprule
+    \textbf{Bereich} & \textbf{Geplant (h)} & \textbf{Ist (h, est.)} & \textbf{Differenz} \\
+    \midrule
+    Hardware, Beschaffung, Schaltplan & 17 & \textasciitilde9 & $-8$ \\
+    Sensorik (5 von 6 Sensoren) & 12 & \textasciitilde11 & $-1$ \\
+    Standalone-Tests & 8 & \textasciitilde3 & $-5$ \\
+    PCB-Design, Bestellung, Inbetriebnahme & 9 & \textasciitilde50 & $+41$ \\
+    Autarke Stromversorgung (Solar) & 13 & \textasciitilde7 & $-6$ \\
+    Firmware (Deep-Sleep, LoRaWAN) & 19 & \textasciitilde21 & $+2$ \\
+    Helium-Netzwerk \& Backend & 13 & \textasciitilde6 & $-7$ \\
+    Website \& App & 24 & \textasciitilde23 & $-1$ \\
+    KI-Evaluation & 16 & \textasciitilde2 & $-14$ \\
+    Feldtest \& Dokumentation & 16 & \textasciitilde10 & $-6$ \\
+    3D-Gehäuse (nicht geplant) & 0 & \textasciitilde12 & $+12$ \\
+    \midrule
+    \textbf{Gesamt (exakt laut Arbeitstagebuch)} & \textbf{160} & \textbf{154} & $-6$ \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Stundenvergleich Soll/Ist nach Bereichen (Ist-Werte geschätzt aus Arbeitstagebuch)}
+  \label{tab:stunden}
+\end{table}
+
+\paragraph{Wichtigste Beobachtung:} Das PCB-Design hat mit ca.\ 50 Stunden weit mehr
+Zeit gekostet als die geplanten 9 Stunden. Das entspricht einem Mehraufwand von rund
+\textbf{+41 Stunden} in diesem Bereich. Dieser Mehraufwand wurde durch Einsparungen in
+anderen Bereichen teilweise ausgeglichen: Helium und Backend liefen schneller als
+erwartet, und die Standalone-Tests waren durch frühe Prototypentests bereits
+abgedeckt. Der exakte Gesamtwert von 154 Stunden stammt direkt aus dem Arbeitstagebuch.
+
+
+% ───────────────────────────────────────────────────────
+\section{Abweichungen und Probleme}
+% ───────────────────────────────────────────────────────
+
+\subsection{PCB-Aufwand deutlich höher als geplant}
+
+\textbf{Problem:} Im Projektplan waren 9 Stunden für das PCB eingeplant. Tatsächlich
+wurden ca.\ 56 Stunden aufgewendet.
+
+\textbf{Grund:} Das PCB wurde von Grund auf in EasyEDA neu entwickelt, da kein
+geeignetes Open-Source-Design für den STM32WLE5JC mit allen benötigten Schnittstellen
+existiert. EasyEDA ist ein browserbasiertes PCB-Design-Tool, das eng mit LCSC und
+JLCPCB verknüpft ist und dadurch Bauteilauswahl und Fertigung vereinfacht. Hinzu kamen
+mehrere Iterationen für RF-Design, Antennenmatching und Komponentenplatzierung. Nach
+Erhalt der gefertigten Platine wurden ausserdem Bugs gefunden und behoben, unter
+anderem ein fehlerhafter TPS63900-Spannungsregler. Das fertige Design wird auf
+OSHWLab als Open-Source-Projekt veröffentlicht und nimmt am OSHWLab Open-Source-Contest
+teil.
+
+\textbf{Lösung:} Das Problem wurde in Absprache mit einem Experten analysiert; das
+korrigierte PCB-Design soll für die bereits bestellten Boards funktionieren.
+Als physischer Workaround wurde der fehlerhafte TPS63900 vom LiPo-Akku-Plus und dem
+3{,}3-V-Netz getrennt und derselbe Chip als Breakout-Board an die PCB-Header angesteckt.
+Das System läuft damit identisch wie zuvor, mit minimalem Overhead und gleicher Effizienz.
+Die Solarladung wird nach finaler Verifikation freigeschaltet.
+
+\subsection{Sensor-Wechsel}
+
+\textbf{Situation:} Im Projektplan wurden bestimmte Sensoren als Kandidaten genannt.
+Im Verlauf wurden leistungsfähigere Alternativen gewählt: BME280 wurde durch SHT45
+und BMP390 ersetzt (genauer und energieeffizienter), VEML6075 durch LTR390
+(breiterer UV-Messbereich, I2C statt analoger Ausgang).
+
+\textbf{Bewertung:} Alle Sensoren laufen stabil. Die neuen Sensoren sind für den
+Aussenbetrieb besser geeignet als die ursprünglich geplanten.
+
+\subsection{Lautstärkesensor entfallen}
+
+\textbf{Problem:} Feature 7 (Sensor Umgebungslautstärke, MAX4466, 3 Stunden geplant)
+wurde aus dem Scope genommen.
+
+\textbf{Grund:} Der Fokus lag auf den Kernfunktionen. Ein analoges MEMS-Mikrofon
+erfordert zusätzliche Signalverarbeitung, die im verfügbaren Zeitrahmen nicht
+sauber umgesetzt werden konnte.
+
+\textbf{Lösung:} Das Feature wird als ``out of scope'' markiert. Die wichtigsten
+Umweltdaten (Temperatur, Luftfeuchtigkeit, Luftdruck, UV, Feinstaub, CO${}_2$)
+werden vollständig erfasst.
+
+\subsection{KI-Evaluation noch nicht abgeschlossen}
+
+\textbf{Problem:} Für die KI-Evaluation waren 16 Stunden geplant. Bisher wurden
+erst ca.\ 2 Stunden investiert, da der PCB-Aufwand Priorität hatte.
+
+\textbf{Lösung:} Die KI-Analyse ist bereits im Backend aktiv (Anomalieerkennung auf
+Sensordaten). Eine formale Evaluation mit Modellauswahl und Dokumentation ist als
+nächster Schritt geplant, sobald die Hardware vollständig stabil läuft.
+
+\subsection{Nicht geplanter Mehraufwand: Gehäuse nach Stevenson-Screen-Prinzip}
+
+\textbf{Situation:} Das Gehäuse-Design und der 3D-Druck wurde im Projektplan nicht
+als eigenes Feature aufgeführt. Tatsächlich wurden ca.\ 11 Stunden für Design in
+Fusion 360 und mehrere Druckdurchläufe aufgewendet.
+
+\textbf{Warum dieser Aufwand nötig war:} Für eine korrekte Messung von
+Aussentemperatur und Luftfeuchtigkeit darf sich das Gehäuse nicht durch Sonneneinstrahlung
+aufheizen. Deshalb wurde das Design an einen Stevenson-Screen angelehnt: übereinander
+liegende Lamellen blockieren direkte Sonneneinstrahlung und Regen, lassen aber
+gleichzeitig Luft frei zirkulieren. Als Material wurde ASA gewählt, da ASA
+UV-beständig, witterungsfest und für den dauerhaften Ausseneinsatz geeignet ist.
+Der Druck erfolgte auf einem eigens für das Projekt angeschafften 3D-Drucker.
+
+\subsection{Offener Punkt: UV-transparentes Glas für den UV-Sensor}
+
+\textbf{Problem:} Der UV-Sensor LTR390 muss geschützt verbaut werden und trotzdem
+UV-Licht empfangen können. Normales Glas oder transparentes PETG blockiert einen
+grossen Teil der UV-Strahlung und verfälscht so die Messwerte.
+
+\textbf{Stand:} Das passende UV-transparente Glas (Quarzglas oder Borosilikatglas)
+würde mit Versand ca.\ 50 Euro kosten. Aktuell werden günstigere Alternativen
+getestet, zum Beispiel dünne UV-transparente Kunststofffolien oder andere optische
+Materialien, die UV-A und UV-B durchlassen. Dieses Detail ist für die Genauigkeit
+der UV-Messung im Feldtest relevant.
+
+
+% ───────────────────────────────────────────────────────
+\section{Restarbeiten und Ausblick}
+% ───────────────────────────────────────────────────────
+
+Folgende Aufgaben stehen noch an:
+
+\begin{enumerate}
+  \item \textbf{Sensorplatine löten:} Eine eigene kleine Platine für den Stevenson-Screen
+        wird noch gelötet. Sie wird über ein Datenkabel mit dem PCB verbunden und
+        nimmt alle Sensoren passend auf.
+
+  \item \textbf{3D-Druck Sensorhalterung:} Das abschliessende 3D-Modell für die
+        Aufnahme der Sensorplatine im Stevenson-Screen muss noch gedruckt werden.
+
+  \item \textbf{Solar-Autarkie:} Die vollständige Autarkie mit Solarversorgung muss
+        noch validiert werden, insbesondere ob an bewölkten Tagen ausreichend Strom
+        für den Dauerbetrieb erzeugt wird.
+
+  \item \textbf{KI-Evaluation:} Datensatz aufbereiten, Modell auswählen
+        und Ergebnisse dokumentieren.
+
+  \item \textbf{Feldtest:} Station dauerhaft aufstellen (geplant an der OTH
+        Regensburg), Langzeit-Integrationstests durchführen.
+
+  \item \textbf{Abschlussdokumentation:} Alle Ergebnisse in der Studiendokumentation
+        zusammenführen und finalisieren.
+\end{enumerate}
+
+\vspace{1em}
+\noindent Der technische Kern des Projekts ist fertiggestellt. Die Station sendet
+Sensordaten autark über LoRaWAN, die Daten sind in der App und auf der Website
+einsehbar. Die verbleibenden Arbeiten betreffen hauptsächlich die Solar-Verifikation,
+die KI-Evaluation und die Abschlussdokumentation.
+
+\end{document}

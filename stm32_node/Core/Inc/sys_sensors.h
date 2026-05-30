@@ -41,7 +41,7 @@ typedef struct
   int16_t  temperature;   /*!< temperature in 0.01 degC (degC*100) */
   uint16_t humidity;      /*!< humidity in 0.01 % (%*100) */
   uint16_t battery_voltage;  /*!< battery voltage in mV */
-  uint32_t uv_raw;        /*!< LTR390 UV raw counts (20-bit) */
+  uint16_t uvi_x100;      /*!< LTR390 UV Index * 100 (e.g. 350 = UVI 3.50) */
   uint16_t co2_ppm;       /*!< SCD41 CO2 in ppm */
   uint16_t pm1_0;         /*!< SPS30 PM1.0 MC in 0.1 ug/m3 */
   uint16_t pm2_5;         /*!< SPS30 PM2.5 MC in 0.1 ug/m3 */

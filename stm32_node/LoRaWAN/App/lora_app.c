@@ -956,7 +956,9 @@ static void SendTxData(uint8_t port)
           (unsigned)sensor_data.pressure,
           (unsigned)sensor_data.battery_voltage);
 
-  APP_LOG(TS_ON, VLEVEL_M, "LTR390: UV=%lu [raw]\r\n", (unsigned long)sensor_data.uv_raw);
+  APP_LOG(TS_ON, VLEVEL_M, "LTR390: UVI=%u.%02u\r\n",
+          (unsigned)(sensor_data.uvi_x100 / 100U),
+          (unsigned)(sensor_data.uvi_x100 % 100U));
 
   if (sensor_flags & SENSOR_FLAG_CO2)
   {
@@ -997,8 +999,7 @@ static void SendTxData(uint8_t port)
   append_u16_be(AppDataBuffer, &bufferSize, sensor_data.humidity);
   append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pressure);
   append_u16_be(AppDataBuffer, &bufferSize, sensor_data.battery_voltage);
-  append_u16_be(AppDataBuffer, &bufferSize,
-                (uint16_t)(sensor_data.uv_raw > 0xFFFFU ? 0xFFFFU : sensor_data.uv_raw));
+  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.uvi_x100);
 
   if (uplink_port >= TX_PORT_ENV_EXTENDED)
   {

@@ -9,7 +9,11 @@
  * - Gain: x3
  * - Resolution: 16-bit
  *
- * The driver exposes raw UV counts.
+ * UV Index formula (LTR390 datasheet, section 5):
+ *   UVI = raw / (2300 * gain_factor * integ_factor)
+ * For gain x3 (factor=3) and 16-bit resolution (factor=0.25):
+ *   UVI = raw / 1725.0
+ * Reported as UVI * 100 (integer, no floating point).
  ******************************************************************************
  */
 
@@ -27,7 +31,7 @@
 
 typedef struct
 {
-    uint32_t uvs_raw;   /* Raw UVS counts (up to 20 bits) */
+    uint16_t uvi_x100;  /* UV Index * 100 (e.g. 350 = UVI 3.50) */
 } LTR390_Data_t;
 
 int32_t LTR390_Init(void);
