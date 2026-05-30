@@ -25,6 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "sw_uart.h"
 
 /* USER CODE END Includes */
 
@@ -111,6 +112,7 @@ int main(void)
     MX_LoRaWAN_Process();
 
     /* USER CODE BEGIN 3 */
+
   }
   /* USER CODE END 3 */
 }

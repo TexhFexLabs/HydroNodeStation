@@ -1368,11 +1368,30 @@ void SUBGRF_WriteCommand( SUBGHZ_RadioSetCmd_t Command, uint8_t *pBuffer,
                                         uint16_t Size )
 {
 	HAL_StatusTypeDef status = HAL_OK;
+    const char* status_txt = "UNKNOWN";
     CRITICAL_SECTION_BEGIN();
     status = HAL_SUBGHZ_ExecSetCmd( &hsubghz, Command, pBuffer, Size );
     CRITICAL_SECTION_END();
-    if(status !=0)
-    	MW_LOG( TS_ON, VLEVEL_M,  " write CMD error %d\r\n", status);
+    if( status != HAL_OK )
+    {
+        switch( status )
+        {
+            case HAL_ERROR:
+                status_txt = "HAL_ERROR";
+                break;
+            case HAL_BUSY:
+                status_txt = "HAL_BUSY";
+                break;
+            case HAL_TIMEOUT:
+                status_txt = "HAL_TIMEOUT";
+                break;
+            default:
+                status_txt = "UNKNOWN";
+                break;
+        }
+        MW_LOG( TS_ON, VLEVEL_M, " write CMD 0x%02X error %d (%s), size=%u\r\n", Command, status, status_txt,
+                (unsigned int) Size );
+    }
 }
 
 void SUBGRF_ReadCommand( SUBGHZ_RadioGetCmd_t Command, uint8_t *pBuffer,

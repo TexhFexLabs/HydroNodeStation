@@ -80,7 +80,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   sensor_data->temperature      = 0;
   sensor_data->pressure         = 0U;
   sensor_data->battery_voltage  = 0U;
-  sensor_data->uv_raw           = 0U;
+  sensor_data->uvi_x100         = 0U;
   sensor_data->co2_ppm          = 0U;
   sensor_data->pm1_0            = 0U;
   sensor_data->pm2_5            = 0U;
@@ -141,7 +141,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   LTR390_Data_t ltr390;
   if (LTR390_ReadUV(&ltr390) == LTR390_OK)
   {
-    sensor_data->uv_raw = ltr390.uvs_raw;
+    sensor_data->uvi_x100 = ltr390.uvi_x100;
   }
 
   /* 5. Read SCD41 */

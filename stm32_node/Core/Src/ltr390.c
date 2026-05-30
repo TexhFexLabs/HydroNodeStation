@@ -34,6 +34,13 @@
 #define LTR390_RES_16BIT         (4U)      /* per Adafruit enums, in bits [6:4] */
 #define LTR390_RATE_100MS        (2U)      /* typical 100 ms measurement rate */
 
+/* UVI = raw / (2300 * gain_factor * integ_factor)
+ * gain x3 → factor 3.0; 16-bit resolution → integ factor 0.25
+ * Divisor = 2300 * 3 * 0.25 = 1725; result scaled by 100 to avoid float. */
+#define LTR390_UVI_DIVISOR       (1725U)
+#define LTR390_UVI_SCALE         (100U)
+#define LTR390_UVI_X100_MAX      (0xFFFFU)
+
 #define LTR390_I2C_TIMEOUT_MS    (50U)
 #define LTR390_RESET_DELAY_MS    (10U)
 #define LTR390_BOOT_DELAY_MS     (5U)
@@ -218,10 +225,12 @@ int32_t LTR390_ReadUV(LTR390_Data_t *data)
 
     (void)ltr390_enable(0U);
 
-    data->uvs_raw = ((uint32_t)buf[0])
+    uint32_t raw = (((uint32_t)buf[0])
                   | ((uint32_t)buf[1] << 8U)
-                  | ((uint32_t)buf[2] << 16U);
-    data->uvs_raw &= 0x000FFFFFU;
+                  | ((uint32_t)buf[2] << 16U)) & 0x000FFFFFU;
+
+    uint32_t uvi_x100 = (raw * LTR390_UVI_SCALE) / LTR390_UVI_DIVISOR;
+    data->uvi_x100 = (uint16_t)(uvi_x100 > LTR390_UVI_X100_MAX ? LTR390_UVI_X100_MAX : uvi_x100);
 
     return LTR390_OK;
 }
