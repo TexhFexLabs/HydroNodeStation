@@ -34,10 +34,20 @@
 #define LTR390_RES_16BIT         (4U)      /* per Adafruit enums, in bits [6:4] */
 #define LTR390_RATE_100MS        (2U)      /* typical 100 ms measurement rate */
 
-/* UVI = raw / (2300 * gain_factor * integ_factor)
- * gain x3 → factor 3.0; 16-bit resolution → integ factor 0.25
- * Divisor = 2300 * 3 * 0.25 = 1725; result scaled by 100 to avoid float. */
-#define LTR390_UVI_DIVISOR       (1725U)
+/* UVI = raw / counts_per_uvi,  counts_per_uvi = 2300 * (gain/18) * (integ_ms/400)
+ * Baseline per LTR390 datasheet (confirmed by Linux kernel driver):
+ *   2300 counts/UVI at gain=18, 20-bit resolution (400 ms integration).
+ * For gain x3, 16-bit (25 ms):
+ *   counts_per_uvi = 2300 * 3/18 * 25/400 = 172500/7200 = 23.96 -> 24
+ * Result scaled x100 to keep two decimal places without float.
+ *
+ * 2mm PS (polystyrene) window correction measured empirically:
+ *   UVI_bare / UVI_through_glass = 6.8 / 5.2 = 17/13
+ * Applied as integer fraction: multiply by 17, divide by 13.
+ * Remove LTR390_WINDOW_CORR_* when UV-transparent acrylic installed. */
+#define LTR390_UVI_DIVISOR       (24U)
+#define LTR390_WINDOW_CORR_NUM   (17U)
+#define LTR390_WINDOW_CORR_DEN   (13U)
 #define LTR390_UVI_SCALE         (100U)
 #define LTR390_UVI_X100_MAX      (0xFFFFU)
 
@@ -229,7 +239,7 @@ int32_t LTR390_ReadUV(LTR390_Data_t *data)
                   | ((uint32_t)buf[1] << 8U)
                   | ((uint32_t)buf[2] << 16U)) & 0x000FFFFFU;
 
-    uint32_t uvi_x100 = (raw * LTR390_UVI_SCALE) / LTR390_UVI_DIVISOR;
+    uint32_t uvi_x100 = (raw * LTR390_UVI_SCALE * LTR390_WINDOW_CORR_NUM) / (LTR390_UVI_DIVISOR * LTR390_WINDOW_CORR_DEN);
     data->uvi_x100 = (uint16_t)(uvi_x100 > LTR390_UVI_X100_MAX ? LTR390_UVI_X100_MAX : uvi_x100);
 
     return LTR390_OK;

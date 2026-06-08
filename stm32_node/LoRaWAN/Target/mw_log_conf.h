@@ -39,10 +39,11 @@ extern "C" {
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
-#define MW_LOG_ENABLED
-
 /* USER CODE BEGIN EC */
-
+#include "sys_conf.h"  /* reuse APP_LOG_ENABLED to silence MW_LOG in production */
+#if (APP_LOG_ENABLED == 1)
+#define MW_LOG_ENABLED
+#endif
 /* USER CODE END EC */
 
 /* External variables --------------------------------------------------------*/

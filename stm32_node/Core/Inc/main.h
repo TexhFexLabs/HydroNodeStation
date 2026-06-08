@@ -81,6 +81,8 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 #define LED1_Pin GPIO_PIN_5
 #define LED1_GPIO_Port GPIOB
+#define DEBUG_SW_Pin        GPIO_PIN_4
+#define DEBUG_SW_GPIO_Port  GPIOB
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
