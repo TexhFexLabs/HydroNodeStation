@@ -65,7 +65,13 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-
+  /*Configure GPIO pin : DEBUG_SW_Pin (PB4)
+   * Switch ON ties PB4 to VCC → reads HIGH → debug profile active.
+   * Pull-down ensures LOW when switch is open. */
+  GPIO_InitStruct.Pin  = DEBUG_SW_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(DEBUG_SW_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);

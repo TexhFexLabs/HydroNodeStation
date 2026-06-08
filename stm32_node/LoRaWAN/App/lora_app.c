@@ -319,7 +319,7 @@ static uint8_t                  rx_remaining    = 0;
 /**
  * @brief TX counter
  */
-static uint8_t                  tx_counter    = 0U;
+static uint8_t                  tx_counter    = 4U;
 
 /**
  * @brief Last SPS30 fan cleaning timestamp

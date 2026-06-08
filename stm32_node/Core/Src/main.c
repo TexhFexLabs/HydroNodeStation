@@ -26,7 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "sw_uart.h"
-
+#include "debug_profile.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -91,8 +91,15 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C2_Init();
   MX_LoRaWAN_Init();
-  MX_USART1_UART_Init();
+  /* MX_USART1_UART_Init() removed: trace uses SW-UART (PA6), HW USART1 is unused */
   /* USER CODE BEGIN 2 */
+  /* Debug profile: switch on PB4 → read all sensors forever, skip LoRaWAN.
+   * MX_LoRaWAN_Init() above already called SystemApp_Init() (trace up) and
+   * LoRaWAN_Init() (sensors init'd), so APP_LOG and EnvSensors_Read are ready. */
+  if (HAL_GPIO_ReadPin(DEBUG_SW_GPIO_Port, DEBUG_SW_Pin) == GPIO_PIN_SET)
+  {
+    DebugProfile_Run(); /* never returns */
+  }
   {
     uint32_t startTick = HAL_GetTick();
     while ((HAL_GetTick() - startTick) < 10000U)

@@ -113,7 +113,7 @@ void SystemApp_Init(void)
   UTIL_ADV_TRACE_SetVerboseLevel(VERBOSE_LEVEL);
 
   /*Initialize the temperature and Battery measurement services */
-  SYS_InitMeasurement();
+  /* SYS_InitMeasurement() removed: internal ADC not used (battery from MAX17048) */
 
   /*Initialize the Sensors */
   //EnvSensors_Init();
