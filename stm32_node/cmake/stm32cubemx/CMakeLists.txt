@@ -81,7 +81,6 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../LoRaWAN/App/lora_app.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/gpio.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/adc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/dma.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/i2c.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/flash_if.c
@@ -90,7 +89,6 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sys_debug.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sys_sensors.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/timer_if.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/adc_if.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/usart_if.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sw_uart.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/debug_profile.c

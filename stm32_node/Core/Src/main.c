@@ -91,7 +91,7 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C2_Init();
   MX_LoRaWAN_Init();
-  MX_USART1_UART_Init();
+  /* MX_USART1_UART_Init() removed: trace uses SW-UART (PA6), HW USART1 is unused */
   /* USER CODE BEGIN 2 */
   /* Debug profile: switch on PB4 → read all sensors forever, skip LoRaWAN.
    * MX_LoRaWAN_Init() above already called SystemApp_Init() (trace up) and
