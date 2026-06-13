@@ -41,7 +41,7 @@
 #include "stm32_lpm.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "bq25185.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -285,6 +285,18 @@ static void OnSps30TimerEvent(void *context);
   */
 static void OnSps30CleanupTimerEvent(void *context);
 
+/**
+  * @brief  Charger CE timer callback: re-enables charging after the CE pulse
+  * @param  context ptr
+  */
+static void OnChargerCeTimerEvent(void *context);
+
+/**
+  * @brief  Reset the BQ25185 safety timer: disable charging via CE,
+  *         re-enable after BQ25185_CE_RESET_PULSE_MS (timer driven)
+  */
+static void ChargerSafetyTimerReset(void);
+
 /* USER CODE END PFP */
 
 /* Private variables ---------------------------------------------------------*/
@@ -403,6 +415,11 @@ static UTIL_TIMER_Object_t Sps30Timer;
   */
 static UTIL_TIMER_Object_t Sps30CleanupTimer;
 
+/**
+  * @brief Timer to end the BQ25185 CE pulse (re-enable charging)
+  */
+static UTIL_TIMER_Object_t ChargerCeTimer;
+
 /* USER CODE END PV */
 
 /* Exported functions ---------------------------------------------------------*/
@@ -468,6 +485,8 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Create(&Scd41Timer, SCD41_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnScd41TimerEvent, NULL);
   UTIL_TIMER_Create(&Sps30Timer, SPS30_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnSps30TimerEvent, NULL);
   UTIL_TIMER_Create(&Sps30CleanupTimer, SPS30_CLEANING_DURATION_MS, UTIL_TIMER_ONESHOT, OnSps30CleanupTimerEvent, NULL);
+  UTIL_TIMER_Create(&ChargerCeTimer, BQ25185_CE_RESET_PULSE_MS, UTIL_TIMER_ONESHOT, OnChargerCeTimerEvent, NULL);
+  BQ25185_ChargeEnable();
 
   /* USER CODE END LoRaWAN_Init_1 */
 
@@ -873,7 +892,8 @@ static void EventCallback(void)
       case SMTC_MODEM_EVENT_REGIONAL_DUTY_CYCLE:
       {
         uint8_t duty_cycle_status = current_event.event_data.regional_duty_cycle.status;
-        APP_LOG(TS_OFF, VLEVEL_M,  "Event received: DUTY_CYCLE busy %d\r\n", duty_cycle_status);
+        APP_LOG(TS_OFF, VLEVEL_M,  "Event received: DUTY_CYCLE b"
+                                   "usy %d\r\n", duty_cycle_status);
       }
       break;
       default:
@@ -932,6 +952,10 @@ static void SendTxData(uint8_t port)
   uint8_t uplink_port = TX_PORT_ENV_BASE;
 
   (void)port;
+
+  /* Reset the charger safety timer every TX cycle so it never expires
+   * during long charging phases (BQ25185 safety timer is ~6 h) */
+  ChargerSafetyTimerReset();
 
   /* Increment tx_counter */
   tx_counter++;
@@ -1228,6 +1252,17 @@ static void OnSps30CleanupTimerEvent(void *context)
   APP_LOG(TS_ON, VLEVEL_M, "SPS30 cleaning finished, going to sleep\r\n");
   (void)SPS30_StopMeasurement();
   (void)SPS30_Sleep();
+}
+
+static void ChargerSafetyTimerReset(void)
+{
+  BQ25185_ChargeDisable();
+  UTIL_TIMER_Start(&ChargerCeTimer);
+}
+
+static void OnChargerCeTimerEvent(void *context)
+{
+  BQ25185_ChargeEnable();
 }
 
 /* USER CODE END PrFD_LedEvents */

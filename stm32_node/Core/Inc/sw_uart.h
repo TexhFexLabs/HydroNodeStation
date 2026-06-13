@@ -12,8 +12,8 @@ extern "C" {
 #define SW_UART_TX_PIN        GPIO_PIN_6
 #define SW_UART_TX_PIN_INDEX  6U
 
-#define SW_UART_RX_PORT       GPIOA
-#define SW_UART_RX_PIN        GPIO_PIN_7
+/* TX only: the node never receives data from the PC.
+ * PA7 (former RX) is wired to the BQ25185 charger CE pin, see bq25185.h. */
 
 #define SW_UART_BAUDRATE      1200U
 

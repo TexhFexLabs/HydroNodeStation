@@ -190,7 +190,7 @@ Die Messungen am Entwicklungsprototyp (Wio-E5 Mini + Adafruit Breakouts + Pololu
 
 Diese Messungen bestätigen, dass der erhöhte Ruhestrom \textbf{ausschließlich auf die Prototyping-Infrastruktur zurückzuführen} ist und den eigentlichen Stromverbrauch der Zielschaltung nicht widerspiegelt.
 
-\subsection*{Erwartetes Verhalten des Custom PCBs}
+\subsection*{Strommessung am Custom PCB}
 
 Im Custom PCB entfallen alle oben genannten Quellen des erhöhten Ruhestroms vollständig:
 
@@ -201,4 +201,6 @@ Im Custom PCB entfallen alle oben genannten Quellen des erhöhten Ruhestroms vol
   \item Einheitliche, optimierte I2C-Pull-ups auf dem PCB; keine doppelten Pull-ups durch Breakout-Boards
 \end{itemize}
 
-Der theoretisch berechnete Gesamtschlafstrom von $\approx 5{,}67\,\mu\text{A}$ wird am Custom PCB angestrebt und nach Lieferung mit dem PPK2 messtechnisch verifiziert (s.\ Kapitel~\ref{cha:testing}).
+PPK2-Strommessungen am Custom PCB wurden am 01.06.2026 durchgeführt (Messdatei: \texttt{ppk2-20260601T143444.ppk2}). Die Messung bestätigt einen deutlich reduzierten Ruhestrom gegenüber dem Prototyp. Eine vollständige Auswertung des 30-Minuten-Superzyklus steht noch aus.
+
+Zusätzlich wurde die Firmware im Verlauf des Projekts weiter energetisch optimiert: der Hardware-USART1 wurde entfernt (kein zusätzlicher Peripherie-Strom im Sleep), und die Debug-Ausgabe läuft ausschließlich über die software-emulierte UART auf PA6, die im produktiven Betrieb deaktiviert werden kann.

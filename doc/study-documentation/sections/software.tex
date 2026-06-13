@@ -81,10 +81,11 @@ Beim Einschalten durchläuft der STM32WLE5 folgende Initialisierungsschritte in 
   \item \textbf{HAL\_Init()} — STM32 HAL-Treiber und SysTick initialisieren.
   \item \textbf{SystemClock\_Config()} — Systemtakt auf 48~MHz (MSI), LSE-Quarz ($32{,}768\,\text{kHz}$) für RTC.
   \item \textbf{MX\_GPIO\_Init()} — GPIO-Pins konfigurieren (LEDs auf GPIOB, Buttons auf GPIOA mit EXTI, RF-Switch PC13).
-  \item \textbf{MX\_I2C2\_Init()} — I2C2-Master initialisieren (SDA: PA15, SCL: PB15, $4{,}7\,\text{k}\Omega$ Pull-ups gegen VDD).
+  \item \textbf{MX\_I2C2\_Init()} — I2C2-Master initialisieren (SDA: PA11, SCL: PA12, $4{,}7\,\text{k}\Omega$ Pull-ups gegen VDD). Im Prototyp (Wio-E5 Mini) lagen die Pins auf PA15/PB15; das Custom PCB verwendet PA11/PA12.
   \item \textbf{MX\_LoRaWAN\_Init()} — LoRaWAN-Modem, Pre-Measurement-Timer und alle Sensoren initialisieren.
-  \item \textbf{MX\_USART1\_UART\_Init()} — USART1 für Debug-Ausgabe (115200 Baud, PA9/PA10).
+  \item \textbf{Debug-Pin-Prüfung:} Ist PB4 (\texttt{DEBUG\_SW\_Pin}) HIGH, wird \texttt{DebugProfile\_Run()} aufgerufen (kehrt nie zurück). Andernfalls folgt eine 10-Sekunden-LED-Blink-Phase zur visuellen Bestätigung des Bootvorgangs.
   \item \textbf{Hauptschleife:} Endlose Ausführung von \texttt{MX\_LoRaWAN\_Process()}.
+  \item \textbf{Hinweis:} Der Hardware-USART1 ist im finalen PCB-Design nicht verwendet. Die gesamte Debug-Ausgabe läuft über eine software-emulierte UART auf PA6 (\texttt{sw\_uart.c}). Ein USB-UART-Adapter an PA6 zeigt alle \texttt{APP\_LOG}-Ausgaben, sofern \texttt{APP\_LOG\_ENABLED~1} in \texttt{sys\_conf.h} gesetzt ist.
 \end{enumerate}
 
 Innerhalb von \texttt{LoRaWAN\_Init()} werden nach der Sensor-Initialisierung Akkuspannung gelesen und bei ausreichendem Ladestand ($> 4050\,\text{mV}$) eine initiale Lüfterreinigung des SPS30 gestartet. Dies entfernt Lagerungsablagerungen vom optischen Sensor des SPS30 vor dem ersten produktiven Einsatz.
@@ -274,6 +275,33 @@ Die Flash-Adressen liegen im letzten Sektor des $256\,\text{kB}$-Flashs:
   \caption{NVM-Flash-Layout im STM32WLE5}
   \label{tab:nvm}
 \end{table}
+
+\section*{Debug-Profil}
+
+Für den Hardware-Bringup und die Sensor-Kalibrierung existiert ein dediziertes \textbf{Debug-Profil}, das durch den GPIO-Pin \textbf{PB4} (\texttt{DEBUG\_SW\_Pin}) aktiviert wird. Ist PB4 beim Einschalten HIGH, verzweigt \texttt{main.c} in \texttt{DebugProfile\_Run()} und startet den normalen LoRaWAN-Betrieb nicht.
+
+Im Debug-Profil liest die Firmware alle Sensoren in einem ca.\ 8-Sekunden-Takt und gibt die Werte über die SW-UART (PA6) aus. Die genaue Ablauffolge pro Zyklus:
+
+\begin{enumerate}
+  \item CO${}_2$-Single-Shot (SCD41) und SPS30-Kontinuierlichmessung werden gleichzeitig gestartet.
+  \item Sofort danach werden die schnellen Sensoren gelesen: Temperatur, Feuchte (SHT45), Luftdruck (BMP390), Akkuspannung (MAX17048) und UV-Index (LTR390).
+  \item Nach 5500~ms (SCD41-Single-Shot abgeschlossen) werden CO${}_2$ und Feinstaub gelesen.
+  \item 2000~ms Pause, dann nächster Zyklus.
+\end{enumerate}
+
+Beispielausgabe über SW-UART:
+\begin{verbatim}
+=== DEBUG PROFILE (PB4 HIGH) ===
+All sensors, every ~8 s. Reset to exit.
+
+T=22.13 C  RH=54.20 %  P=1013.5 hPa  VBAT=4150 mV
+UVI=2.45
+CO2=512 ppm
+PM MC [0.1 ug/m3]: 1.0=12  2.5=18  4.0=20  10=21
+PM NC [0.1 #/cm3]: 0.5=1420  ...  TypSize=384 nm
+\end{verbatim}
+
+Das Debug-Profil ist insbesondere nützlich, um Sensoren nach dem Einbau ins Gehäuse zu verifizieren, UV-Index-Kalibrierungen zu prüfen und Plausibilitätschecks im Außenbetrieb durchzuführen, ohne auf den 5-Minuten-Sendezyklus warten zu müssen.
 
 \section*{Sensor-Treiber}
 
