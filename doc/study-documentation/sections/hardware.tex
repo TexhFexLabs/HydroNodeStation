@@ -166,33 +166,56 @@ Die Leiterplatte wurde bei \textbf{JLCPCB} gefertigt und vollständig maschinell
 
 Ermöglicht wurde die Bestellung teilweise durch einen Gutschein im Wert von \textbf{150~USD}, den das Projekt im Rahmen des \textit{OSWHLAB Start 2026 Open Source Contest} erhalten hat (s.\ Kapitel~\ref{cha:opensource}). JLCPCB führt an bestückten Platinen standardmäßig visuelle Inspektion und Fliegende-Nadel-Tests durch; weiterführende Funktionstests werden nach Lieferung am eigenen Messplatz durchgeführt.
 
-\section*{PCB-Überprüfung und erste Inbetriebnahme}
+\section*{PCB-Überprüfung und Inbetriebnahme}
 \label{sec:pcb-review}
 
-\textbf{TODO:} Dieser Abschnitt wird nach Lieferung der Platinen ergänzt. Geplante Inhalte:
+Die Platinen wurden von JLCPCB geliefert und vollständig in Betrieb genommen. Im Folgenden sind die wichtigsten Ergebnisse dokumentiert.
 
-\begin{itemize}
-  \item Visuelle Inspektion aller Lötstellen und Bauteilpositionierung
-  \item Strommessung im STOP2-Modus mit dem PPK2 (Zielwert: $< 10\,\mu\text{A}$)
-  \item Vergleich gemessener vs.\ theoretischer Schlafstrom
-  \item Verifikation aller Sensorlesungen via I2C auf dem Custom PCB
-  \item LoRaWAN-Uplinks über das Helium-Netzwerk, Empfangsqualität (RSSI, SNR)
-  \item Prüfung der Solar-Ladefunktion (BQ25185)
-  \item Langzeit-Stabilitätstest ($\geq 24\,\text{h}$ kontinuierlicher Betrieb)
-\end{itemize}
+\subsection*{TPS63900-Fehler und Workaround}
+
+Bei der ersten Inbetriebnahme wurde festgestellt, dass der primäre TPS63900-Buck-Boost-Konverter für die 3,3-V-Systemversorgung nicht wie vorgesehen funktionierte. In Absprache mit einem Experten wurde der Fehler im PCB-Design identifiziert und analysiert. Als physischer Workaround wurde der fehlerhafte TPS63900 vom LiPo-Akku-Plus und dem 3,3-V-Netz getrennt. Derselbe Chip wurde auf einem Breakout-Board montiert und an die PCB-Header angesteckt. Das System läuft damit identisch wie vorgesehen, mit minimalem Overhead und gleicher Effizienz. Das korrigierte PCB-Design ist erarbeitet und für zukünftige Board-Revisionen bereit.
+
+\subsection*{Sensor-Verifikation auf dem Custom PCB}
+
+Alle fünf Kernsensoren wurden auf dem Custom PCB erfolgreich verifiziert. Sämtliche I2C-Kommunikation läuft stabil; die Messwerte sind plausibel und konsistent mit den Prototyp-Messungen. Der LoRaWAN-Stack verbindet sich zuverlässig über OTAA mit dem Helium-Netzwerk und sendet reguläre Uplinks auf allen drei konfigurierten Ports.
+
+\subsection*{Strommessung mit dem PPK2}
+
+Strommessungen mit dem Nordic Semiconductor Power Profiler Kit II (PPK2) wurden am Custom PCB durchgeführt (Messdatei: \texttt{ppk2-20260601T143444.ppk2}). Die Ergebnisse und Interpretation sind in Kapitel~\ref{cha:energie} dokumentiert.
+
+\subsection*{Langzeit-Feldtest}
+
+Die Station läuft seit Ende Mai 2026 im Außeneinsatz im 3D-gedruckten Stevenson-Screen-Gehäuse. Die Daten werden in Echtzeit über das Helium-Netzwerk übertragen und sind öffentlich einsehbar unter:\\
+\url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658}
+
+Die bisherigen Feldtest-Ergebnisse sind positiv: alle Sensoren liefern stabile Werte, und der LoRaWAN-Uplink ist zuverlässig. Die vollständige Solar-Autarkie steht noch zur abschließenden Verifikation aus.
 
 \section*{Gehäuse: Stevenson Screen}
 
-Um die Sensoren vor direkter Sonneneinstrahlung und Niederschlag zu schützen, ohne die Luftzirkulation zu behindern, wird ein \textbf{Stevenson Screen} eingesetzt — eine klassische meteorologische Schutzeinhausung mit lamellierter Belüftung. Die weiße Außenfarbe reflektiert Sonnenstrahlung und verhindert übermäßige Erwärmung im Inneren.
+Um die Sensoren vor direkter Sonneneinstrahlung und Niederschlag zu schützen, ohne die Luftzirkulation zu behindern, wird ein \textbf{Stevenson Screen} eingesetzt: eine klassische meteorologische Schutzeinhausung mit lamellierter Belüftung. Die weiße Außenfarbe reflektiert Sonnenstrahlung und verhindert übermäßige Erwärmung im Inneren. Für eine korrekte Messung von Außentemperatur und Luftfeuchtigkeit ist dies entscheidend: Ein Gehäuse, das sich durch direkte Sonneneinstrahlung aufheizt, würde verfälschte Temperaturwerte liefern.
 
-In der aktuellen Prototyping-Phase wird ein frei verfügbares Open-Source-Design aus dem Internet eingesetzt: Es besteht aus mehreren übereinandergesteckten Lamellenebenen, die aus weißem \textbf{ASA-Kunststoff} (Acrylnitril-Styrol-Acrylat) 3D-gedruckt werden. ASA ist UV-beständig und wetterfest, was es für den Dauereinsatz im Außenbereich geeignet macht.
+Das Gehäuse wurde vollständig selbst in \textbf{Fusion 360} entworfen. Es besteht aus mehreren übereinandergesteckten Lamellenebenen, die direkte Sonneneinstrahlung und Regen blockieren, aber Luft frei zirkulieren lassen. Die Teile wurden aus weißem \textbf{ASA-Kunststoff} (Acrylnitril-Styrol-Acrylat) 3D-gedruckt. ASA ist UV-beständig und witterungsfest, was es für den Dauereinsatz im Außenbereich geeignet macht. Der Druck erfolgte auf einem eigens für das Projekt angeschafften 3D-Drucker. Mehrere Druckdurchläufe wurden benötigt, um Passgenauigkeit und Stabilität sicherzustellen.
 
-\textbf{TODO:} Das Gehäuse wird in einem späteren Projektabschnitt vollständig neu designed und auf die spezifischen Abmessungen des Custom PCBs sowie die Sensoranordnung optimiert. Geplante Aspekte:
+Das Gehäuse ist montiert und befindet sich seit Ende Mai 2026 im Außeneinsatz. Die bisherigen Feldtest-Ergebnisse zeigen stabile Temperatur- und Feuchtemessungen ohne Überhitzungseffekte.
 
-\begin{itemize}
-  \item Anpassung der Innenabmessungen an PCB-Footprint und Sensorpositionen
-  \item Integrierte, wasserdichte Kabeleinführung für das Solarmodul (IP65)
-  \item Befestigungsoptionen für Standard-Stangen oder Balkonbrüstungen
-  \item Optimierung der Lamellengeometrie für maximale Luftzirkulation bei minimalem Regeneintrag
-  \item Veröffentlichung der STL- und Quelldateien zusammen mit der Hardware (s.\ Kapitel~\ref{cha:opensource})
-\end{itemize}
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.6\linewidth}{\centering\vspace{2cm}
+    \textit{[Platzhalter: 3D-Render des Stevenson-Screen-Gehäuses aus Fusion 360]}
+    \vspace{2cm}}}
+  \caption{3D-Render des Stevenson-Screen-Gehäuses (Fusion 360)}
+  \label{fig:stevenson-render}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.6\linewidth}{\centering\vspace{2cm}
+    \textit{[Platzhalter: Foto der montierten Station im Außeneinsatz]}
+    \vspace{2cm}}}
+  \caption{Montierte HydroNodeStation01 im Außeneinsatz}
+  \label{fig:station-outdoor}
+\end{figure}
+
+\textbf{Offener Punkt: UV-transparentes Glas.} Der LTR390-UV-Sensor benötigt Schutz, muss aber UV-Licht empfangen können. Normales Glas und PETG blockieren einen großen Teil der UV-Strahlung. Als Zwischenlösung wurde eine Plexiglasabdeckung gefertigt und eingepasst. Günstigere UV-transparente Folien oder optische Materialien werden weiter evaluiert (s.\ Kapitel~\ref{cha:probleme}).
+
+Die STL-Dateien und Fusion-360-Quelldateien werden nach Abschluss des Feldtests zusammen mit den Hardware-Design-Dateien veröffentlicht (s.\ Kapitel~\ref{cha:opensource}).

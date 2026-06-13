@@ -1,4 +1,152 @@
 \chapter{Stundenaufwand}
+
+\section*{Projektplan (Soll-Zustand)}
+
+Im Projektplan wurden 20 Features mit insgesamt \textbf{160 Stunden} eingeplant (Tabelle~\ref{tab:features}).
+
+\begin{longtable}{>{\bfseries}p{0.5cm} p{13.5cm} r}
+  \toprule
+  \# & Feature / Aufgabe & Std. \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \# & Feature / Aufgabe & Std. \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  \bottomrule
+  \endlastfoot
+
+  1  & Hardware-Auswahl \& Beschaffung (MCU, Sensoren, Solar, Akku, Gehäuse) & 8 \\
+  \rowcolor{rowgray}
+  2  & Schaltplan \& Aufbau der Wetterstation-Elektronik & 9 \\
+  3  & Sensor: Temperatur, Luftfeuchtigkeit \& Luftdruck & 2 \\
+  \rowcolor{rowgray}
+  4  & Sensor: UV-Index \& Lichtstärke & 2 \\
+  5  & Sensor: Partikelkonzentration (SPS30) & 4 \\
+  \rowcolor{rowgray}
+  6  & Sensor: CO${}_2$-Konzentration (SCD41) & 4 \\
+  7  & Sensor: Umgebungslautstärke (MEMS-Mikrofon) & 3 \\
+  \rowcolor{rowgray}
+  8  & Standalone-Test: Sensoren \& LoRaWAN ohne Systemanbindung & 8 \\
+  9  & PCB-Design, Bestellung \& Bestückung & 9 \\
+  \rowcolor{rowgray}
+  10 & Autarke Stromversorgung: Solar-Laderegler \& LiPo-Akku-Management & 13 \\
+  11 & Deep-Sleep \& Power-Management Firmware & 7 \\
+  \rowcolor{rowgray}
+  12 & LoRaWAN-Firmware: Payload-Codec, Sendezyklus, Duty-Cycle-Management & 12 \\
+  13 & Helium-Netzwerk: Registrierung, Console-Integration, Decoder & 5 \\
+  \rowcolor{rowgray}
+  14 & Backend: LoRaWAN-Datenpipeline zu HydroNode (Amazon SNS) & 8 \\
+  15 & Website: Echtzeit-Dashboard für alle Stationssensoren & 14 \\
+  \rowcolor{rowgray}
+  16 & App: Historische Verlaufsdiagramme (alle Sensorkanäle) & 6 \\
+  17 & App: Stations-Verwaltung (Hinzufügen, Benennen, Statusanzeige) & 4 \\
+  \rowcolor{rowgray}
+  18 & KI-Evaluation: Datensatz-Aufbereitung \& Modellauswahl & 8 \\
+  19 & KI-Evaluation: Testing, Benchmarking \& Ergebnisdokumentation & 8 \\
+  \rowcolor{rowgray}
+  20 & Feldtest, Integrationstests \& Abschlussdokumentation & 16 \\
+  \midrule
+  \multicolumn{2}{r}{\textbf{Gesamt}} & \textbf{160} \\
+\end{longtable}
+\vspace{-1em}
+\begin{center}
+  \small\textit{Tabelle: Geplante Features mit Aufwandsschätzung aus dem Projektplan (Pitch, 26.03.2026)}
+  \label{tab:features}
+\end{center}
+
+\section*{Soll/Ist-Vergleich}
+
+Tabelle~\ref{tab:vergleich} zeigt den Vergleich zwischen dem geplanten und dem tatsächlichen Status für alle Features.
+
+\begin{longtable}{>{\bfseries}p{0.5cm} p{6.5cm} r r l}
+  \toprule
+  \# & Feature & Geplant & Ist (est.) & Status \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \# & Feature & Geplant & Ist (est.) & Status \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  \bottomrule
+  \endlastfoot
+
+  1  & Hardware-Auswahl \& Beschaffung & 8\,h & 7\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  2  & Schaltplan \& Elektronik-Aufbau & 9\,h & 4\,h & \status{Fertig} \\
+  3  & Sensor: Temperatur / Feuchte / Druck & 2\,h & 3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  4  & Sensor: UV-Index (LTR390 statt VEML6075) & 2\,h & 2\,h & \status{Fertig} \\
+  5  & Sensor: Feinstaub SPS30 & 4\,h & 3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  6  & Sensor: CO${}_2$ SCD41 & 4\,h & 3\,h & \status{Fertig} \\
+  7  & Sensor: Lautstärke (MAX4466) & 3\,h & 0\,h & \status{Weggelassen} \\
+  \rowcolor{rowgray}
+  8  & Standalone-Tests Sensoren \& LoRaWAN & 8\,h & 3\,h & \status{Fertig} \\
+  9  & PCB-Design, Bestellung \& Bestückung & 9\,h & \textasciitilde56\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  10 & Autarke Stromversorgung Solar \& Akku & 13\,h & \textasciitilde7\,h & \status{In Arbeit} \\
+  11 & Deep-Sleep \& Power-Management & 7\,h & \textasciitilde10\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  12 & LoRaWAN-Firmware & 12\,h & \textasciitilde11\,h & \status{Fertig} \\
+  13 & Helium-Netzwerk Registrierung \& Decoder & 5\,h & \textasciitilde3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  14 & Backend: Pipeline zu HydroNode & 8\,h & \textasciitilde3\,h & \status{Fertig} \\
+  15 & Website Echtzeit-Dashboard & 14\,h & 10\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  16 & App: Verlaufsdiagramme & 6\,h & \textasciitilde6\,h & \status{Fertig} \\
+  17 & App: Stationsverwaltung & 4\,h & \textasciitilde6\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  18 & KI-Eval: Datensatz \& Modellauswahl & 8\,h & \textasciitilde2\,h & \status{In Arbeit} \\
+  19 & KI-Eval: Testing \& Benchmarking & 8\,h & 0\,h & \status{Geplant} \\
+  \rowcolor{rowgray}
+  20 & Feldtest \& Abschlussdokumentation & 16\,h & \textasciitilde7\,h & \status{In Arbeit} \\
+  \midrule
+  \multicolumn{2}{l}{\textbf{Gesamt (inkl.\ 3D-Gehäuse, nicht geplant)}} & \textbf{160\,h} & \textbf{154\,h est.} & \\
+\end{longtable}
+\vspace{-1em}
+\begin{center}
+  \small\textit{Tabelle: Soll/Ist-Vergleich aller Features. Ist-Stunden sind Schätzungen aus dem Arbeitstagebuch (Stand: Zwischenbericht 30.05.2026).}
+  \label{tab:vergleich}
+\end{center}
+
+\noindent\textbf{Hinweis:} Die Ist-Stunden pro Feature sind Schätzungen. Im Arbeitstagebuch wird nach Datum und Tätigkeit erfasst, nicht nach Feature-Nummer. Deshalb lassen sich die Stunden nur näherungsweise zuordnen.
+
+\section*{Stundenvergleich nach Bereichen}
+
+\begin{table}[H]
+  \centering
+  \begin{tabularx}{\textwidth}{X r r r}
+    \toprule
+    \textbf{Bereich} & \textbf{Geplant (h)} & \textbf{Ist (h, est.)} & \textbf{Differenz} \\
+    \midrule
+    Hardware, Beschaffung, Schaltplan & 17 & \textasciitilde9 & $-8$ \\
+    Sensorik (5 von 6 Sensoren) & 12 & \textasciitilde11 & $-1$ \\
+    Standalone-Tests & 8 & \textasciitilde3 & $-5$ \\
+    PCB-Design, Bestellung, Inbetriebnahme & 9 & \textasciitilde50 & $+41$ \\
+    Autarke Stromversorgung (Solar) & 13 & \textasciitilde7 & $-6$ \\
+    Firmware (Deep-Sleep, LoRaWAN) & 19 & \textasciitilde21 & $+2$ \\
+    Helium-Netzwerk \& Backend & 13 & \textasciitilde6 & $-7$ \\
+    Website \& App & 24 & \textasciitilde23 & $-1$ \\
+    KI-Evaluation & 16 & \textasciitilde2 & $-14$ \\
+    Feldtest \& Dokumentation & 16 & \textasciitilde10 & $-6$ \\
+    3D-Gehäuse (nicht geplant) & 0 & \textasciitilde12 & $+12$ \\
+    \midrule
+    \textbf{Gesamt (exakt laut Arbeitstagebuch)} & \textbf{160} & \textbf{162} & $+2$ \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Stundenvergleich Soll/Ist nach Bereichen (Ist-Werte geschätzt aus Arbeitstagebuch; exakter Gesamtwert laut Arbeitstagebuch)}
+  \label{tab:stunden-vergleich}
+\end{table}
+
+\paragraph{Wichtigste Beobachtung:} Das PCB-Design hat mit ca.\ 50 Stunden weit mehr Zeit gekostet als die geplanten 9 Stunden. Das entspricht einem Mehraufwand von rund \textbf{+41 Stunden} in diesem Bereich. Dieser Mehraufwand wurde durch Einsparungen in anderen Bereichen teilweise ausgeglichen: Helium und Backend liefen schneller als erwartet, und die Standalone-Tests waren durch frühe Prototypentests bereits abgedeckt. Das 3D-Gehäuse mit ca.\ 12 Stunden war im Projektplan nicht vorgesehen und stellt einen weiteren ungeplanten Mehraufwand dar. Der exakte Gesamtwert von 162 Stunden stammt direkt aus dem Arbeitstagebuch.
+
+\section*{Detailliertes Arbeitstagebuch}
+
 Die folgende Tabelle zeigt den dokumentierten zeitlichen Aufwand auf Basis der erfassten Stunden.
 
 \small
@@ -95,7 +243,35 @@ Die folgende Tabelle zeigt den dokumentierten zeitlichen Aufwand auf Basis der e
 \hline
 01.05.2026 & 3 & Planung & Studiendokumentation erweitert (Hardware, Software, Energieeffizienz, Testing, Open Source). \\
 \hline
-\textbf{Gesamt} & \textbf{110} &  &  \\
+02.05.2026 & 6 & CAD & 3D-Gehäuse für die Wetterstation in Fusion 360 konstruiert und für den 3D-Druck aufbereitet. \\
 \hline
-\caption{Dokumentierter Stundenaufwand nach Datum, Kategorie und Tätigkeit (Stand: 01.05.2026)}\label{tab:stundenaufwand}\\
+07.05.2026 & 3 & Hardware & Langzeittest ohne Solarversorgung mit dem WioE5-Prototypen gestartet, um den realen Batterieabfall unter Dauerbetrieb zu messen. \\
+\hline
+11.05.2026 & 4 & Hardware & PCB-Fehlersuche durchgeführt und einen defekten TPS63900-Spannungswandler als Ursache identifiziert und dokumentiert. \\
+\hline
+12.05.2026 & 3 & Software & Erste Firmware-Uploads auf dem eigenen PCB durchgeführt; Probleme im LoRa-Core analysiert und schrittweise eingegrenzt. \\
+\hline
+16.05.2026 & 10 & Software & Projektwebsite von Grund auf erstellt und mit Live-Messdaten, Projektbeschreibung und technischen Details befüllt. \\
+\hline
+18.05.2026 & 2 & CAD & Sensorgehäuse für die Außenmontage modelliert und ersten 3D-Druckdurchlauf gestartet. \\
+\hline
+20.05.2026 & 3 & CAD & Zweiten Druckdurchlauf des Sensorgehäuses abgeschlossen, Teile nachbearbeitet und auf Passgenauigkeit geprüft. \\
+\hline
+22.05.2026 & 6 & Software & iOS-App aktualisiert, Fehler behoben und bestehende Webapp-Funktionen erweitert. \\
+\hline
+26.05.2026 & 4 & Software & Fehler auf den gefertigten PCBs behoben; Firmware erstmals stabil mit externer Batterieversorgung in Betrieb genommen. \\
+\hline
+27.05.2026 & 1 & Hardware & Kleinere Solarzelle auf Eignung für die Energieversorgung der Station getestet. \\
+\hline
+28.05.2026 & 3 & Hardware & Outdoor-Gehäuse vollständig montiert, alle Sensoren eingebaut und Feldtest gestartet; Projektwebsite parallel optimiert. \\
+\hline
+30.05.2026 & 1 & Software & Erste Messwerte aus dem Feldtest ausgewertet und auf Plausibilität sowie Konsistenz geprüft. \\
+\hline
+06.06.2026 & 2 & Hardware & Plexiglasabdeckung für den Sensorbereich der Außenstation gefertigt und eingepasst. \\
+\hline
+08.06.2026 & 4 & Software & UV-Index-Berechnung im Firmware-Stack refaktoriert, Sensorkabel überarbeitet und neue Testläufe gestartet. \\
+\hline
+\textbf{Gesamt} & \textbf{162} &  &  \\
+\hline
+\caption{Dokumentierter Stundenaufwand nach Datum, Kategorie und Tätigkeit (Stand: 08.06.2026)}\label{tab:stundenaufwand}\\
 \end{longtable}

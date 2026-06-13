@@ -52,48 +52,47 @@ Der automatische I2C-Bus-Recovery-Mechanismus wurde durch absichtlich induzierte
 \section*{Tests mit dem Custom PCB}
 \label{sec:testing-pcb}
 
-\textbf{TODO:} Dieser Abschnitt wird nach Lieferung und Inbetriebnahme der Custom-PCBs von JLCPCB ergänzt. Geplante Tests:
+\subsection*{Elektrische Inspektion und Inbetriebnahme}
 
-\subsection*{Elektrische Inspektion}
+Nach Lieferung der Custom-PCBs von JLCPCB wurden visuelle Inspektion und erste elektrische Verifikationen durchgeführt. Dabei wurde ein Fehler im TPS63900-Spannungsregler identifiziert (s.\ Kapitel~\ref{cha:probleme} und~\ref{sec:pcb-review}). Mit dem beschriebenen Breakout-Workaround läuft das PCB stabil.
+
+\subsection*{Sensor-Verifikation auf dem Custom PCB}
+
+Alle fünf Kernsensoren wurden auf dem Custom PCB erfolgreich verifiziert:
 
 \begin{itemize}
-  \item Visuelle Kontrolle aller Lötstellen auf Brücken, Lötbälle und fehlende Bauteile
-  \item Messung der Versorgungsspannungen ($3{,}3\,\text{V}$, $5\,\text{V}$) unter Last
-  \item Prüfung der I2C-Busleitungen auf korrekte Pull-up-Spannung
-  \item Kontrolle des RF-Pfads auf korrekte Bestückung von Balun und RF-Switch
+  \item \textbf{SHT45:} Temperatur- und Feuchtigkeitswerte plausibel und stabil im Außenbetrieb.
+  \item \textbf{BMP390:} Luftdruckwerte korrekt; Forced-Mode-Betrieb auf dem Custom PCB verifiziert.
+  \item \textbf{LTR390:} UV-Index wird korrekt berechnet und kalibriert. UV-Rohwerte reagieren auf UV-Exposition. Die Berechnung wurde während des Projekts refaktoriert, sodass der Sensor direkt den UV-Index (UVI) ausgibt.
+  \item \textbf{SCD41:} CO${}_2$-Messungen plausibel im Außenbereich (ca.\ 400~ppm). Pre-Measurement-Timing verifiziert.
+  \item \textbf{SPS30:} Partikelmassenkonzentration und Zahlkonzentration reagieren korrekt auf Umgebungsluft.
 \end{itemize}
 
-\subsection*{Strommessung}
+\subsection*{LoRaWAN und Netzwerk}
+
+Die Station verbindet sich zuverlässig über OTAA-Join mit dem Helium-Netzwerk und sendet reguläre Uplinks auf allen drei konfigurierten Ports (fPort 2, 3 und 4). LoRaWAN-Daten fließen über Amazon SNS in das HydroNode-Backend und sind in Echtzeit auf dem öffentlichen Dashboard einsehbar.
+
+\subsection*{Strommessung (PPK2)}
+
+Strommessungen mit dem Nordic Semiconductor Power Profiler Kit II (PPK2) wurden am Custom PCB durchgeführt. Die Messdatei (\texttt{ppk2-20260601T143444.ppk2}) enthält Aufnahmen des STOP2-Ruhestroms sowie der TX-Spitzenströme. Ergebnisse und Interpretation sind in Kapitel~\ref{cha:energie} dokumentiert.
+
+\subsection*{Langzeit-Feldtest}
+
+Die Station befindet sich seit Ende Mai 2026 im Außeneinsatz im selbst entworfenen Stevenson-Screen-Gehäuse aus ASA. Der Feldtest läuft ohne Unterbrechungen. Alle Sensoren liefern kontinuierlich stabile Werte; der LoRaWAN-Uplink ist zuverlässig aktiv. Echtzeit-Messwerte und Verlaufsdaten sind öffentlich einsehbar unter:\\
+\url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.6\linewidth}{\centering\vspace{2cm}
+    \textit{[Platzhalter: Screenshot des Live-Dashboards mit Feldtest-Messdaten]}
+    \vspace{2cm}}}
+  \caption{Live-Dashboard der HydroNodeStation01 mit Feldtest-Messdaten}
+  \label{fig:dashboard-fieldtest}
+\end{figure}
+
+\subsection*{Noch ausstehend}
 
 \begin{itemize}
-  \item PPK2-Messung des STOP2-Ruhestroms (Zielwert: $< 10\,\mu\text{A}$)
-  \item Messung des TX-Spitzenstroms beim LoRa-Senden (erwartet: $\approx 22\,\text{mA}$)
-  \item Aufzeichnung eines vollständigen 30-Minuten-Superzyklus und Vergleich der Ladung mit der theoretischen Berechnung
-\end{itemize}
-
-\subsection*{Funktionstest}
-
-\begin{itemize}
-  \item Verifikation aller sechs Sensorlesungen via I2C auf dem Custom PCB
-  \item LoRaWAN-OTAA-Join und Uplinks über das Helium-Netzwerk
-  \item Empfangsqualität (RSSI, SNR) mit und ohne externe Antenne
-  \item Prüfung der Solar-Ladefunktion (BQ25185) unter verschiedenen Lichtbedingungen
-  \item Test des softwaregesteuerten $5\,\text{V}$-Enable-Pins für den sekundären TPS63900
-\end{itemize}
-
-\subsection*{Langzeit-Stabilitätstest}
-
-\begin{itemize}
-  \item Kontinuierlicher Betrieb über $\geq 24\,\text{h}$ mit Aufzeichnung aller Uplinks
-  \item Uplink-Erfolgsrate $\geq 90\,\%$ als Akzeptanzkriterium
-  \item Temperaturtest bei Außentemperaturen (Ziel: $-10\,{^\circ}$C bis $+50\,{^\circ}$C)
-  \item Betrieb im Stevenson-Screen-Gehäuse über mehrere Tage mit Solar-Einspeisung
-\end{itemize}
-
-\subsection*{Verifikation der Batterielaufzeit}
-
-\begin{itemize}
-  \item Vergleich gemessener vs.\ theoretisch berechneter Schlafstrom und mittlerer Strom
-  \item Extrapolierte Batterielaufzeit auf Basis der PPK2-Messdaten
-  \item Bei Abweichungen: Identifikation der Ursachen und ggf.\ Layout-Anpassung für zukünftige Revisionen
+  \item \textbf{Solar-Verifikation:} Prüfung der Solar-Ladefunktion (BQ25185) unter verschiedenen Lichtbedingungen, insbesondere an bewölkten Tagen.
+  \item \textbf{Langzeit-Batterielaufzeit:} Vergleich gemessener vs.\ theoretisch berechneter mittlerer Strom über einen vollständigen Entladezyklus.
 \end{itemize}

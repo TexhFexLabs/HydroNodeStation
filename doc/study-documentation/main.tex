@@ -6,7 +6,6 @@
 \usepackage{lmodern}
 \usepackage{microtype}
 \usepackage[a4paper,margin=2.5cm]{geometry}
-\usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{tikz}
@@ -17,6 +16,25 @@
 \usepackage{longtable}
 \usepackage{multirow}
 \usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage{etoolbox}
+
+\definecolor{colgreen}{HTML}{2E7D32}
+\definecolor{colorange}{HTML}{E65100}
+\definecolor{colblue}{HTML}{0B4F6C}
+\definecolor{colred}{HTML}{C62828}
+\definecolor{rowgray}{HTML}{F5F5F5}
+
+\newcommand{\status}[1]{%
+  \ifstrequal{#1}{Fertig}{\textcolor{colgreen}{\textbf{Fertig}}}{}%
+  \ifstrequal{#1}{In Arbeit}{\textcolor{colorange}{\textbf{In Arbeit}}}{}%
+  \ifstrequal{#1}{Geplant}{\textcolor{colblue}{\textbf{Geplant}}}{}%
+  \ifstrequal{#1}{Weggelassen}{\textcolor{colred}{\textbf{Weggelassen}}}{}%
+}
 
 \definecolor{accent}{HTML}{0B4F6C}
 \setstretch{1.1}

@@ -1,4 +1,63 @@
 \chapter{Lösungen und Ergebnisse}
-Für identifizierte Probleme wurden konkrete Maßnahmen umgesetzt, beispielsweise angepasste Firmware-Strategien und verbesserte Systemtests. Diese Lösungen erhöhten Stabilität und Energieeffizienz.
 
-Abschließend werden die wichtigsten Projektergebnisse zusammengefasst. Damit wird sichtbar, welchen fachlichen und praktischen Mehrwert das Projekt liefert.
+\section*{Übersicht der umgesetzten Lösungen}
+
+Für die im vorherigen Kapitel beschriebenen Probleme wurden konkrete Maßnahmen umgesetzt. Die folgende Übersicht fasst die wichtigsten Lösungsansätze zusammen.
+
+\subsection*{TPS63900-Workaround}
+
+Der fehlerhafte TPS63900-Spannungsregler wurde durch einen identischen Chip auf einem Breakout-Board ersetzt, das an die PCB-Header angesteckt wird. Das System läuft damit vollständig funktionsfähig, mit identischer Effizienz und minimalem Mehraufwand. Das korrigierte PCB-Design ist erarbeitet und für zukünftige Board-Revisionen bereit.
+
+\subsection*{Sensor-Optimierungen}
+
+Der Wechsel zu SHT45 und BMP390 (statt BME280) sowie zum LTR390 (statt VEML6075) hat die Messgenauigkeit und Energieeffizienz verbessert. Alle fünf Kernsensoren liefern im Außenbetrieb stabile und plausible Messwerte. Die UV-Index-Berechnung wurde im Verlauf des Projekts kalibriert und refaktoriert, sodass der LTR390 nun direkt den UV-Index (UVI) statt Rohwerte ausgibt.
+
+\subsection*{I2C-Bus-Robustheit}
+
+Der automatische I2C-Bus-Recovery-Mechanismus in der Firmware fängt transiente Störungen ab, wie sie beim Anlaufen des SPS30-Gebläses entstehen können. Die Firmware erkennt I2C-Fehler, führt einen Bus-Recovery durch und setzt den Betrieb automatisch fort.
+
+\subsection*{Energieoptimierung durch SW-UART}
+
+Der Hardware-USART1 wurde aus dem finalen PCB-Design entfernt. Die gesamte Debug-Ausgabe läuft über eine software-emulierte UART auf Pin PA6 (\texttt{sw\_uart.c}). Damit entfällt ein zusätzlicher Hardware-Peripherie-Block, was den Ruhestrom im STOP2-Modus weiter reduziert.
+
+\subsection*{Debug-Profil für Sensorverifikation}
+
+Ein eigenes Debug-Profil (PB4 HIGH beim Boot) erlaubt das schnelle Verifizieren aller Sensoren ohne den LoRaWAN-Stack zu starten. Dies beschleunigt den Hardware-Bringup und die Kalibrierung erheblich (s.\ Kapitel~\ref{cha:software}).
+
+\section*{Ergebnisse}
+
+\subsection*{Technische Ergebnisse}
+
+Das Projekt liefert folgende abgeschlossene technische Ergebnisse:
+
+\begin{itemize}
+  \item \textbf{Funktionsfähiges Custom PCB:} Ein selbst entworfenes 4-Lagen-PCB mit STM32WLE5CCU6, RF-Frontend, Solar-Lademanagement und allen Sensoranschlüssen läuft stabil im Außeneinsatz.
+
+  \item \textbf{Alle fünf Kernsensoren in Betrieb:} SHT45 (Temperatur, Feuchte), BMP390 (Luftdruck), LTR390 (UV-Index), SPS30 (Feinstaub PM1.0/2.5/4.0/10.0) und SCD41 (CO${}_2$) liefern zuverlässige, validierte Messwerte auf dem Custom PCB.
+
+  \item \textbf{Vollständige LoRaWAN-Datenpipeline:} Die Station überträgt Daten über das Helium-Netzwerk; die Pipeline über Amazon SNS zum HydroNode-Backend ist aktiv und verarbeitet Uplinks in Echtzeit.
+
+  \item \textbf{Deep-Sleep unter 20\,$\mu$A:} Der theoretisch berechnete Systemschlafstrom von ca.\ 5,67\,$\mu$A im STOP2-Modus wird durch das Custom PCB angestrebt. Der mittlere Systemstrom liegt bei ca.\ 200\,$\mu$A, was bei einem 1000-mAh-Akku ohne Solar-Einspeisung eine Autonomie von über 200 Tagen ergibt.
+
+  \item \textbf{3D-gedrucktes Stevenson-Screen-Gehäuse:} Das selbst entworfene Gehäuse aus ASA-Kunststoff ist montiert und im Feldtest im Einsatz. Erste Langzeitergebnisse zeigen stabile Temperatur- und Feuchtemessungen ohne Überhitzungseffekte.
+
+  \item \textbf{Live-Dashboard und iOS-App:} Echtzeit-Messwerte und historische Verlaufsdaten aller Sensoren sind öffentlich einsehbar unter \url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658}.
+
+  \item \textbf{OSHWLab-Teilnahme:} Das Projekt nimmt am OSWHLAB Start 2026 Open Source Contest teil. Die Hardware-Design-Dateien werden nach abgeschlossenem Feldtest als Open-Source unter CC BY-NC-SA 4.0 veröffentlicht.
+\end{itemize}
+
+\subsection*{Offene Punkte}
+
+Folgende Aufgaben stehen noch an:
+
+\begin{enumerate}
+  \item \textbf{Solar-Autarkie:} Die vollständige Autarkie mit Solarversorgung muss noch validiert werden, insbesondere ob an bewölkten Tagen ausreichend Strom für den Dauerbetrieb erzeugt wird.
+
+  \item \textbf{KI-Evaluation:} Datensatz aufbereiten, Modell auswählen und Ergebnisse dokumentieren. Die Anomalieerkennung im Backend ist bereits aktiv und analysiert die laufenden Outdoor-Messdaten.
+
+  \item \textbf{Feldtest:} Station dauerhaft aufstellen (geplant an der OTH Regensburg), Langzeit-Integrationstests durchführen.
+
+  \item \textbf{Open-Source-Veröffentlichung:} PCB-Design, Firmware und Gehäuse-STLs auf GitHub und OSHWLab veröffentlichen sowie die Firmware generalisieren.
+\end{enumerate}
+
+\noindent Der technische Kern des Projekts ist abgeschlossen. Die Station sendet Sensordaten autark über LoRaWAN, die Daten sind in der App und auf der Website einsehbar. Die verbleibenden Arbeiten betreffen hauptsächlich die Solar-Verifikation, die KI-Evaluation und die Abschlussdokumentation.
