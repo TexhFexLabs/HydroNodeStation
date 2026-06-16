@@ -9,9 +9,9 @@ Die Validierung der HydroNodeStation01 erfolgt in zwei Phasen: Zunächst auf dem
 
 \subsection*{LoRaWAN-Konnektivität und Uplinks}
 
-Der vollständige LoRaWAN-Uplink-Pfad wurde auf dem Wio-E5 Mini Entwicklungsboard erfolgreich verifiziert. Die Station verbindet sich zuverlässig über OTAA-Join mit dem Helium-Netzwerk und sendet reguläre Uplinks auf allen drei konfigurierten Ports (fPort 2, 3 und 4). Der eigene \textbf{SenseCAP M2 Helium-Miner} in der Entwicklerwohnung garantiert dabei perfekten Empfang auch im Innenbereich ohne externe Antenne, sodass Konnektivitätsprobleme als Fehlerquelle während der Entwicklung sicher ausgeschlossen werden können.
+Der vollständige LoRaWAN-Uplink-Pfad wurde auf dem Wio-E5 Mini Entwicklungsboard erfolgreich verifiziert. Die Station verbindet sich zuverlässig über OTAA-Join mit dem Helium-Netzwerk und sendet reguläre Uplinks auf allen drei konfigurierten Ports (fPort 2, 3 und 4). Der eigene \textbf{SenseCAP M2 Helium-Miner} in der Entwicklerwohnung gewährleistet dabei zuverlässigen Empfang auch im Innenbereich ohne externe Antenne, sodass Konnektivitätsprobleme als Fehlerquelle während der Entwicklung ausgeschlossen werden können.
 
-Im Feldtest wurde eine Reichweite von über \textbf{10~km} bei schwachem Signal nachgewiesen — weit über der für typische Einsatzszenarien im städtischen und ländlichen Raum benötigten Reichweite.
+Im Feldtest wurde eine Reichweite von über \textbf{10~km} bei schwachem Signal nachgewiesen. Dies liegt weit über der für typische Einsatzszenarien im städtischen und ländlichen Raum benötigten Reichweite.
 
 \subsection*{Sensor-Verifikation}
 
@@ -21,7 +21,7 @@ Alle sechs Sensoren wurden einzeln und im integrierten Betrieb auf Plausibilitä
   \item \textbf{SHT45:} Temperatur- und Feuchtigkeitswerte konsistent und im erwarteten Bereich; Vergleich mit Referenzgerät zeigt gute Übereinstimmung.
   \item \textbf{BMP390:} Luftdruckwerte plausibel und stabil; Forced-Mode-Betrieb (Single-Shot + automatisches Sleep) verifiziert.
   \item \textbf{LTR390:} UV-Rohwerte reagieren korrekt auf UV-Exposition und zeigen erwartetes Verhalten bei Abdeckung des Sensors.
-  \item \textbf{SCD41:} CO\textsubscript{2}-Single-Shot-Messungen liefern plausible Werte im typischen Innenraum-Bereich (400–1500~ppm). Das Pre-Measurement-Timing ist verifiziert: Die CO\textsubscript{2}-Messung ist stets fertig, wenn der Uplink-Zyklus beginnt.
+  \item \textbf{SCD41:} CO\textsubscript{2}-Single-Shot-Messungen liefern plausible Werte im typischen Innenraum-Bereich (400 bis 1500~ppm). Das Pre-Measurement-Timing ist verifiziert: Die CO\textsubscript{2}-Messung ist stets fertig, wenn der Uplink-Zyklus beginnt.
   \item \textbf{SPS30:} Partikelmassenkonzentration und Zahlkonzentration reagieren korrekt auf Änderungen der Umgebungsluft (z.\,B.\ Zigarettenrauch-Exposition als Testfall). Fan-Cleaning-Mechanismus sowohl per Downlink-Befehl als auch automatisch nach 120~h verifiziert.
   \item \textbf{MAX17048:} Akkuspannungsmessung korrekt; batterie-adaptive Logik (Intervall-$\times2$ bei $< 3400\,\text{mV}$, Intervall-$\times12$ bei $< 3000\,\text{mV}$) im Testbetrieb verifiziert.
 \end{itemize}
@@ -31,8 +31,8 @@ Alle sechs Sensoren wurden einzeln und im integrierten Betrieb auf Plausibilitä
 Beide Downlink-Befehle wurden erfolgreich getestet:
 
 \begin{itemize}
-  \item \textbf{0x11 — SPS30 Fan Cleaning:} Der SPS30 wird korrekt aufgeweckt, die Lüfterreinigung startet, der Cleanup-Timer stoppt den Sensor nach $10\,\text{s}$ automatisch und versetzt ihn in den Sleep-Modus.
-  \item \textbf{0xFF — Software Reset:} Der STM32 führt einen sauberen Neustart durch; LoRaWAN-Join und periodische Uplinks werden korrekt aus dem NVM-Zustand wiederaufgenommen, ohne dass ein erneuter Join-Prozess nötig ist.
+  \item \textbf{0x11 (SPS30 Fan Cleaning):} Der SPS30 wird korrekt aufgeweckt, die Lüfterreinigung startet, der Cleanup-Timer stoppt den Sensor nach ca.\ $10\,\text{s}$ automatisch und versetzt ihn in den Sleep-Modus.
+  \item \textbf{0xFF (Software Reset):} Der STM32 führt einen sauberen Neustart durch; LoRaWAN-Join und periodische Uplinks werden korrekt aus dem NVM-Zustand wiederaufgenommen, ohne dass ein erneuter Join-Prozess nötig ist.
 \end{itemize}
 
 \subsection*{NVM-Persistenz}

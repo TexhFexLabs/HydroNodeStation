@@ -3,7 +3,7 @@
 
 \section*{Build-System}
 
-Die Firmware basiert auf einem \textbf{CMake}-Build-System mit dem \textbf{ARM GCC}-Toolchain (\texttt{arm-none-eabi-gcc}). Dies ermöglicht ein vollständig plattformunabhängiges Build ohne Abhängigkeit von einer proprietären IDE oder Toolchain-Umgebung — der gesamte Bauprozess läuft aus der Kommandozeile.
+Die Firmware basiert auf einem \textbf{CMake}-Build-System mit dem \textbf{ARM GCC}-Toolchain (\texttt{arm-none-eabi-gcc}). Dies ermöglicht ein vollständig plattformunabhängiges Build ohne Abhängigkeit von einer proprietären IDE oder Toolchain-Umgebung; der gesamte Bauprozess läuft aus der Kommandozeile.
 
 Es existieren zwei Build-Konfigurationen:
 
@@ -45,29 +45,29 @@ cmake --build build/Debug
 
 Die Firmware wird über einen \textbf{ST-Link V2} auf den Mikrocontroller geflasht. Der ST-Link kommuniziert über die \textbf{SWD-Schnittstelle} (Serial Wire Debug) direkt mit dem STM32 und ermöglicht sowohl das Schreiben des Flash-Inhalts als auch das schrittweise Debuggen im laufenden Betrieb.
 
-Als primäre IDE dient \textbf{JetBrains CLion} mit integriertem OpenOCD-Support. Das Flashen und Debuggen ist direkt aus der IDE heraus möglich und funktioniert zuverlässig — ein Klick genügt, um die Firmware zu bauen, auf das Board zu schreiben und eine Debug-Session zu starten.
+Als primäre IDE dient \textbf{JetBrains CLion} mit integriertem OpenOCD-Support. Das Flashen und Debuggen ist direkt aus der IDE heraus möglich und funktioniert zuverlässig: Ein Klick genügt, um die Firmware zu bauen, auf das Board zu schreiben und eine Debug-Session zu starten.
 
-\textbf{OpenOCD}\footnote{Open On-Chip Debugger — \url{https://openocd.org}} ist das eingesetzte quelloffene Werkzeug für Debugging und Flashen eingebetteter Systeme. Es stellt einen GDB-Server bereit, über den CLion die Debug-Session aufbaut und Breakpoints, Register sowie Speicher zur Laufzeit inspizieren kann.
+\textbf{OpenOCD}\footnote{Open On-Chip Debugger, \url{https://openocd.org}} ist das eingesetzte quelloffene Werkzeug für Debugging und Flashen eingebetteter Systeme. Es stellt einen GDB-Server bereit, über den CLion die Debug-Session aufbaut und Breakpoints, Register sowie Speicher zur Laufzeit inspizieren kann.
 
 \subsection*{Remote-Entwicklungsinfrastruktur}
 
-Um die Firmware auch von verschiedenen Standorten aus entwickeln, flashen und testen zu können, wurde eine eigene \textbf{Remote-Entwicklungsinfrastruktur} aufgebaut. Diese ermöglicht den vollständigen Entwicklungs- und Testzyklus — vom Schreiben des Codes über das Flashen bis zur Auswertung der LoRaWAN-Uplinks — ohne physische Anwesenheit am Gerät.
+Um die Firmware auch von verschiedenen Standorten aus entwickeln, flashen und testen zu können, wurde eine eigene \textbf{Remote-Entwicklungsinfrastruktur} aufgebaut. Diese ermöglicht den vollständigen Entwicklungs- und Testzyklus, vom Schreiben des Codes über das Flashen bis zur Auswertung der LoRaWAN-Uplinks, ohne physische Anwesenheit am Gerät.
 
 \begin{itemize}
   \item \textbf{Dedizierter Server:} Ein eigener Server läuft dauerhaft und hostet alle nötigen Dienste. Der Wio-E5 Mini Prototyp mit angeschlossenem ST-Link V2 ist permanent an diesen Server angebunden.
 
-  \item \textbf{OpenOCD als Systemdienst:} OpenOCD läuft auf dem Server als dauerhafter Systemdienst und exponiert einen GDB-Server-Port. CLion auf dem lokalen Rechner verbindet sich per SSH-Tunnel mit diesem Port und kann so die Firmware auf dem physisch entfernten Board flashen und live debuggen — exakt wie bei einem lokal angeschlossenen Board.
+  \item \textbf{OpenOCD als Systemdienst:} OpenOCD läuft auf dem Server als dauerhafter Systemdienst und exponiert einen GDB-Server-Port. CLion auf dem lokalen Rechner verbindet sich per SSH-Tunnel mit diesem Port und kann so die Firmware auf dem physisch entfernten Board flashen und live debuggen, exakt wie bei einem lokal angeschlossenen Board.
 
-  \item \textbf{Serieller Konsolen-Dienst:} Ein weiterer Systemdienst leitet die Debug-Ausgabe des STM32 über das Netzwerk weiter. Die Ausgabe erfolgt über eine software-emulierte UART (SW-UART) auf Pin PA6 mit 115200 Baud — der Hardware-USART1 ist im finalen PCB ungenutzt. Die serielle Konsole ist damit von jedem Standort aus in Echtzeit lesbar. Dies ermöglicht das direkte Beobachten von Log-Ausgaben, Sensorwerten und LoRaWAN-Ereignissen ohne physische Verbindung.
+  \item \textbf{Serieller Konsolen-Dienst:} Ein weiterer Systemdienst leitet die Debug-Ausgabe des STM32 über das Netzwerk weiter. Die Ausgabe erfolgt über eine software-emulierte UART (SW-UART) auf Pin PA6 mit 115200 Baud; der Hardware-USART1 ist im finalen PCB ungenutzt. Die serielle Konsole ist damit von jedem Standort aus in Echtzeit lesbar. Dies ermöglicht das direkte Beobachten von Log-Ausgaben, Sensorwerten und LoRaWAN-Ereignissen ohne physische Verbindung.
 
-  \item \textbf{Private Dashboards und Analyse-Tools:} Auf dem Server laufen eigene private Werkzeuge, die Uplink-Daten und Sensorwerte aufzeichnen, visualisieren und analysieren. So können vollständige Testläufe remote überwacht, historische Daten ausgewertet und Auffälligkeiten sofort erkannt werden — von jedem Gerät mit Internetzugang.
+  \item \textbf{Private Dashboards und Analyse-Tools:} Auf dem Server laufen eigene private Werkzeuge, die Uplink-Daten und Sensorwerte aufzeichnen, visualisieren und analysieren. So können vollständige Testläufe remote überwacht, historische Daten ausgewertet und Auffälligkeiten sofort erkannt werden, und das von jedem Gerät mit Internetzugang.
 \end{itemize}
 
 Diese Infrastruktur ist ein wesentlicher Bestandteil des Entwicklungsworkflows und hat sich als außerordentlich produktiv erwiesen: Änderungen können innerhalb von Minuten compiliert, geflasht und mit echten LoRaWAN-Daten verifiziert werden, unabhängig davon, wo man sich befindet.
 
 \subsection*{Helium-Gateway im Testumfeld}
 
-Für zuverlässigen LoRaWAN-Empfang während der gesamten Entwicklungsphase sorgt ein eigener \textbf{SenseCAP M2 Helium-Miner} in der Entwicklerwohnung. Dieser leistungsstarke Helium-Gateway bietet im gesamten Testbereich perfekten Empfang — auch ohne externe Antenne am Entwicklungsboard. Damit entfällt beim Testen das typische Problem schlechter Signalqualität im Innenbereich: LoRaWAN-Uplinks erreichen das Helium-Netzwerk zuverlässig bei jedem Testzyklus, und Downlinks kommen sicher an. Dies beschleunigt die Iteration erheblich, da Konnektivitätsprobleme als Fehlerquelle ausgeschlossen werden können.
+Für zuverlässigen LoRaWAN-Empfang während der gesamten Entwicklungsphase sorgt ein eigener \textbf{SenseCAP M2 Helium-Miner} in der Entwicklerwohnung. Dieser leistungsstarke Helium-Gateway bietet im gesamten Testbereich perfekten Empfang, auch ohne externe Antenne am Entwicklungsboard. Damit entfällt beim Testen das typische Problem schlechter Signalqualität im Innenbereich: LoRaWAN-Uplinks erreichen das Helium-Netzwerk zuverlässig bei jedem Testzyklus, und Downlinks kommen sicher an. Dies beschleunigt die Iteration erheblich, da Konnektivitätsprobleme als Fehlerquelle ausgeschlossen werden können.
 
 \newpage
 
@@ -78,17 +78,17 @@ Für zuverlässigen LoRaWAN-Empfang während der gesamten Entwicklungsphase sorg
 Beim Einschalten durchläuft der STM32WLE5 folgende Initialisierungsschritte in \texttt{main.c}:
 
 \begin{enumerate}
-  \item \textbf{HAL\_Init()} — STM32 HAL-Treiber und SysTick initialisieren.
-  \item \textbf{SystemClock\_Config()} — Systemtakt auf 48~MHz (MSI), LSE-Quarz ($32{,}768\,\text{kHz}$) für RTC.
-  \item \textbf{MX\_GPIO\_Init()} — GPIO-Pins konfigurieren (LEDs auf GPIOB, Buttons auf GPIOA mit EXTI, RF-Switch PC13).
-  \item \textbf{MX\_I2C2\_Init()} — I2C2-Master initialisieren (SDA: PA11, SCL: PA12, $4{,}7\,\text{k}\Omega$ Pull-ups gegen VDD). Im Prototyp (Wio-E5 Mini) lagen die Pins auf PA15/PB15; das Custom PCB verwendet PA11/PA12.
-  \item \textbf{MX\_LoRaWAN\_Init()} — LoRaWAN-Modem, Pre-Measurement-Timer und alle Sensoren initialisieren.
+  \item \textbf{HAL\_Init()}: STM32 HAL-Treiber und SysTick initialisieren.
+  \item \textbf{SystemClock\_Config()}: Systemtakt auf 48~MHz (MSI), LSE-Quarz ($32{,}768\,\text{kHz}$) für RTC.
+  \item \textbf{MX\_GPIO\_Init()}: GPIO-Pins konfigurieren (LEDs auf GPIOB, Buttons auf GPIOA mit EXTI, RF-Switch PC13).
+  \item \textbf{MX\_I2C2\_Init()}: I2C2-Master initialisieren (SDA: PA11, SCL: PA12, $4{,}7\,\text{k}\Omega$ Pull-ups gegen VDD). Im Prototyp (Wio-E5 Mini) lagen die Pins auf PA15/PB15; das Custom PCB verwendet PA11/PA12.
+  \item \textbf{MX\_LoRaWAN\_Init()}: LoRaWAN-Modem, Pre-Measurement-Timer und alle Sensoren initialisieren.
   \item \textbf{Debug-Pin-Prüfung:} Ist PB4 (\texttt{DEBUG\_SW\_Pin}) HIGH, wird \texttt{DebugProfile\_Run()} aufgerufen (kehrt nie zurück). Andernfalls folgt eine 10-Sekunden-LED-Blink-Phase zur visuellen Bestätigung des Bootvorgangs.
   \item \textbf{Hauptschleife:} Endlose Ausführung von \texttt{MX\_LoRaWAN\_Process()}.
   \item \textbf{Hinweis:} Der Hardware-USART1 ist im finalen PCB-Design nicht verwendet. Die gesamte Debug-Ausgabe läuft über eine software-emulierte UART auf PA6 (\texttt{sw\_uart.c}). Ein USB-UART-Adapter an PA6 zeigt alle \texttt{APP\_LOG}-Ausgaben, sofern \texttt{APP\_LOG\_ENABLED~1} in \texttt{sys\_conf.h} gesetzt ist.
 \end{enumerate}
 
-Innerhalb von \texttt{LoRaWAN\_Init()} werden nach der Sensor-Initialisierung Akkuspannung gelesen und bei ausreichendem Ladestand ($> 4050\,\text{mV}$) eine initiale Lüfterreinigung des SPS30 gestartet. Dies entfernt Lagerungsablagerungen vom optischen Sensor des SPS30 vor dem ersten produktiven Einsatz.
+Innerhalb von \texttt{LoRaWAN\_Init()} wird nach der Sensor-Initialisierung die Akkuspannung gelesen und bei ausreichendem Ladestand ($> 4050\,\text{mV}$) eine initiale Lüfterreinigung des SPS30 gestartet. Dies entfernt Lagerungsablagerungen vom optischen Sensor des SPS30 vor dem ersten produktiven Einsatz.
 
 \newpage
 \subsection*{Hauptschleife und Low-Power-Management}
@@ -132,15 +132,20 @@ Das LoRaWAN-Modem wird durch ein ereignisgetriebenes Modell gesteuert. Die \text
   \label{tab:events}
 \end{table}
 
-Beim ersten Boot-Ereignis (\texttt{RESET}) wird die Device-EUI automatisch aus der hardware-eindeutigen 96-Bit-UID des STM32 abgeleitet. Dadurch ist keine manuelle EUI-Konfiguration pro Gerät nötig — jede Station bekommt automatisch eine eindeutige Identität.
+Beim ersten Boot-Ereignis (\texttt{RESET}) wird die Device-EUI automatisch aus der hardware-eindeutigen 96-Bit-UID des STM32 abgeleitet. Dadurch ist keine manuelle EUI-Konfiguration pro Gerät nötig; jede Station bekommt automatisch eine eindeutige Identität.
 
 \newpage
 
 \section*{Messzyklus und Sendelogik}
 
-\subsection*{Der 30-Minuten-Superzyklus}
+\subsection*{Der 60-Minuten-Superzyklus}
 
-Die gesamte Sendelogik basiert auf einem \textbf{Tx-Zähler} (\texttt{tx\_counter}), der bei jedem Aufruf von \texttt{SendTxData()} von 1 bis 6 inkrementiert wird. Mit einem Standard-Sendeintervall von 5~Minuten ergibt sich ein Superzyklus von 30~Minuten, in dem jeder Sensor entsprechend seiner Energiecharakteristik unterschiedlich häufig abgefragt wird:
+Die gesamte Sendelogik basiert auf einem \textbf{Tx-Zähler} (\texttt{tx\_counter}), der bei jedem Aufruf von \texttt{SendTxData()} inkrementiert wird und nach Erreichen von~30 wieder bei~1 beginnt. Mit einem Standard-Sendeintervall von 2~Minuten (\texttt{APP\_TX\_DUTYCYCLE}) ergibt sich ein Superzyklus von 60~Minuten, in dem jeder Sensor entsprechend seiner Energiecharakteristik unterschiedlich häufig abgefragt wird. Die Auswahl der zusätzlich zu lesenden Sensoren erfolgt über Modulo-Bedingungen auf dem Zählerstand:
+
+\begin{verbatim}
+if (tx_counter % 10U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
+if (tx_counter % 15U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
+\end{verbatim}
 
 \begin{table}[H]
   \centering
@@ -148,35 +153,33 @@ Die gesamte Sendelogik basiert auf einem \textbf{Tx-Zähler} (\texttt{tx\_counte
     \hline
     \textbf{Zähler} & \textbf{t (min)} & \textbf{CO\textsubscript{2}} & \textbf{SPS30} & \textbf{fPort} & \textbf{Bytes} \\
     \hline
-    1 &  0 & — & — & 2 & 10 \\
-    2 &  5 & — & — & 2 & 10 \\
-    3 & 10 & \checkmark & — & 3 & 12 \\
-    4 & 15 & — & — & 2 & 10 \\
-    5 & 20 & — & — & 2 & 10 \\
-    6 & 25 & \checkmark & \checkmark & 4 & 32 \\
+    10 & 20 & \checkmark &           & 3 & 12 \\
+    15 & 30 &           & \checkmark & 4 & 32 \\
+    20 & 40 & \checkmark &           & 3 & 12 \\
+    30 & 60 & \checkmark & \checkmark & 4 & 32 \\
     \hline
   \end{tabular}
-  \caption{Sendezyklus: bei jedem Zähler werden SHT45, BMP390, LTR390 und MAX17048 gelesen; SCD41 zusätzlich bei Zähler 3 und 6, SPS30 bei Zähler 6.}
+  \caption{Sendezyklus: bei jedem Zähler werden SHT45, BMP390, LTR390 und MAX17048 gelesen. SCD41 (CO\textsubscript{2}) kommt bei jedem 10.~Uplink hinzu, SPS30 (Feinstaub) bei jedem 15.~Uplink. Bei allen übrigen Zählerständen wird auf fPort~2 mit 10~Byte gesendet.}
   \label{tab:txcycle}
 \end{table}
 
-Temperatur, Luftfeuchte, Luftdruck, UV und Akkuspannung werden bei \textit{jedem} Zyklus gemessen und übertragen — sie sind schnell und energiearm. CO\textsubscript{2} wird alle 15~Minuten (Zähler 3 und 6) abgefragt; Feinstaub (SPS30) nur alle 30~Minuten (Zähler 6), da der Gebläsebetrieb den höchsten Energieverbrauch aller Sensoren verursacht.
+Temperatur, Luftfeuchte, Luftdruck, UV und Akkuspannung werden bei \textit{jedem} Zyklus gemessen und übertragen, da sie schnell und energiearm sind. CO\textsubscript{2} wird alle 20~Minuten (jeder 10.~Uplink) abgefragt; Feinstaub (SPS30) nur alle 30~Minuten (jeder 15.~Uplink), da der Gebläsebetrieb den höchsten Energieverbrauch aller Sensoren verursacht. Fallen CO\textsubscript{2} und Feinstaub auf denselben Zählerstand (Vielfaches von~30), wird ein gemeinsamer fPort-4-Uplink gesendet.
 
 \subsection*{Pre-Measurement-Mechanismus}
 
-Da CO\textsubscript{2}- und Feinstaubmessungen Zeit benötigen (SCD41: ca.\ 5~s, SPS30: ca.\ 20~s), wäre ein direktes Wecken im Sendezyklus ineffizient. Stattdessen setzt die Firmware \textbf{Pre-Measurement-Timer}:
+Da CO\textsubscript{2}- und Feinstaubmessungen Zeit benötigen (SCD41: ca.\ 5{,}5~s, SPS30: ca.\ 16{,}5~s), wäre ein direktes Wecken im Sendezyklus ineffizient. Stattdessen setzt die Firmware \textbf{Pre-Measurement-Timer} ein:
 
 Unmittelbar nach dem Senden eines Uplinks berechnet die Firmware, welche Sensoren im \textit{nächsten} Zyklus benötigt werden. Dazu wird der nächste Zählerstand berechnet:
 
 \begin{verbatim}
-next_counter = (tx_counter % 6U) + 1U;
-if (next_counter % 3U == 0U) { /* SCD41-Timer starten */ }
-if (next_counter % 6U == 0U) { /* SPS30-Timer starten */ }
+next_counter = (tx_counter % 30U) + 1U;
+if (next_counter % 10U == 0U) { /* SCD41-Timer starten */ }
+if (next_counter % 15U == 0U) { /* SPS30-Timer starten */ }
 \end{verbatim}
 
 \begin{itemize}
-  \item \textbf{SCD41-Timer:} Feuert $5\,\text{s}$ vor dem nächsten geplanten Uplink. Die Timer-Periode berechnet sich als $(\texttt{dutycycle} \times 1000 - 5000)\,\text{ms}$. Der Callback \texttt{OnScd41TimerEvent()} startet die CO\textsubscript{2}-Single-Shot-Messung; der MCU schläft währenddessen weiter in STOP2.
-  \item \textbf{SPS30-Timer:} Feuert $20\,\text{s}$ vor dem nächsten Uplink, weckt den SPS30 auf und startet die Partikelmessung. Zum Zeitpunkt des Uplinks ist die Messung fertig; der Sensor wird direkt danach wieder in den Schlafmodus versetzt.
+  \item \textbf{SCD41-Timer:} Feuert $5{,}5\,\text{s}$ vor dem nächsten geplanten Uplink. Die Timer-Periode berechnet sich als $(\texttt{dutycycle} \times 1000 - 5500)\,\text{ms}$. Der Callback \texttt{OnScd41TimerEvent()} startet die CO\textsubscript{2}-Single-Shot-Messung; der MCU schläft währenddessen weiter in STOP2.
+  \item \textbf{SPS30-Timer:} Feuert $16{,}5\,\text{s}$ vor dem nächsten Uplink, weckt den SPS30 auf und startet die Partikelmessung. Zum Zeitpunkt des Uplinks ist die Messung fertig; der Sensor wird direkt danach wieder in den Schlafmodus versetzt.
 \end{itemize}
 
 Durch diesen Mechanismus liegen alle Messergebnisse zum Zeitpunkt des Uplinks bereits vor, ohne dass im Sendezyklus aktiv gewartet werden muss.
@@ -192,19 +195,19 @@ Alle Uplink-Payloads verwenden \textbf{2-Byte Big-Endian}-Kodierung für jeden W
     \textbf{fPort} & \textbf{Feld} & \textbf{Typ / Skalierung} & \textbf{Byte-Offset} \\
     \hline
     \multirow{5}{*}{2}
-      & Temperatur        & i16, $0{,}01\,{^\circ}$C & 0–1 \\
-      & Luftfeuchte       & u16, $0{,}01\,\%\text{rH}$ & 2–3 \\
-      & Luftdruck         & u16, $0{,}1\,\text{hPa}$    & 4–5 \\
-      & Akkuspannung      & u16, $1\,\text{mV}$           & 6–7 \\
-      & UV-Index (×100)   & u16, $÷100 = \text{UVI}$     & 8–9 \\
+      & Temperatur        & i16, $0{,}01\,{^\circ}$C & 0\dots1 \\
+      & Luftfeuchte       & u16, $0{,}01\,\%\text{rH}$ & 2\dots3 \\
+      & Luftdruck         & u16, $0{,}1\,\text{hPa}$    & 4\dots5 \\
+      & Akkuspannung      & u16, $1\,\text{mV}$           & 6\dots7 \\
+      & UV-Index ($\times 100$)   & u16, $\div 100 = \text{UVI}$     & 8\dots9 \\
     \hline
-    3 & wie fPort~2 + CO\textsubscript{2} & u16, $1\,\text{ppm}$ & 10–11 \\
+    3 & wie fPort~2 + CO\textsubscript{2} & u16, $1\,\text{ppm}$ & 10\dots11 \\
     \hline
     \multirow{3}{*}{4}
       & wie fPort~3       & &  \\
-      & PM1.0/2.5/4.0/10.0 & u16, $0{,}1\,\mu\text{g}/\text{m}^3$ & 12–19 \\
-      & NC0.5/1.0/2.5/4.0/10.0 & u16, $0{,}1\,\#/\text{cm}^3$ & 20–29 \\
-      & Typ.\ Partikelgröße & u16, $1\,\text{nm}$ ($\div 1000 = \mu\text{m}$) & 30–31 \\
+      & PM1.0/2.5/4.0/10.0 & u16, $0{,}1\,\mu\text{g}/\text{m}^3$ & 12\dots19 \\
+      & NC0.5/1.0/2.5/4.0/10.0 & u16, $0{,}1\,\#/\text{cm}^3$ & 20\dots29 \\
+      & Typ.\ Partikelgröße & u16, $1\,\text{nm}$ ($\div 1000 = \mu\text{m}$) & 30\dots31 \\
     \hline
   \end{tabular}
   \caption{Uplink-Payload-Format je LoRaWAN-Port (alle Felder Big-Endian)}
@@ -225,16 +228,16 @@ Die Firmware überwacht die Akkuspannung nach jedem Messzyklus und passt das Sen
     \hline
     \textbf{Akkuspannung} & \textbf{Sendeintervall} & \textbf{Verhalten} \\
     \hline
-    $\geq 3400\,\text{mV}$ (normal) & 5~min & Vollbetrieb, alle Sensoren \\
-    $< 3400\,\text{mV}$ (niedrig)  & 10~min & Interval $\times 2$ \\
-    $< 3000\,\text{mV}$ (kritisch) & 60~min & Interval $\times 12$, \texttt{tx\_counter} reset (nur fPort~2) \\
+    $\geq 3400\,\text{mV}$ (normal) & 2~min & Vollbetrieb, alle Sensoren \\
+    $< 3400\,\text{mV}$ (niedrig)  & 4~min & Intervall $\times 2$ \\
+    $< 3000\,\text{mV}$ (kritisch) & 12~min & Intervall $\times 6$, \texttt{tx\_counter} reset (nur fPort~2) \\
     \hline
   \end{tabular}
   \caption{Batterie-adaptives Sendeverhalten}
   \label{tab:battery}
 \end{table}
 
-Im kritischen Bereich wird \texttt{tx\_counter} auf~0 zurückgesetzt, sodass ausschließlich fPort-2-Uplinks ohne CO\textsubscript{2} und Feinstaub gesendet werden. Da dies die energieintensivsten Sensoren ausschließt, verlängert sich die Restlaufzeit erheblich.
+Im kritischen Bereich wird \texttt{tx\_counter} auf~0 zurückgesetzt, sodass der Zähler nur langsam wieder die Schwellen für CO\textsubscript{2} und Feinstaub erreicht und überwiegend reine fPort-2-Uplinks ohne diese Werte gesendet werden. Da dies die energieintensivsten Sensoren weitgehend ausschließt, verlängert sich die Restlaufzeit erheblich.
 
 \section*{Downlink-Befehle}
 
@@ -246,7 +249,7 @@ Die Station empfängt Downlink-Nachrichten auf dem konfigurierten Befehlsport (\
     \hline
     \textbf{Byte 0} & \textbf{Hex} & \textbf{Funktion} \\
     \hline
-    SPS30 Fan Cleaning & \texttt{0x11} & Lüfterreinigung des SPS30 manuell auslösen (10~s) \\
+    SPS30 Fan Cleaning & \texttt{0x11} & Lüfterreinigung des SPS30 manuell auslösen (ca.\ 10{,}5~s) \\
     Software Reset      & \texttt{0xFF} & STM32 per \texttt{HAL\_NVIC\_SystemReset()} neu starten \\
     \hline
   \end{tabular}
@@ -254,11 +257,11 @@ Die Station empfängt Downlink-Nachrichten auf dem konfigurierten Befehlsport (\
   \label{tab:downlink}
 \end{table}
 
-Zusätzlich zur manuell auslösbaren Lüfterreinigung führt die Firmware alle 120~Stunden automatisch eine Reinigung des SPS30 durch — sofern die Akkuspannung über $4120\,\text{mV}$ liegt, um den Energieaufwand des Gebläses sicher abdecken zu können. Ein dedizierter Cleanup-Timer stoppt den SPS30 nach $10\,\text{s}$ und versetzt ihn wieder in den Sleep-Modus.
+Zusätzlich zur manuell auslösbaren Lüfterreinigung führt die Firmware alle 120~Stunden automatisch eine Reinigung des SPS30 durch, sofern die Akkuspannung über $4120\,\text{mV}$ liegt, um den Energieaufwand des Gebläses sicher abdecken zu können. Ein dedizierter Cleanup-Timer stoppt den SPS30 nach ca.\ $10{,}5\,\text{s}$ und versetzt ihn wieder in den Sleep-Modus.
 
 \section*{NVM-Persistenz}
 
-Der komplette LoRaWAN-Modem-Zustand (Session-Keys, Frame-Counter, Netzwerk-Parameter) wird im internen Flash des STM32WLE5 persistent gespeichert. Dadurch ist nach einem Neustart — etwa durch den \texttt{0xFF}-Downlink oder einen Stromausfall — kein erneuter Join-Vorgang nötig; die Station nimmt den Betrieb sofort mit dem bestehenden Session-Zustand wieder auf.
+Der komplette LoRaWAN-Modem-Zustand (Session-Keys, Frame-Counter, Netzwerk-Parameter) wird im internen Flash des STM32WLE5 persistent gespeichert. Dadurch ist nach einem Neustart, etwa durch den \texttt{0xFF}-Downlink oder einen Stromausfall, kein erneuter Join-Vorgang nötig; die Station nimmt den Betrieb sofort mit dem bestehenden Session-Zustand wieder auf.
 
 Die Flash-Adressen liegen im letzten Sektor des $256\,\text{kB}$-Flashs:
 
@@ -302,7 +305,7 @@ PM MC [0.1 ug/m3]: 1.0=12  2.5=18  4.0=20  10=21
 PM NC [0.1 #/cm3]: 0.5=1420  ...  TypSize=384 nm
 \end{verbatim}
 
-Das Debug-Profil ist insbesondere nützlich, um Sensoren nach dem Einbau ins Gehäuse zu verifizieren, UV-Index-Kalibrierungen zu prüfen und Plausibilitätschecks im Außenbetrieb durchzuführen, ohne auf den 5-Minuten-Sendezyklus warten zu müssen.
+Das Debug-Profil ist insbesondere nützlich, um Sensoren nach dem Einbau ins Gehäuse zu verifizieren, UV-Index-Kalibrierungen zu prüfen und Plausibilitätschecks im Außenbetrieb durchzuführen, ohne auf den regulären Sendezyklus warten zu müssen.
 
 \section*{Sensor-Treiber}
 

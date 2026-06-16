@@ -139,7 +139,7 @@ Das HydroNodeNetzwerk gliedert sich in vier Schichten:
   \item Der konfigurierte \texttt{LoRaFPortConfig}-Eintrag für den jeweiligen \texttt{fPort}
         definiert das Kanal-Layout (Byteanzahl, Vorzeichen, Skalierungsfaktor je Kanal).
         Der \texttt{LoRaFPortDecoder} dekodiert den Payload nach diesem Schema (Big-Endian).
-  \item Die dekodieren Werte werden als \texttt{SensorVerifiedEvent} direkt nach
+  \item Die dekodierten Werte werden als \texttt{SensorVerifiedEvent} direkt nach
         \texttt{hydronode.verified.sensor} publiziert und vom \texttt{SensorValueProcessor}
         identisch zum HTTPS-Pfad weiterverarbeitet.
   \item Parallel aktualisiert der \texttt{StationSignalUpdateService} die Signalmetriken
@@ -162,11 +162,11 @@ Der Endpunkt \texttt{POST /api/webhook/lorawan/sns} nimmt SNS-Notifications entg
 Er behandelt drei SNS-Nachrichtentypen:
 
 \begin{itemize}
-  \item \texttt{SubscriptionConfirmation} — Das Backend bestätigt die SNS-Subscription automatisch,
+  \item \texttt{SubscriptionConfirmation}: Das Backend bestätigt die SNS-Subscription automatisch,
         indem es die im Feld \texttt{SubscribeURL} enthaltene URL per GET-Request aufruft.
         Es ist kein manueller Eingriff erforderlich.
-  \item \texttt{Notification} — Enthält im Feld \texttt{Message} das JSON-kodierte ChirpStack-v4-Uplink-Event.
-  \item \texttt{UnsubscribeConfirmation} — Wird quittiert, ohne weitere Aktion.
+  \item \texttt{Notification}: Enthält im Feld \texttt{Message} das JSON-kodierte ChirpStack-v4-Uplink-Event.
+  \item \texttt{UnsubscribeConfirmation}: Wird quittiert, ohne weitere Aktion.
 \end{itemize}
 
 \subsection*{Helium-Onboarding für Drittanwender}
@@ -180,11 +180,11 @@ diesen Schritten:
   \item In ChirpStack unter \textit{Applications $\rightarrow$ Integrations} eine
         \textit{AWS SNS}-Integration konfigurieren:
         AWS Region, SNS Topic ARN sowie IAM-Zugangsdaten mit \texttt{sns:Publish}-Berechtigung eintragen.
-  \item Im AWS SNS-Topic ein Subscription vom Typ \textit{HTTPS} erstellen mit der Endpoint-URL:
+  \item Im AWS SNS-Topic eine Subscription vom Typ \textit{HTTPS} erstellen mit der Endpoint-URL:
 \begin{verbatim}
 https://hydronode.texhfexlabs.de/api/webhook/lorawan/sns
 \end{verbatim}
-        \textbf{Wichtig:} \textit{Raw Message Delivery} muss \textbf{deaktiviert} bleiben — das Backend benötigt den vollständigen SNS-Envelope mit Metadaten.
+        \textbf{Wichtig:} \textit{Raw Message Delivery} muss \textbf{deaktiviert} bleiben, da das Backend den vollständigen SNS-Envelope mit Metadaten benötigt.
   \item Nach Anlage der Subscription sendet AWS eine \texttt{SubscriptionConfirmation}-Nachricht
         an den Endpunkt. Das HydroNode-Backend bestätigt diese automatisch.
         Im AWS-Console-Status erscheint die Subscription anschließend als \textit{Confirmed}.
@@ -263,11 +263,11 @@ Die iOS-App \textit{HydroNode} kommuniziert ausschließlich über die REST-API d
 Relevante Endpunkte für das Netzwerkkonzept:
 
 \begin{itemize}
-  \item \texttt{GET /api/stations/\{id\}} — Stationsdaten inkl.\ Signalmetriken (RSSI, SNR,
+  \item \texttt{GET /api/stations/\{id\}}: Stationsdaten inkl.\ Signalmetriken (RSSI, SNR,
         Gateway-Koordinaten, Zeitpunkt des letzten Uplinks).
-  \item \texttt{GET /api/stations/\{id\}/measurements} — Aggregierte Messwerte aller
+  \item \texttt{GET /api/stations/\{id\}/measurements}: Aggregierte Messwerte aller
         Sensoren einer Station.
-  \item \texttt{GET /api/stations/public} — Öffentlich sichtbare Stationen für
+  \item \texttt{GET /api/stations/public}: Öffentlich sichtbare Stationen für
         kartenbasierte Darstellungen.
 \end{itemize}
 
@@ -281,9 +281,9 @@ Zur Reduzierung von Datenbankabfragen im kritischen Empfangspfad setzt das Backe
 auf drei In-Process-Caches mit einer TTL von jeweils 90~Minuten:
 
 \begin{itemize}
-  \item \texttt{DeviceKeyCache} — Abbildung Sensor-UUID auf Secret (HTTPS-Authentifizierung).
-  \item \texttt{SensorLookupCache} — Abbildung DevEUI auf Sensor-UUID (LoRaWAN-Authentifizierung).
-  \item \texttt{FPortConfigCache} — Abbildung (Sensor-UUID, fPort) auf Kanalstruktur
+  \item \texttt{DeviceKeyCache}: Abbildung Sensor-UUID auf Secret (HTTPS-Authentifizierung).
+  \item \texttt{SensorLookupCache}: Abbildung DevEUI auf Sensor-UUID (LoRaWAN-Authentifizierung).
+  \item \texttt{FPortConfigCache}: Abbildung (Sensor-UUID, fPort) auf Kanalstruktur
         (LoRaWAN-Dekodierung).
 \end{itemize}
 
@@ -296,7 +296,7 @@ Die Kafka-basierte Architektur entkoppelt Empfang und Verarbeitung von Nachricht
 Ein kurzfristiger Ausfall des \texttt{SensorValueProcessor} führt nicht zu Datenverlust,
 da Nachrichten im Topic erhalten bleiben bis sie konsumiert werden.
 Der HTTPS-Webhook-Endpunkt antwortet dem Sender mit \texttt{202 Accepted}, sobald die
-Nachricht im Ingress-Topic liegt — unabhängig von der weiteren Verarbeitungszeit.
+Nachricht im Ingress-Topic liegt, unabhängig von der weiteren Verarbeitungszeit.
 
 \subsection*{Datenbankschema-Management}
 
@@ -317,7 +317,7 @@ ausgelegt. Für eine horizontale Skalierung des Backends sind folgende Punkte re
   \item Kafka-Consumer sind als Single-Consumer konfiguriert; eine Partitionierung
         der Topics ermöglicht parallele Verarbeitung durch mehrere Instanzen.
   \item Amazon SNS unterstützt nativ mehrere Subscriptions, sodass mehrere Backend-Instanzen
-        parallel Uplinks empfangen können — sofern das Cache-Problem gelöst ist.
+        parallel Uplinks empfangen können, sofern das Cache-Problem gelöst ist.
 \end{itemize}
 
 \newpage
@@ -346,11 +346,11 @@ Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend 
 
   Die HydroNode iOS-App integriert Amazon Bedrock Nova Micro als KI-Komponente zur
   automatisierten Analyse von Sensoranomalien. Das Quarkus-Backend führt alle
-  15~Minuten einen Analysezyklus durch: Erkennt die statistische Auswertung eine
-  Auffälligkeit – etwa einen plötzlichen Wertesprung (\emph{SPIKE}), einen
+  15~Minuten einen Analysezyklus durch. Erkennt die statistische Auswertung eine
+  Auffälligkeit, etwa einen plötzlichen Wertesprung (\emph{SPIKE}), einen
   unerwarteten Einbruch (\emph{DROP}), einen schleichenden Drift
   (\emph{GRADUAL\_DRIFT}) oder eine Schwellenwertüberschreitung
-  (\emph{THRESHOLD\_BREACH}) – wird die Anomalie serverseitig an Amazon Bedrock
+  (\emph{THRESHOLD\_BREACH}), so wird die Anomalie serverseitig an Amazon Bedrock
   Nova Micro übergeben. Zusätzlich erzeugt das System alle 6~Stunden eine
   Routineanalyse aller aktiven Sensoren, auch ohne erkannte Anomalie, um
   schleichende Veränderungen frühzeitig zu erfassen.
@@ -370,7 +370,7 @@ Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend 
     \item Erfassungszeitpunkt.
   \end{itemize}
 
-  Der System-Prompt ist je nach Installation unterschieden: Bei
+  Der System-Prompt unterscheidet sich je nach Installation: Bei
   \emph{Outdoor}-Sensoren (Wetterstation) wird das Modell angewiesen,
   Ausreißer zunächst durch Wetterereignisse (Regen, Wind, Tagesgang) zu erklären
   und Alarme nur bei klar pathologischen Werten auszugeben.
@@ -379,9 +379,10 @@ Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend 
   gewertet (\emph{should\_alert\,=\,false}), während anhaltender
   CO\textsubscript{2}-Anstieg oder pH/EC-Drift als echtes Problem eingestuft wird.
 
+  Das Modell liefert eine strukturierte JSON-Antwort zurück. Diese umfasst
   eine Erklärung der Ursache (\emph{explanation}), Konfidenz (\emph{confidence})
   und Umgebungsbewertung (\emph{environment\_score}) jeweils auf einer Skala
-  von 0–1, einen Luftqualitätsscore (\emph{air\_quality\_score}), die Erkennung
+  von 0 bis 1, einen Luftqualitätsscore (\emph{air\_quality\_score}), die Erkennung
   eines Lüftungsereignisses (\emph{is\_ventilation\_event}), ein Alert-Flag
   (\emph{should\_alert}), einen Alert-Schweregrad
   (\emph{alert\_severity}: \texttt{NONE} $|$ \texttt{LOW} $|$ \texttt{MEDIUM}
@@ -398,8 +399,8 @@ Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend 
                                                             
   Die Detailansicht einer Sensorstation (\texttt{SensorDetailView}) stellt                                                                           
   Messzeitreihen als interaktiven Linien- und Flächengraphen dar, der auf
-  dem Swift-Charts-Framework basiert. Für jeden Messkanal – darunter                                                                                 
-  Temperatur, Luftfeuchte, pH-Wert und TDS – lässt sich ein Zeitfenster                                                                              
+  dem Swift-Charts-Framework basiert. Für jeden Messkanal, darunter                                                                                 
+  Temperatur, Luftfeuchte, pH-Wert und TDS, lässt sich ein Zeitfenster                                                                              
   zwischen~6~Stunden und~7~Tagen auswählen; ein benutzerdefinierter                                                                                  
   Datumsbereich ist ebenfalls möglich. Zur Performanzoptimierung aggregiert                                                                          
   die App Messwerte intervallabhängig (z.\,B.\ 20-Minuten-Mittel für                                                                                 

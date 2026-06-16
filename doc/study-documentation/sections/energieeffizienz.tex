@@ -43,7 +43,7 @@ Dieser Wert setzt voraus, dass alle Komponenten vollständig in den jeweiligen S
 
 \subsection*{Gemessener Wert (Custom PCB)}
 
-PPK2-Strommessungen am Custom PCB ergaben im STOP2-Zustand einen tatsächlichen Ruhestrom von ca.\ \textbf{600~µA} — rund zwei Größenordnungen über dem theoretischen Wert. Mehrere Faktoren können diesen erhöhten Strom erklären:
+PPK2-Strommessungen am Custom PCB ergaben im STOP2-Zustand einen tatsächlichen Ruhestrom von ca.\ \textbf{600~µA}, also rund zwei Größenordnungen über dem theoretischen Wert. Mehrere Faktoren können diesen erhöhten Strom erklären:
 
 \begin{itemize}
   \item \textbf{SCD41 IR-Lichtquelle:} Der SCD41 nutzt photoacoustische Detektion. Es ist nicht auszuschließen, dass die interne IR-Lichtquelle oder die zugehörige Elektronik im Power-Down-Zustand mehr Strom zieht als im Datenblatt angegeben.
@@ -86,12 +86,12 @@ PPK2-Messungen am Custom PCB (01.06.2026, Messdatei: \texttt{ppk2-20260601T14344
 \section*{Mittlerer Strom und Batterielaufzeit}
 \label{sec:stop2}
 
-Da der STOP2-Schlafmodus den weitaus größten Anteil der Betriebszeit ausmacht (im 30-Minuten-Superzyklus sind die 6 TX-Phasen je $< 2\,\text{s}$), nähert sich der mittlere Systemstrom dem Schlafstrom an:
+Die Firmware sendet im regulären Betrieb alle 120~s einen Uplink (\texttt{APP\_TX\_DUTYCYCLE}), also 30~Uplinks pro Stunde. Da der STOP2-Schlafmodus den weitaus größten Anteil der Betriebszeit ausmacht (die kurzen TX-Phasen dauern je $< 2\,\text{s}$), nähert sich der mittlere Systemstrom dem Schlafstrom an:
 
 \begin{description}
   \item[Gemessener STOP2-Strom:] $\approx 600\,\mu\text{A}$
-  \item[TX-Overhead (6 Uplinks / 30~min):] vernachlässigbar im Stundenmittel
-  \item[Mittlerer Strom $I_{\text{avg}}$:] $\approx 600$–$700\,\mu\text{A}$
+  \item[TX-Overhead (30 Uplinks / Stunde):] vernachlässigbar im Stundenmittel
+  \item[Mittlerer Strom $I_{\text{avg}}$:] $\approx 600$ bis $700\,\mu\text{A}$
 \end{description}
 
 \begin{table}[H]

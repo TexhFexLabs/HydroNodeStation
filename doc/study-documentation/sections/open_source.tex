@@ -3,23 +3,23 @@
 
 \section*{Motivation}
 
-Die Entwicklung der HydroNodeStation01 folgte von Beginn an einer Überzeugung: Nützliche Technologie entfaltet ihre volle Wirkung erst dann, wenn sie frei zugänglich ist. Hyperlokal aufgelöste Umweltdaten sind ein gesellschaftliches Gut — je mehr Menschen Zugang zu dieser Technologie haben, desto dichter, aussagekräftiger und demokratischer werden die entstehenden Messnetzwerke.
+Die Entwicklung der HydroNodeStation01 folgte von Beginn an einer Überzeugung: Nützliche Technologie entfaltet ihre volle Wirkung erst dann, wenn sie frei zugänglich ist. Hyperlokal aufgelöste Umweltdaten sind ein gesellschaftliches Gut. Je mehr Menschen Zugang zu dieser Technologie haben, desto dichter, aussagekräftiger und demokratischer werden die entstehenden Messnetzwerke.
 
-Fertige kommerzielle Wetterstationen sind oft teuer, geschlossen und nicht auf individuelle Anforderungen anpassbar. Open-Source-Alternativen hingegen ermöglichen es Forschern, Citizen-Scientists und Entwicklern, das Design zu verstehen, zu adaptieren und weiterzuentwickeln. Wer eigene Sensoren hinzufügen, das Sendeintervall anpassen oder das PCB-Layout für seine Anforderungen modifizieren möchte, kann das mit einer offenen Plattform tun — ohne proprietäre Werkzeuge, Lizenzgebühren oder Abhängigkeit von einem Hersteller.
+Fertige kommerzielle Wetterstationen sind oft teuer, geschlossen und nicht auf individuelle Anforderungen anpassbar. Open-Source-Alternativen hingegen ermöglichen es Forschern, Citizen-Scientists und Entwicklern, das Design zu verstehen, zu adaptieren und weiterzuentwickeln. Wer eigene Sensoren hinzufügen, das Sendeintervall anpassen oder das PCB-Layout für seine Anforderungen modifizieren möchte, kann das mit einer offenen Plattform tun, ohne proprietäre Werkzeuge, Lizenzgebühren oder Abhängigkeit von einem Hersteller.
 
-Die modulare I2C-Architektur der HydroNodeStation01 ist bewusst auf dieses Ziel ausgelegt: Jeder kompatible Sensor lässt sich hinzufügen, ohne die Kernarchitektur anzutasten. Die Firmware ist klar strukturiert und soll nach der Veröffentlichung so generalisiert werden, dass sie mit minimalem Aufwand für beliebige Sensorkonstellationen konfiguriert werden kann.
+Die modulare I2C-Architektur der HydroNodeStation01 ist bewusst auf dieses Ziel ausgelegt. Jeder kompatible Sensor lässt sich hinzufügen, ohne die Kernarchitektur anzutasten. Die Firmware ist klar strukturiert und soll nach der Veröffentlichung so generalisiert werden, dass sie mit minimalem Aufwand für beliebige Sensorkonstellationen konfiguriert werden kann.
 
-\section*{OSWHLAB Start 2026 Contest}
+\section*{OSHWLab Start 2026 Contest}
 
-Das Projekt HydroNodeStation01 wurde beim \textbf{OSWHLAB Start 2026 Open Source Contest} angemeldet — einer Initiative, die Open-Source-Hardware-Projekte fördert, ihnen Sichtbarkeit verleiht und die Autoren mit Sachleistungen für die Fertigung unterstützt. Im Rahmen dieser Förderung wurde ein \textbf{Gutschein im Wert von 150~USD} für die JLCPCB-Fertigung bereitgestellt, der einen substanziellen Teil der Produktionskosten (Gesamtkosten inkl.\ Bestückung, Versand und Steuern: ca.\ 200\,€) abdeckte.
+Das Projekt HydroNodeStation01 wurde beim \textbf{OSHWLab Start 2026 Open Source Contest} angemeldet, einer Initiative, die Open-Source-Hardware-Projekte fördert, ihnen Sichtbarkeit verleiht und die Autoren mit Sachleistungen für die Fertigung unterstützt. Im Rahmen dieser Förderung wurde ein \textbf{Gutschein im Wert von 150~USD} für die JLCPCB-Fertigung bereitgestellt, der einen substanziellen Teil der Produktionskosten (Gesamtkosten inkl.\ Bestückung, Versand und Steuern: ca.\ 200\,€) abdeckte.
 
-Der finanzielle Aspekt war jedoch nicht die primäre Motivation für die Teilnahme. Der OSWHLAB-Contest legt Wert auf \textit{echte} Open-Source-Konformität: Schaltpläne, PCB-Layouts und Firmware müssen vollständig, reproduzierbar und ohne proprietäre Werkzeuge zugänglich sein. Dieser Anspruch deckt sich exakt mit der Projektphilosophie — die Teilnahme am Wettbewerb war eine logische Konsequenz dieser Ausrichtung, nicht ihr Auslöser.
+Der finanzielle Aspekt war jedoch nicht die primäre Motivation für die Teilnahme. Der OSHWLab-Contest legt Wert auf \textit{echte} Open-Source-Konformität: Schaltpläne, PCB-Layouts und Firmware müssen vollständig, reproduzierbar und ohne proprietäre Werkzeuge zugänglich sein. Dieser Anspruch deckt sich exakt mit der Projektphilosophie, die Teilnahme am Wettbewerb war eine logische Konsequenz dieser Ausrichtung und nicht ihr Auslöser.
 
-\section*{Lizenz: CC BY-NC-SA 4.0}
+\section*{Lizenzen}
 
-PCB, Firmware (Mikrocontroller-Firmware der HydroNodeStation01) und das Stevenson-Screen-Gehäuse werden unter der \textbf{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International} (CC BY-NC-SA 4.0) Lizenz veröffentlicht.
+Hardware und Firmware werden unter getrennten Lizenzen veröffentlicht. Die Hardware, also Schaltplan, PCB und das CAD-Gehäuse (Stevenson-Screen sowie PCB-Außengehäuse), steht unter der \textbf{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International} (CC BY-NC-SA 4.0). Die Mikrocontroller-Firmware (\texttt{stm32\_node}) steht unter der \textbf{BSD-3-Clause}-Lizenz (in Anlehnung an die Codebasis von STMicroelectronics und Semtech) ergänzt um den eigenen Anwendungscode.
 
-Diese Lizenz:
+Die CC-BY-NC-SA-4.0-Lizenz der Hardware:
 \begin{itemize}
   \item \textbf{erlaubt} das freie Verwenden, Kopieren, Teilen und Anpassen der Materialien für jeden nichtkommerziellen Zweck,
   \item \textbf{verlangt} die Namensnennung des ursprünglichen Autors in allen abgeleiteten Werken,
@@ -27,24 +27,24 @@ Diese Lizenz:
   \item \textbf{verlangt}, dass abgeleitete Werke unter denselben Lizenzbedingungen (CC BY-NC-SA) weitergegeben werden.
 \end{itemize}
 
-Diese Wahl stellt sicher, dass die Plattform dauerhaft frei für Forschung, Bildung, Citizen Science und private Projekte bleibt, während eine kommerzielle Vereinnahmung ohne Rücksprache ausgeschlossen ist.
+Diese Wahl stellt sicher, dass die offene Hardware dauerhaft frei für Forschung, Bildung, Citizen Science und private Projekte bleibt, während eine kommerzielle Vereinnahmung ohne Rücksprache ausgeschlossen ist.
 
-\textit{Hinweis:} Die Lizenz gilt für die stationsspezifische Hardware (PCB, Schaltplan, Gehäuse) und die Mikrocontroller-Firmware (\texttt{stm32\_node}). Das \textit{HydroNode-Backend}, die iOS-App und das HydroNode-Netzwerk unterliegen separaten Lizenzen und sind nicht Gegenstand dieser Veröffentlichung.
+\textit{Hinweis:} Die genannten Lizenzen gelten für die stationsspezifische Hardware (PCB, Schaltplan, Gehäuse) und die Mikrocontroller-Firmware (\texttt{stm32\_node}). Das \textit{HydroNode-Backend}, die iOS-App und das HydroNode-Netzwerk unterliegen separaten Lizenzen und sind nicht Gegenstand dieser Veröffentlichung.
 
 \section*{Veröffentlichung}
 
-Das Projekt wurde nach erfolgreichem PCB-Test und Beginn des Feldbetriebs auf GitHub veröffentlicht. Das Repository ist unter \url{https://github.com/TexhFexLabs/hydroNodeStation01} öffentlich zugänglich. Ziel ist eine Plattform, die jemand mit grundlegenden Embedded-Kenntnissen hernehmen, auf seine eigene Sensorausstattung anpassen und als vollständig funktionsfähige, energieeffiziente Messstation in Betrieb nehmen kann.
+Das Projekt wurde nach erfolgreichem PCB-Test und Beginn des Feldbetriebs auf GitHub veröffentlicht. Das Repository ist unter \url{https://github.com/TexhFexLabs/hydroNodeStation01} öffentlich zugänglich. Ziel ist eine Plattform, die jemand mit grundlegenden Embedded-Kenntnissen übernehmen, auf seine eigene Sensorausstattung anpassen und als vollständig funktionsfähige, energieeffiziente Messstation in Betrieb nehmen kann.
 
 Veröffentlichte Inhalte:
 
 \begin{itemize}
-  \item \textbf{Hardware:} Schaltplan-PDF, PCB-Renders, BOM und Gerber-Exportdaten auf GitHub. Angestrebte OSHWA-Zertifizierung des Designs über OSHWLab.
+  \item \textbf{Hardware:} Schaltplan-PDF, PCB-Renders und BOM auf GitHub (Verzeichnisse \texttt{hardware/schematics\_pcb/}, \texttt{hardware/ordered\_pcb/} und \texttt{hardware/bom/}). Das Board wurde zudem in EasyEDA Pro entworfen und ist dort als forkbares Projekt zugänglich.
 
   \item \textbf{Firmware:} Vollständig auf GitHub inklusive CMake-Build-System, schrittweiser Inbetriebnahme-Anleitung (\texttt{doc/GETTING\_STARTED.md}) und Konfigurationsreferenz (\texttt{doc/CONFIGURATION.md}).
 
-  \item \textbf{Gehäuse:} STL-Dateien und STEP-Quelldateien des Stevenson-Screen-Gehäuses sowie des PCB-Außengehäuses im Verzeichnis \texttt{hardware/CAD/}.
+  \item \textbf{Gehäuse:} 3MF-Modelldateien des Stevenson-Screen-Gehäuses (\texttt{hydroNodeStation01\_outdoor\_screen.3mf}) sowie des PCB-Außengehäuses (\texttt{hydroNodeStation01\_outdoor\_box.3mf}) im Verzeichnis \texttt{hardware/CAD/}.
 
-  \item \textbf{Dokumentation:} Diese Studiendokumentation sowie die detaillierte Energieanalyse (\texttt{doc/analysis/power\_budget.md}) als Referenz für eigene Anpassungen und Reproduktionen.
+  \item \textbf{Dokumentation:} Diese Studiendokumentation, eine Inbetriebnahme-Anleitung (\texttt{doc/GETTING\_STARTED.md}) und eine Konfigurationsreferenz (\texttt{doc/CONFIGURATION.md}) als Referenz für eigene Anpassungen und Reproduktionen.
 \end{itemize}
 
-Die Firmware-Architektur mit modularen Sensor-Treibern und dem \texttt{SENSOR\_FLAG\_*}-Bitmask-System erlaubt es, Sensoren durch einfaches Deaktivieren der zugehörigen Flags aus dem Sendezykus auszuschließen — ohne Eingriff in den LoRaWAN-Stack. Sensoren, die beim I2C-Scan nicht antworten, werden von \texttt{EnvSensors\_Init()} automatisch als nicht bestückt markiert und im Betrieb übersprungen.
+Die Firmware-Architektur mit modularen Sensor-Treibern und dem \texttt{SENSOR\_FLAG\_*}-Bitmask-System erlaubt es, Sensoren durch einfaches Deaktivieren der zugehörigen Flags aus dem Sendezyklus auszuschließen, ohne Eingriff in den LoRaWAN-Stack. Sensoren, die beim I2C-Scan nicht antworten, werden von \texttt{EnvSensors\_Init()} automatisch als nicht bestückt markiert und im Betrieb übersprungen.
