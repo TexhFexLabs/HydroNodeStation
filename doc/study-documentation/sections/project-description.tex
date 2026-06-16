@@ -19,6 +19,7 @@ Die Architektur der Station basiert auf einem offenen I2C-Bus, der es ermöglich
 
 Alle Sensoren werden über einen gemeinsamen I2C-Bus verwaltet. Zur Optimierung des Stromverbrauchs zwischen Übertragungen versetzt die Firmware jeden Sensor einzeln via I2C-Befehle in den Deep-Sleep-Modus, wodurch das Gesamtsystem auf einen Stromverbrauch im einstelligen Mikroampere-Bereich reduziert wird.
 
+\newpage
 \section*{Hardware-Design}
 
 \subsection*{Mikrocontroller und Funkmodul}
@@ -41,7 +42,7 @@ Die 4-lagige Leiterplatte wurde von Grund auf in EasyEDA Pro entworfen, mit dedi
 
 Die Firmware läuft auf einem deterministischen 5-Minuten-Messzyklus. Die Station wacht aus dem STOP2-Schlafmodus auf, nimmt Single-Shot-Messwerte von allen Sensoren auf, packt diese in ein kompaktes Binär-Payload und überträgt sie via LoRaWAN Class A zum Helium-Netzwerk. Ein \textit{DeviceTimeReq}-Mechanismus hält die Echtzeituhr synchron, ohne dass ein GPS-Modul nötig wäre. Der Spreading Factor SF7 wird standardmäßig verwendet, um die Sendezeit zu minimieren und die Batterielebensdauer zu maximieren, während Adaptive Data Rate (ADR) dem Netzwerk ermöglicht, den Link automatisch zu optimieren.
 
-Die Daten fließen von der Helium-Konsole via Amazon SNS in das in Entwicklung befindliche HydroNode-Netzwerk. Eine iOS-App ermöglicht es Nutzern, eigene Sensoren und Wetterstationen hinzuzufügen, wobei die Daten anschließend visualisiert werden.
+Die Daten fließen von der Helium-Konsole via Amazon SNS in das HydroNode-Backend. Die iOS-App und das öffentliche Web-Dashboard (\url{https://hydronode.texhfexlabs.de}) visualisieren Messwerte in Echtzeit; Nutzer können eigene Stationen über ein LoRaWAN-Binding in der App registrieren.
 
 \section*{Gehäuse und Einsatzszenario}
 

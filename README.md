@@ -1,70 +1,100 @@
-# HydroNodeStation01
+<div align="center">
+  <img src="doc/assets/icon-512.png" width="100" alt="HydroNode logo" />
+  <h1>HydroNodeStation01</h1>
+  <p><strong>Solar-powered, open-source LoRaWAN environmental monitoring node</strong></p>
+  <p>Powered by <strong>HydroNode</strong></p>
 
-Eine autarke, hocheffiziente Wetterstation, konzipiert für das HydroNode-Netzwerk. Das Projekt demonstriert, wie mit minimalem Energiebedarf, einer kleinen Batterie und einem kompakten Solarpanel eine Vielzahl präziser Umweltdaten erfasst und per LoRaWAN übermittelt werden kann. Ziel ist der flächendeckende Einsatz (z.B. im Raum Regensburg), um öffentlich zugängliche Echtzeit-Wetterdaten und weitreichende Analysen bereitzustellen.
+  [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+  [![MCU](https://img.shields.io/badge/MCU-STM32WLE5-blue)](https://www.st.com/en/microcontrollers-microprocessors/stm32wle5cc.html)
+  [![Network](https://img.shields.io/badge/Network-LoRaWAN%20868%20MHz-orange)](https://lora-alliance.org/)
+  [![Live Data](https://img.shields.io/badge/Live%20Data-Online-brightgreen)](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)
+</div>
 
-## Systemarchitektur
+---
 
-Das System ist in drei Hauptbereiche unterteilt: Hardware, Software (STM32 Node) und Mechanik (CAD).
+> **Live now:** A station is deployed outdoors and streaming real sensor data —
+> [view live dashboard](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)
 
-![HydroNodeStation Übersicht](doc/assets/hydronodestation_v2.svg)
+<div align="center">
+  <img src="doc/assets/dashboard_preview.png" width="720" alt="HydroNode live dashboard showing HydroNodeStation01 sensor data" />
+</div>
 
-### Hardware & Sensoren
-Die Elektronik ist auf maximale Effizienz und Kompaktheit ausgelegt. Das Custom-PCB bündelt fortschrittliche Sensorik und ein intelligentes Power-Management:
-* **Mikrocontroller & Funk:** STM32WLE5 (integriertes LoRaWAN)
-* **Power Management:** TPS63900 (Buck-Boost) und MAX17048 (Batterie-IC) für Solar- und Batteriebetrieb
-* **Klima & Luftgüte:** Sensirion SCD41 (CO2), SPS30 (Feinstaub), SHT45 (Temperatur/Luftfeuchtigkeit)
-* **Wetter & Licht:** Bosch BMP390 (Luftdruck), LTR390 (UV/Umgebungslicht)
+---
 
-![PCB Top Layer](doc/assets/pcb_top_layer_v1.png)
+## What Is This?
 
-### Software (STM32 Node)
-Die Firmware basiert auf dem STM32Cube-Ökosystem und implementiert einen LoRaWAN End-Node. Der Fokus der Entwicklung liegt auf tiefgreifender Energieoptimierung:
-* Nutzung des STOP2-Modus für minimalen Ruhestrom
-* Effizientes Sensor-Auslesen durch präzises Timing
-* Übertragung komprimierter Payloads über das LoRa-Netzwerk
+Detailed, hyperlocal environmental data is surprisingly scarce. Most weather and air quality stations are expensive, power-hungry, and installed only at a handful of official sites per city — leaving entire neighborhoods without meaningful data about what they breathe every day.
 
-### Mechanik (CAD)
-Die Elektronik wird in einem speziell entwickelten Gehäuse (Stevenson Screen) untergebracht. Dieses schützt die Komponenten vor Witterungseinflüssen, während es gleichzeitig eine optimale Luftzirkulation für exakte Messwerte gewährleistet.
+HydroNodeStation01 is a fully self-sufficient, unattended monitoring node that **anyone can reproduce** and deploy. It transmits CO₂, particulate matter, temperature, humidity, barometric pressure, and UV data over **LoRaWAN** using only a small solar panel and a single LiPo cell — and stays online for months without maintenance.
 
-![Stevenson Screen Middle Part](doc/assets/stevensonScreenMiddlePart.png)
+This is not a paper concept. It was designed, built, and field-tested as part of a university engineering project, with the goal of open, democratic, decentralized environmental monitoring.
 
-## Projektphasen
+---
 
-Das Projekt durchläuft vier klar definierte Phasen. Derzeit befinden wir uns am Übergang zur Fertigung und Gehäuseentwicklung.
+## What It Measures
 
-**1. Hardware & Software (Aktuell)**
-Die Hardware-Entwicklung ist abgeschlossen. Das finale PCB wird derzeit bei JLCPCB gefertigt und bestückt. Parallel wird die Firmware auf den neuen STM32-Chip portiert und finalisiert.
+| Quantity | Sensor | Notes |
+|---|---|---|
+| CO₂ concentration | Sensirion **SCD41** | Single-shot photoacoustic NDIR, ±40 ppm |
+| Particulate matter | Sensirion **SPS30** | PM1.0 / PM2.5 / PM4 / PM10 + number concentration |
+| Temperature & Humidity | Sensirion **SHT45** | ±0.1 °C / ±1.0 % RH |
+| Barometric pressure | Bosch **BMP390** | ±0.5 hPa absolute |
+| UV index | Lite-On **LTR390** | UVA + ambient light |
+| Battery state-of-charge | Maxim **MAX17048** | Fuel gauge via I2C |
 
-**2. Gehäuse-Design (Demnächst)**
-Sobald die Hardware vorliegt, startet die CAD-Konstruktion für ein kompaktes und ästhetisches Gehäuse.
+All sensors share an I2C bus and are powered through load switches — the firmware cuts power completely to idle peripherals, keeping average system current in the single-digit microamp range between transmissions. The platform is open to extension: any I2C-compatible sensor can be added with a firmware adaptation.
 
-**3. Feldtests (Geplant)**
-Die fertigen Prototypen werden an verschiedenen Standorten installiert. Hier werden Zuverlässigkeit, Energieverbrauch und Sensorpräzision unter realen Bedingungen validiert.
+---
 
-**4. HydroNode Integration (Geplant)**
-Die Stationen werden vollständig in das HydroNode-Netzwerk integriert. Die gesammelten Daten fließen in ein Backend zur tiefgehenden Analyse und werden für Endnutzer visuell aufbereitet.
+## Hardware
 
-## System-Integration
+### Custom 4-Layer PCB
+
+<div align="center">
+  <img src="doc/assets/pcb_top_layer.png" width="480" alt="HydroNodeStation01 PCB top layer" />
+</div>
+
+The PCB was designed from scratch in **EasyEDA Pro**, fabricated at JLCPCB, and hand-assembled. It integrates:
+
+- **STM32WLE5** — single-chip SoC with ARM Cortex-M4 + sub-GHz LoRa radio transceiver
+- **BQ25185** — solar charger for harvesting from a small panel
+- **TPS63900** — buck-boost converter, stable 3.3 V from 2.5 V to 4.2 V battery range
+- **BGS12SN6** RF switch + **BALFHB-WL-02D3** balun — fully matched 868 MHz RF path
+- All six sensors on a shared I2C bus with per-sensor power switching
+
+Special attention was paid to RF layout: controlled-impedance traces, solid ground plane under the antenna feed, and proper keepout areas around the chip antenna.
+
+> **Honest note on revision 1:** the initial board had a bug in the TPS63900 regulator section. Root cause was found, documented, and a corrected design is ready. The station runs perfectly in the meantime with the same chip on a breakout adapter. This is exactly the kind of real-world iteration documented openly so you don't repeat it.
+
+### Stevenson Screen Enclosure
+
+<div align="center">
+  <img src="doc/assets/stevenson_screen.png" width="360" alt="3D-printed Stevenson screen middle section" />
+</div>
+
+The electronics live in a 3D-printed **Stevenson screen** in UV-resistant white **ASA** filament. Stacked louvers block direct sunlight and rain while allowing free air circulation — essential for accurate outdoor temperature and humidity readings. The design files (`.3mf`) are included and print on any consumer FDM printer.
+
+### System Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Field ["Feldeinsatz (z.B. Regensburg)"]
+    subgraph Field ["Field Deployment"]
         Node1(("HydroNode\nStation01"))
         Node2(("HydroNode\nStation02"))
     end
 
-    subgraph Network ["LoRaWAN Infrastruktur"]
+    subgraph Network ["LoRaWAN Infrastructure"]
         Helium["Helium\nNetwork"]
         SNS["AWS SNS"]
     end
 
     subgraph Backend ["HydroNode Cloud"]
         API{"HTTPS\nEndpoint"}
-        Kafka["Kafka Pipeline\n(Validierung & Processing)"]
+        Kafka["Kafka Pipeline\n(Validation & Processing)"]
         DB[("PostgreSQL\nDatabase")]
     end
-    
-    subgraph Client ["Endnutzer"]
+
+    subgraph Client ["End Users"]
         App["iOS App"]
     end
 
@@ -77,39 +107,105 @@ flowchart LR
     DB --> App
 ```
 
-## Build & Entwicklung
+---
 
-Die Firmware unterstützt zwei verschiedene Hardware-Targets über CMake-Build-Profile. Die Unterscheidung erfolgt über den `CMAKE_BUILD_TYPE`.
+## Documentation
 
-### Targets
+| Guide | Description |
+|---|---|
+| [Getting Started](doc/GETTING_STARTED.md) | Prerequisites, build, flash, first uplink, debug mode |
+| [Configuration Reference](doc/CONFIGURATION.md) | LoRaWAN keys, feature flags, timing constants, payload format, decoder |
 
-*   **Release (STM32WLE5xx):** Target für das finale **Custom-PCB**. 
-    *   Nutzt das angepasste Pin-Mapping für das UFQFPN48 Gehäuse.
-    *   Verwendet die neue 1-Pin Radio-Switch-Logik (BGS12SN6 an PC13).
-    *   Optimiert auf Größe (`-Os`).
-*   **Debug (STM32WL55xx):** Target für das **Entwicklungs-Board / Wio-E5 mini**. 
-    *   Nutzt das Standard-Pin-Mapping des WL55 (UFBGA73).
-    *   Verwendet die 2-Pin Radio-Switch-Logik (PA4/PA5).
-    *   Enthält Debug-Symbole und deaktiviert Optimierungen (`-O0 -g3`).
+---
 
-### Build-Befehle
+## Firmware
 
-Befehle müssen im Verzeichnis `stm32_node` ausgeführt werden.
+The firmware runs on the **STM32Cube ecosystem** with the Semtech LoRa Basics Modem (LBM). Every design decision prioritizes ultra-low power:
 
-#### Für das neue Custom-Board (Release)
+- **STOP2 deep sleep** between transmissions — system current well under 20 µA
+- **Single-shot sensor reads** — sensors powered down completely when not in use
+- **5-minute measurement cycle** — wakes, reads all sensors, packs payload, transmits, sleeps
+- **LoRaWAN Class A** with adaptive data rate (ADR) — SF7 by default to minimize on-air time
+- **Staggered slow-sensor pre-wakeup** — SCD41 (5.5 s) and SPS30 (16.5 s) start measuring before the TX window while the MCU sleeps
+
+**Power budget (SF12/DR0 worst case):** ~200 µA average current → ~208 days on a 1000 mAh LiPo without solar. With ADR at SF7 this drops to ~97 µA / ~429 days.
+
+### Build
+
+All commands from `stm32_node/`:
+
 ```bash
-# Konfigurieren
+# Configure (once)
 cmake -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
 
-# Bauen
+# Build
 cmake --build build/Release
 ```
 
-#### Für das Wio-E5 / WL55 Dev-Board (Debug)
-```bash
-# Konfigurieren
-cmake -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
+ELF/binary output lands in `build/Release/`. Requires `arm-none-eabi-gcc`.
 
-# Bauen
-cmake --build build/Debug
+### Flashing LoRaWAN Keys
+
+Copy your network's credentials into `stm32_node/LoRaWAN/App/se-identity.h`:
+
+```c
+#define LORAWAN_DEVICE_EUI   AA,BB,CC,DD,EE,FF,00,11   // your device EUI
+#define LORAWAN_JOIN_EUI     AA,BB,CC,DD,EE,FF,00,11   // your join/app EUI
+#define LORAWAN_APP_KEY      AA,BB,CC,...               // your 16-byte app key
 ```
+
+> `se-identity.h` is intentionally shipped with all-zero placeholder keys and is excluded from any sensitive commit.
+
+### Debug Profile Mode
+
+Pull `DEBUG_SW_Pin` (PB4) HIGH before boot → the node reads all sensors in a tight loop and logs via software UART on PA6 (bit-banged, no LoRaWAN). Attach a USB-UART to PA6 to see live sensor values. Useful for sensor bring-up without waiting for TX windows.
+
+---
+
+## Repository Structure
+
+```
+hydroNodeStation01/
+├── stm32_node/          # Firmware (STM32WLE5, CMake)
+│   ├── Core/Src/        # Sensor drivers (SHT45, BMP390, LTR390, SCD41, SPS30, MAX17048)
+│   ├── LoRaWAN/App/     # Application logic (lora_app.c), LoRaWAN keys (se-identity.h)
+│   └── cmake/           # Toolchain files
+├── hardware/
+│   ├── ordered_pcb/     # Schematic PDF + PCB renders
+│   ├── bom/             # Bill of materials
+│   ├── CAD/             # Stevenson screen + enclosure (3MF + STEP)
+│   └── datasheets/      # Key component datasheets
+└── doc/
+    ├── GETTING_STARTED.md  # Setup guide
+    ├── CONFIGURATION.md    # All configuration reference
+    ├── assets/             # Images and SVGs used in documentation
+    └── analysis/           # Power budget analysis
+```
+
+---
+
+## Reproduction Cost
+
+The design is modular — not every sensor needs to be populated:
+
+| Configuration | Approximate BOM Cost |
+|---|---|
+| Minimal (temp + humidity + pressure) | < $30 in sensors |
+| Fully populated (all six sensors) | ~$120–150 |
+
+EasyEDA being browser-based means you can fork the schematic and board, swap parts, and order from JLCPCB directly — no desktop EDA install needed.
+
+---
+
+## License
+
+Hardware (schematic, PCB, CAD enclosure): **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)**  
+Firmware: **BSD-3-Clause** (STMicroelectronics/Semtech heritage) + custom application code
+
+---
+
+## Contributing & Community
+
+Fork it, build it, deploy it, and contribute back. If you build a station, open an issue or PR — reports from real deployments (sensor calibration quirks, enclosure improvements, alternative sensors) are especially valuable.
+
+Live data is flowing at **[hydronode.texhfexlabs.de](https://hydronode.texhfexlabs.de)**.

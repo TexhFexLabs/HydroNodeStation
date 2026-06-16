@@ -31,20 +31,20 @@ Diese Wahl stellt sicher, dass die Plattform dauerhaft frei für Forschung, Bild
 
 \textit{Hinweis:} Die Lizenz gilt für die stationsspezifische Hardware (PCB, Schaltplan, Gehäuse) und die Mikrocontroller-Firmware (\texttt{stm32\_node}). Das \textit{HydroNode-Backend}, die iOS-App und das HydroNode-Netzwerk unterliegen separaten Lizenzen und sind nicht Gegenstand dieser Veröffentlichung.
 
-\section*{Geplante Veröffentlichung und Generalisierung}
+\section*{Veröffentlichung}
 
-Die Veröffentlichung erfolgt nach erfolgreichem Abschluss des PCB-Tests und der ersten Feldvalidierung. Das Ziel ist eine Plattform, die jemand mit grundlegenden Embedded-Kenntnissen hernehmen, auf seine eigene Sensorausstattung anpassen und als vollständig funktionsfähige, energieeffiziente Messstation in Betrieb nehmen kann.
+Das Projekt wurde nach erfolgreichem PCB-Test und Beginn des Feldbetriebs auf GitHub veröffentlicht. Das Repository ist unter \url{https://github.com/TexhFexLabs/hydroNodeStation01} öffentlich zugänglich. Ziel ist eine Plattform, die jemand mit grundlegenden Embedded-Kenntnissen hernehmen, auf seine eigene Sensorausstattung anpassen und als vollständig funktionsfähige, energieeffiziente Messstation in Betrieb nehmen kann.
 
-Geplante Inhalte der Veröffentlichung:
+Veröffentlichte Inhalte:
 
 \begin{itemize}
-  \item \textbf{Hardware:} Vollständiger Export aller EasyEDA-Pro-Dateien (Schaltplan, PCB-Layout, Gerber-Dateien, BOM) auf GitHub; zusätzlich ein JLCPCB-fertiger Assembly-Export für direkte Nachbestellung. Angestrebte OSHWA-Zertifizierung des Designs.
+  \item \textbf{Hardware:} Schaltplan-PDF, PCB-Renders, BOM und Gerber-Exportdaten auf GitHub. Angestrebte OSHWA-Zertifizierung des Designs über OSHWLab.
 
-  \item \textbf{Firmware:} Veröffentlichung auf GitHub inklusive vollständiger Dokumentation des Build-Systems, einer schrittweisen Inbetriebnahme-Anleitung (Commissioning) und einer Beschreibung der Konfigurationsparameter. Die Firmware wird so überarbeitet und generalisiert, dass Sensoren über Konfigurationsdateien aktiviert oder deaktiviert werden können und Sendeintervalle, Batterie-Schwellwerte sowie Payload-Layouts leicht angepasst werden können — ohne tiefen Eingriff in den LoRaWAN-Stack.
+  \item \textbf{Firmware:} Vollständig auf GitHub inklusive CMake-Build-System, schrittweiser Inbetriebnahme-Anleitung (\texttt{doc/GETTING\_STARTED.md}) und Konfigurationsreferenz (\texttt{doc/CONFIGURATION.md}).
 
-  \item \textbf{Gehäuse:} STL-Dateien und Quelldateien (FreeCAD) des angepassten Stevenson-Screen-Gehäuses nach dessen Fertigstellung.
+  \item \textbf{Gehäuse:} STL-Dateien und STEP-Quelldateien des Stevenson-Screen-Gehäuses sowie des PCB-Außengehäuses im Verzeichnis \texttt{hardware/CAD/}.
 
-  \item \textbf{Dokumentation:} Diese Studiendokumentation sowie die Energieanalyse (\texttt{power\_budget.md}) als Referenz für eigene Anpassungen.
+  \item \textbf{Dokumentation:} Diese Studiendokumentation sowie die detaillierte Energieanalyse (\texttt{doc/analysis/power\_budget.md}) als Referenz für eigene Anpassungen und Reproduktionen.
 \end{itemize}
 
-Die Generalisierung der Firmware ist dabei besonders wichtig: Die aktuelle Implementierung ist eng auf die sechs verbauten Sensoren zugeschnitten. Für die Open-Source-Veröffentlichung soll sie so abstrahiert werden, dass beispielsweise ein Nutzer ohne SPS30 oder mit einem anderen CO\textsubscript{2}-Sensor die Plattform ohne Neuschreiben der Kern-Logik einsetzen kann. Die I2C-Architektur und der modulare Sensor-Treiber-Aufbau legen hierfür bereits eine gute Grundlage.
+Die Firmware-Architektur mit modularen Sensor-Treibern und dem \texttt{SENSOR\_FLAG\_*}-Bitmask-System erlaubt es, Sensoren durch einfaches Deaktivieren der zugehörigen Flags aus dem Sendezykus auszuschließen — ohne Eingriff in den LoRaWAN-Stack. Sensoren, die beim I2C-Scan nicht antworten, werden von \texttt{EnvSensors\_Init()} automatisch als nicht bestückt markiert und im Betrieb übersprungen.

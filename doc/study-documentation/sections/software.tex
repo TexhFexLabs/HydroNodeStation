@@ -58,7 +58,7 @@ Um die Firmware auch von verschiedenen Standorten aus entwickeln, flashen und te
 
   \item \textbf{OpenOCD als Systemdienst:} OpenOCD läuft auf dem Server als dauerhafter Systemdienst und exponiert einen GDB-Server-Port. CLion auf dem lokalen Rechner verbindet sich per SSH-Tunnel mit diesem Port und kann so die Firmware auf dem physisch entfernten Board flashen und live debuggen — exakt wie bei einem lokal angeschlossenen Board.
 
-  \item \textbf{Serieller Konsolen-Dienst:} Ein weiterer Systemdienst leitet die UART-Debug-Ausgabe des STM32 (USART1, 115200 Baud) über das Netzwerk weiter. Die serielle Konsole ist damit von jedem Standort aus in Echtzeit lesbar. Dies ermöglicht das direkte Beobachten von Log-Ausgaben, Sensorwerten und LoRaWAN-Ereignissen ohne physische Verbindung.
+  \item \textbf{Serieller Konsolen-Dienst:} Ein weiterer Systemdienst leitet die Debug-Ausgabe des STM32 über das Netzwerk weiter. Die Ausgabe erfolgt über eine software-emulierte UART (SW-UART) auf Pin PA6 mit 115200 Baud — der Hardware-USART1 ist im finalen PCB ungenutzt. Die serielle Konsole ist damit von jedem Standort aus in Echtzeit lesbar. Dies ermöglicht das direkte Beobachten von Log-Ausgaben, Sensorwerten und LoRaWAN-Ereignissen ohne physische Verbindung.
 
   \item \textbf{Private Dashboards und Analyse-Tools:} Auf dem Server laufen eigene private Werkzeuge, die Uplink-Daten und Sensorwerte aufzeichnen, visualisieren und analysieren. So können vollständige Testläufe remote überwacht, historische Daten ausgewertet und Auffälligkeiten sofort erkannt werden — von jedem Gerät mit Internetzugang.
 \end{itemize}
@@ -90,6 +90,7 @@ Beim Einschalten durchläuft der STM32WLE5 folgende Initialisierungsschritte in 
 
 Innerhalb von \texttt{LoRaWAN\_Init()} werden nach der Sensor-Initialisierung Akkuspannung gelesen und bei ausreichendem Ladestand ($> 4050\,\text{mV}$) eine initiale Lüfterreinigung des SPS30 gestartet. Dies entfernt Lagerungsablagerungen vom optischen Sensor des SPS30 vor dem ersten produktiven Einsatz.
 
+\newpage
 \subsection*{Hauptschleife und Low-Power-Management}
 
 Die Hauptschleife ist bewusst minimal gehalten:
@@ -195,15 +196,15 @@ Alle Uplink-Payloads verwenden \textbf{2-Byte Big-Endian}-Kodierung für jeden W
       & Luftfeuchte       & u16, $0{,}01\,\%\text{rH}$ & 2–3 \\
       & Luftdruck         & u16, $0{,}1\,\text{hPa}$    & 4–5 \\
       & Akkuspannung      & u16, $1\,\text{mV}$           & 6–7 \\
-      & UV-Rohwert        & u16, —                         & 8–9 \\
+      & UV-Index (×100)   & u16, $÷100 = \text{UVI}$     & 8–9 \\
     \hline
     3 & wie fPort~2 + CO\textsubscript{2} & u16, $1\,\text{ppm}$ & 10–11 \\
     \hline
-    \multirow{4}{*}{4}
+    \multirow{3}{*}{4}
       & wie fPort~3       & &  \\
       & PM1.0/2.5/4.0/10.0 & u16, $0{,}1\,\mu\text{g}/\text{m}^3$ & 12–19 \\
       & NC0.5/1.0/2.5/4.0/10.0 & u16, $0{,}1\,\#/\text{cm}^3$ & 20–29 \\
-      & Typ.\ Partikelgröße & u16, $1\,\text{nm}$           & 30–31 \\
+      & Typ.\ Partikelgröße & u16, $1\,\text{nm}$ ($\div 1000 = \mu\text{m}$) & 30–31 \\
     \hline
   \end{tabular}
   \caption{Uplink-Payload-Format je LoRaWAN-Port (alle Felder Big-Endian)}
@@ -224,9 +225,9 @@ Die Firmware überwacht die Akkuspannung nach jedem Messzyklus und passt das Sen
     \hline
     \textbf{Akkuspannung} & \textbf{Sendeintervall} & \textbf{Verhalten} \\
     \hline
-    $\geq 3200\,\text{mV}$ (normal) & 5~min & Vollbetrieb, alle Sensoren \\
-    $< 3200\,\text{mV}$ (niedrig)  & 10~min & Interval verdoppelt \\
-    $< 2900\,\text{mV}$ (kritisch) & 60~min & Interval $\times 6$, \texttt{tx\_counter} reset (nur fPort~2) \\
+    $\geq 3400\,\text{mV}$ (normal) & 5~min & Vollbetrieb, alle Sensoren \\
+    $< 3400\,\text{mV}$ (niedrig)  & 10~min & Interval $\times 2$ \\
+    $< 3000\,\text{mV}$ (kritisch) & 60~min & Interval $\times 12$, \texttt{tx\_counter} reset (nur fPort~2) \\
     \hline
   \end{tabular}
   \caption{Batterie-adaptives Sendeverhalten}

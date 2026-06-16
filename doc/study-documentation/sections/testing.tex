@@ -23,7 +23,7 @@ Alle sechs Sensoren wurden einzeln und im integrierten Betrieb auf Plausibilitä
   \item \textbf{LTR390:} UV-Rohwerte reagieren korrekt auf UV-Exposition und zeigen erwartetes Verhalten bei Abdeckung des Sensors.
   \item \textbf{SCD41:} CO\textsubscript{2}-Single-Shot-Messungen liefern plausible Werte im typischen Innenraum-Bereich (400–1500~ppm). Das Pre-Measurement-Timing ist verifiziert: Die CO\textsubscript{2}-Messung ist stets fertig, wenn der Uplink-Zyklus beginnt.
   \item \textbf{SPS30:} Partikelmassenkonzentration und Zahlkonzentration reagieren korrekt auf Änderungen der Umgebungsluft (z.\,B.\ Zigarettenrauch-Exposition als Testfall). Fan-Cleaning-Mechanismus sowohl per Downlink-Befehl als auch automatisch nach 120~h verifiziert.
-  \item \textbf{MAX17048:} Akkuspannungsmessung korrekt; batterie-adaptive Logik (Intervall-Verdopplung bei $< 3200\,\text{mV}$, Intervall-$\times6$ bei $< 2900\,\text{mV}$) im Testbetrieb verifiziert.
+  \item \textbf{MAX17048:} Akkuspannungsmessung korrekt; batterie-adaptive Logik (Intervall-$\times2$ bei $< 3400\,\text{mV}$, Intervall-$\times12$ bei $< 3000\,\text{mV}$) im Testbetrieb verifiziert.
 \end{itemize}
 
 \subsection*{Downlink-Verifikation}
@@ -63,7 +63,7 @@ Alle fünf Kernsensoren wurden auf dem Custom PCB erfolgreich verifiziert:
 \begin{itemize}
   \item \textbf{SHT45:} Temperatur- und Feuchtigkeitswerte plausibel und stabil im Außenbetrieb.
   \item \textbf{BMP390:} Luftdruckwerte korrekt; Forced-Mode-Betrieb auf dem Custom PCB verifiziert.
-  \item \textbf{LTR390:} UV-Index wird korrekt berechnet und kalibriert. UV-Rohwerte reagieren auf UV-Exposition. Die Berechnung wurde während des Projekts refaktoriert, sodass der Sensor direkt den UV-Index (UVI) ausgibt.
+  \item \textbf{LTR390:} UV-Index wird korrekt berechnet und kalibriert. UV-Rohwerte reagieren auf UV-Exposition. Die Berechnung wurde während des Projekts refaktoriert, sodass der Sensor direkt den UV-Index (UVI) ausgibt. Der Einfluss der Acrylglas-Abdeckung des Stevenson-Screen-Gehäuses wurde empirisch ermittelt: Messwerte mit und ohne Glas unter direkter Sonneneinstrahlung ergaben ein Verhältnis von $6{,}8 / 5{,}2 = 17/13$, das als ganzzahliger Korrekturfaktor in der Firmware angewandt wird (s.\ Abschnitt Hardware: UV-Sensorschutz).
   \item \textbf{SCD41:} CO${}_2$-Messungen plausibel im Außenbereich (ca.\ 400~ppm). Pre-Measurement-Timing verifiziert.
   \item \textbf{SPS30:} Partikelmassenkonzentration und Zahlkonzentration reagieren korrekt auf Umgebungsluft.
 \end{itemize}
@@ -83,9 +83,7 @@ Die Station befindet sich seit Ende Mai 2026 im Außeneinsatz im selbst entworfe
 
 \begin{figure}[H]
   \centering
-  \fbox{\parbox{0.6\linewidth}{\centering\vspace{2cm}
-    \textit{[Platzhalter: Screenshot des Live-Dashboards mit Feldtest-Messdaten]}
-    \vspace{2cm}}}
+  \includegraphics[width=\linewidth]{../assets/dashboard_preview}
   \caption{Live-Dashboard der HydroNodeStation01 mit Feldtest-Messdaten}
   \label{fig:dashboard-fieldtest}
 \end{figure}

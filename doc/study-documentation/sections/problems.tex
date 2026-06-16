@@ -51,11 +51,11 @@ Die Dokumentation der Probleme hilft, Entscheidungen im Nachhinein zu verstehen 
 
 \textbf{Warum dieser Aufwand nötig war:} Für eine korrekte Messung von Aussentemperatur und Luftfeuchtigkeit darf sich das Gehäuse nicht durch Sonneneinstrahlung aufheizen. Deshalb wurde das Design an einen Stevenson-Screen angelehnt: übereinanderliegende Lamellen blockieren direkte Sonneneinstrahlung und Regen, lassen aber gleichzeitig Luft frei zirkulieren. Als Material wurde ASA gewählt, da ASA UV-beständig, witterungsfest und für den dauerhaften Außeneinsatz geeignet ist. Der Druck erfolgte auf einem eigens für das Projekt angeschafften 3D-Drucker.
 
-\section*{Offener Punkt: UV-transparentes Glas für den UV-Sensor}
+\section*{UV-Sensorschutz: Acrylglas mit Korrekturfaktor}
 
-\textbf{Problem:} Der UV-Sensor LTR390 muss geschützt verbaut werden und trotzdem UV-Licht empfangen können. Normales Glas oder transparentes PETG blockiert einen großen Teil der UV-Strahlung und verfälscht so die Messwerte.
+\textbf{Problem:} Der UV-Sensor LTR390 muss geschützt verbaut werden und trotzdem UV-Licht empfangen können. Normales Glas oder transparentes PETG blockiert einen großen Teil der UV-Strahlung und verfälscht so die Messwerte. UV-transparentes Spezialglas (Quarzglas, Borosilikatglas) würde ca.\ 50 Euro kosten und war daher keine wirtschaftliche Option.
 
-\textbf{Stand:} Das passende UV-transparente Glas (Quarzglas oder Borosilikatglas) würde mit Versand ca.\ 50 Euro kosten. Aktuell werden günstigere Alternativen getestet, zum Beispiel eine gefertigte Plexiglasabdeckung für den Sensorbereich sowie dünne UV-transparente Folien oder andere optische Materialien, die UV-A und UV-B durchlassen. Dieses Detail ist für die Genauigkeit der UV-Messung im Feldtest relevant.
+\textbf{Lösung:} Aus Kostengründen wurde auf Standard-Acrylglas zurückgegriffen. Eine ca.\ 2~mm starke Acrylglasplatte wurde mithilfe einer CNC-Maschine rund zugeschnitten, sodass sie passgenau in die Öffnung des Stevenson-Screen-Gehäuses eingesetzt werden kann. Da Acrylglas einen Teil der UV-Strahlung absorbiert, wurde ein empirischer Korrekturfaktor ermittelt: Messwerte mit und ohne Glasabdeckung unter direkter Sonneneinstrahlung ergaben ein Verhältnis von $6{,}8 / 5{,}2 = 17/13 \approx 1{,}31$, das als ganzzahlige Bruchrechnung direkt in der Firmware angewandt wird. Die korrigierten UVI-Werte werden im Payload übertragen.
 
 \section*{Versionsverwaltung und Arbeitsablauf}
 

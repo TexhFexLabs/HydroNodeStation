@@ -35,7 +35,7 @@ Die Breakout-Boards eignen sich nicht nur zum Prototyping, sondern können auch 
 
 \subsection*{Temperatur und relative Luftfeuchte: Sensirion SHT45}
 
-Der SHT45 ist ein hochpräziser digitaler Temperatur- und Feuchtigkeitssensor von Sensirion. Im \textit{Single-Shot High Repeatability}-Modus liefert er Messwerte mit einer Genauigkeit von $\pm 0{,}1\,{^\circ}$C (Temperatur) und $\pm 1{,}0\,\%\text{rH}$ (relative Feuchte) bei einer Messzeit von ca.\ $8{,}3\,\text{ms}$. Direkt nach der Messung versetzt ihn die Firmware via I2C in den Deep-Sleep-Modus, in dem der Sensor nur $0{,}1\,\mu\text{A}$ verbraucht. Die I2C-Adresse lautet \texttt{0x44}.
+Der SHT45 ist ein hochpräziser digitaler Temperatur- und Feuchtigkeitssensor von Sensirion. Im \textit{Single-Shot High Repeatability}-Modus liefert er Messwerte mit einer Genauigkeit von $\pm 0{,}1\,{^\circ}$C (Temperatur) und $\pm 1{,}0\,\%\text{rH}$ (relative Feuchte) bei einer Messzeit von ca.\ $8{,}3\,\text{ms}$. Die I2C-Adresse lautet \texttt{0x44}.
 
 \subsection*{Luftdruck: Bosch BMP390}
 
@@ -43,7 +43,7 @@ Der BMP390 ist ein barometrischer Drucksensor mit einer absoluten Genauigkeit vo
 
 \subsection*{UV-Licht: Lite-On LTR390}
 
-Der LTR390 misst ultraviolettes Licht (UVA) sowie Umgebungslicht (ALS) in zwei separat auswählbaren Modi und gibt 20-Bit-Rohwerte zurück. Für Außenmessungen ist das UV-transparente Gehäuse entscheidend, das eine direkte Exposition gegenüber Sonnenstrahlung erlaubt. Aus den Rohwerten kann ein UV-Index berechnet werden. Die I2C-Adresse lautet \texttt{0x53}.
+Der LTR390 misst ultraviolettes Licht (UVA) sowie Umgebungslicht (ALS) in zwei separat auswählbaren Modi. Die Firmware berechnet daraus den UV-Index (UVI) direkt in Hardware. Die I2C-Adresse lautet \texttt{0x53}.
 
 \subsection*{CO\textsubscript{2}-Konzentration: Sensirion SCD41}
 
@@ -124,7 +124,7 @@ Die Zuleitungen im RF-Pfad sind als Controlled-Impedance-Leiterbahnen ($50\,\Ome
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\linewidth]{../../hardware/ordered_pcb/Schematic}
+  \includegraphics[width=\linewidth]{../../hardware/ordered_pcb/schematic_preview}
   \caption{Schaltplan der HydroNodeStation01 (EasyEDA Pro Render)}
   \label{fig:schematic}
 \end{figure}
@@ -135,7 +135,7 @@ Die Zuleitungen im RF-Pfad sind als Controlled-Impedance-Leiterbahnen ($50\,\Ome
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.88\linewidth]{../../hardware/ordered_pcb/PCB_Routing}
+  \includegraphics[width=0.88\linewidth]{../../hardware/ordered_pcb/pcb_routing}
   \caption{PCB-Layout mit Signallagen (EasyEDA Pro Render)}
   \label{fig:routing}
 \end{figure}
@@ -144,7 +144,7 @@ Die Zuleitungen im RF-Pfad sind als Controlled-Impedance-Leiterbahnen ($50\,\Ome
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.72\linewidth]{../../hardware/ordered_pcb/PCB_3D}
+  \includegraphics[width=0.72\linewidth]{../../hardware/ordered_pcb/pcb_3d_render}
   \caption{3D-Render des Custom PCB (EasyEDA Pro)}
   \label{fig:pcb3d}
 \end{figure}
@@ -200,22 +200,30 @@ Das Gehäuse ist montiert und befindet sich seit Ende Mai 2026 im Außeneinsatz.
 
 \begin{figure}[H]
   \centering
-  \fbox{\parbox{0.6\linewidth}{\centering\vspace{2cm}
-    \textit{[Platzhalter: 3D-Render des Stevenson-Screen-Gehäuses aus Fusion 360]}
-    \vspace{2cm}}}
+  \includegraphics[width=0.6\linewidth]{../assets/stevenson_render}
   \caption{3D-Render des Stevenson-Screen-Gehäuses (Fusion 360)}
   \label{fig:stevenson-render}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \fbox{\parbox{0.6\linewidth}{\centering\vspace{2cm}
-    \textit{[Platzhalter: Foto der montierten Station im Außeneinsatz]}
-    \vspace{2cm}}}
+  \includegraphics[width=0.6\linewidth]{../assets/station_outdoor}
   \caption{Montierte HydroNodeStation01 im Außeneinsatz}
   \label{fig:station-outdoor}
 \end{figure}
 
-\textbf{Offener Punkt: UV-transparentes Glas.} Der LTR390-UV-Sensor benötigt Schutz, muss aber UV-Licht empfangen können. Normales Glas und PETG blockieren einen großen Teil der UV-Strahlung. Als Zwischenlösung wurde eine Plexiglasabdeckung gefertigt und eingepasst. Günstigere UV-transparente Folien oder optische Materialien werden weiter evaluiert (s.\ Kapitel~\ref{cha:probleme}).
+\subsection*{UV-Sensorschutz: Acrylglas mit Korrekturfaktor}
+
+Der LTR390-UV-Sensor benötigt eine Abdeckung, die ihn vor Schmutz und Niederschlag schützt, gleichzeitig aber UV-Licht transmittiert. UV-transparentes Spezialglas wäre ideal, ist jedoch kostenintensiv und schwer beschaffbar. Als kostengünstige Lösung wurde daher auf Standard-Acrylglas zurückgegriffen.
+
+Eine Acrylglasplatte (ca.\ 2~mm Stärke) wurde mithilfe einer CNC-Maschine rund zugeschnitten, sodass sie passgenau in die vorgesehene Öffnung des Stevenson-Screen-Gehäuses eingesetzt werden kann.
+
+Da Standard-Acrylglas einen Teil der UV-Strahlung absorbiert, wurde ein empirischer Korrekturfaktor ermittelt: Die Messstation nahm bei direkter Sonneneinstrahlung Messwerte mit und ohne Glasabdeckung auf und leitete aus dem Verhältnis einen Korrekturfaktor ab:
+
+\begin{equation}
+  \text{Korrekturfaktor} = \frac{\text{UVI}_\text{ohne Glas}}{\text{UVI}_\text{mit Glas}} = \frac{6{,}8}{5{,}2} = \frac{17}{13} \approx 1{,}31
+\end{equation}
+
+Dieser Faktor wird direkt in der Firmware als ganzzahlige Bruchrechnung angewandt (\texttt{uvi\_raw $\times$ 17 / 13}), um Fließkommaoperationen auf dem Mikrocontroller zu vermeiden. Die korrigierten UVI-Werte werden im Payload übertragen und im Backend direkt weiterverarbeitet.
 
 Die STL-Dateien und Fusion-360-Quelldateien werden nach Abschluss des Feldtests zusammen mit den Hardware-Design-Dateien veröffentlicht (s.\ Kapitel~\ref{cha:opensource}).

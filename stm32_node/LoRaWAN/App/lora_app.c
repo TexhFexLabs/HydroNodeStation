@@ -953,21 +953,25 @@ static void SendTxData(uint8_t port)
 
   (void)port;
 
-  /* Reset the charger safety timer every TX cycle so it never expires
-   * during long charging phases (BQ25185 safety timer is ~6 h) */
-  ChargerSafetyTimerReset();
-
   /* Increment tx_counter */
   tx_counter++;
-  if (tx_counter > 6U)
+  if (tx_counter > 30U)
   {
     tx_counter = 1U;
   }
 
-  /* Determine which sensors to read this cycle */
+  /* Reset the charger safety timer once per 30-TX cycle (~1 h) at counter==5
+   * so it never expires during long charging phases (BQ25185 safety timer is ~6 h) */
+  if (tx_counter == 5U)
+  {
+    ChargerSafetyTimerReset();
+  }
+
+  /* Determine which sensors to read this cycle.
+   * Base TX every 120 s. CO2 every 10th TX (20 min), SPS30 every 15th TX (30 min). */
   uint8_t sensor_flags = 0U;
-  if (tx_counter % 3U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
-  if (tx_counter % 6U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
+  if (tx_counter % 10U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
+  if (tx_counter % 15U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
 
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
@@ -1009,7 +1013,7 @@ static void SendTxData(uint8_t port)
   {
     uplink_port = TX_PORT_ENV_FULL;
   }
-  else if ((tx_counter % 3U) == 0U)
+  else if ((tx_counter % 10U) == 0U)
   {
     uplink_port = TX_PORT_ENV_EXTENDED;
   }
@@ -1098,15 +1102,15 @@ static void SendTxData(uint8_t port)
     ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
 
     /* Schedule pre-measurement only for the next cycle where data is needed */
-    uint8_t next_counter = (tx_counter % 6U) + 1U;
+    uint8_t next_counter = (tx_counter % 30U) + 1U;
 
-    if (next_counter % 3U == 0U)
+    if (next_counter % 10U == 0U)
     {
       UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U) - SCD41_PRE_MEASUREMENT_TIME_MS);
       UTIL_TIMER_Start(&Scd41Timer);
     }
 
-    if (next_counter % 6U == 0U)
+    if (next_counter % 15U == 0U)
     {
       UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U) - SPS30_PRE_MEASUREMENT_TIME_MS);
       UTIL_TIMER_Start(&Sps30Timer);

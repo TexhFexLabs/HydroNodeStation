@@ -28,6 +28,9 @@ stm32_node/build/
 .cache/
 build/
 
+# Power profiler raw data
+*.ppk2
+
 # tex build files
 *.aux
 *.log

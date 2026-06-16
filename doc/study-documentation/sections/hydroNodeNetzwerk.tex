@@ -182,8 +182,9 @@ diesen Schritten:
         AWS Region, SNS Topic ARN sowie IAM-Zugangsdaten mit \texttt{sns:Publish}-Berechtigung eintragen.
   \item Im AWS SNS-Topic ein Subscription vom Typ \textit{HTTPS} erstellen mit der Endpoint-URL:
 \begin{verbatim}
-https://<host>/api/webhook/lorawan/sns
+https://hydronode.texhfexlabs.de/api/webhook/lorawan/sns
 \end{verbatim}
+        \textbf{Wichtig:} \textit{Raw Message Delivery} muss \textbf{deaktiviert} bleiben — das Backend benötigt den vollständigen SNS-Envelope mit Metadaten.
   \item Nach Anlage der Subscription sendet AWS eine \texttt{SubscriptionConfirmation}-Nachricht
         an den Endpunkt. Das HydroNode-Backend bestätigt diese automatisch.
         Im AWS-Console-Status erscheint die Subscription anschließend als \textit{Confirmed}.
@@ -341,36 +342,57 @@ Folgende Aspekte sind in der aktuellen Implementierung noch nicht abschließend 
 \end{itemize}
 
 \newpage
+\section*{KI-gestützte Analyse in der HydroNode App}
 
-\section*{KI-gestützte Analyse in der HydroNode App}                                                                                               
-                                                                                                                                                     
-  Die HydroNode iOS-App integriert OpenAI GPT-5 Nano als KI-Komponente zur                                                                               
-  automatisierten Analyse von Sensoranomalien. Erkennt das Quarkus-Backend                                                                           
-  eine statistische Auffälligkeit in den Messdaten – etwa einen plötzlichen                                                                          
-  Wertesprung (\emph{SPIKE}), einen unerwarteten Einbruch (\emph{DROP}),                                                                             
-  einen schleichenden Drift (\emph{GRADUAL\_DRIFT}) oder eine                                                                                        
-  Schwellenwertüberschreitung (\emph{THRESHOLD\_BREACH}) – wird die                                                                                  
-  Anomalie serverseitig an OpenAI GPT-5 Nano übergeben. Dabei übermittelt das                                                                            
-  Backend folgende Kontextdaten:                                                                                                                     
-                                                                                                                                                     
-  \begin{itemize}                                                                                                                                    
-    \item den aktuellen Messwert sowie den statistisch erwarteten Referenzwert
-          und die Standardabweichung~($\sigma$),                                                                                                     
-    \item den Anomalietyp und den zugehörigen Messkanal (z.\,B.\
-          Temperatur in~°C, Luftfeuchte in~\%, CO\textsubscript{2} in~ppm),                                                                          
-    \item jüngste Mittelwerte des betroffenen Kanals als gleitenden                                                                                  
-          Verlaufskontext,                                                                                                                           
-    \item Stationskennung und Erfassungszeitpunkt.                                                                                                   
-  \end{itemize}                                                                                                                                      
-                                                            
-  OpenAI GPT-5 Nano liefert als strukturierte JSON-Antwort eine Erklärung der                                                                            
-  Ursache, eine Einschätzung der Schwere (\emph{severity}) und Zuverlässigkeit
-  (\emph{confidence}) sowie priorisierte Handlungsempfehlungen                                                                                       
-  (\emph{action\_items}). Die App stellt diese Ausgabe im                                                                                            
-  \texttt{AnomalyDetailView} übersichtlich dar: Erklärungstext, qualitative                                                                          
-  Kennzahlen mit farbcodierten Badges sowie eine nummerierte Maßnahmenliste.                                                                         
-      Administratoren können zudem über ein dediziertes Analytics-Dashboard den
-      Token-Verbrauch und die geschätzten Kosten je Analysezeitraum einsehen.
+  Die HydroNode iOS-App integriert Amazon Bedrock Nova Micro als KI-Komponente zur
+  automatisierten Analyse von Sensoranomalien. Das Quarkus-Backend führt alle
+  15~Minuten einen Analysezyklus durch: Erkennt die statistische Auswertung eine
+  Auffälligkeit – etwa einen plötzlichen Wertesprung (\emph{SPIKE}), einen
+  unerwarteten Einbruch (\emph{DROP}), einen schleichenden Drift
+  (\emph{GRADUAL\_DRIFT}) oder eine Schwellenwertüberschreitung
+  (\emph{THRESHOLD\_BREACH}) – wird die Anomalie serverseitig an Amazon Bedrock
+  Nova Micro übergeben. Zusätzlich erzeugt das System alle 6~Stunden eine
+  Routineanalyse aller aktiven Sensoren, auch ohne erkannte Anomalie, um
+  schleichende Veränderungen frühzeitig zu erfassen.
+
+  Dem Modell werden folgende Kontextdaten übergeben:
+
+  \begin{itemize}
+    \item 48~Stunden historische Messwerte: die letzten 3~Stunden als
+          10-Minuten-Buckets, ältere Daten als Min/Max/Durchschnitt,
+    \item referenzbasierte Schwellenwerte je Sensortyp
+          (\emph{good} $|$ \emph{warn} $|$ \emph{crit}),
+    \item die gelernte Baseline (\(\bar{x} \pm \sigma\), Stichprobenanzahl) aus
+          einem rollierenden 72-Stunden-Fenster,
+    \item Anomalietyp, Ist- und Erwartungswert sowie Abweichung in~$\sigma$,
+    \item Sensorkanal mit Einheit (z.\,B.\ Temperatur in~°C,
+          CO\textsubscript{2} in~ppm, pH-Wert),
+    \item Erfassungszeitpunkt.
+  \end{itemize}
+
+  Der System-Prompt ist je nach Installation unterschieden: Bei
+  \emph{Outdoor}-Sensoren (Wetterstation) wird das Modell angewiesen,
+  Ausreißer zunächst durch Wetterereignisse (Regen, Wind, Tagesgang) zu erklären
+  und Alarme nur bei klar pathologischen Werten auszugeben.
+  Bei \emph{Indoor}-Sensoren (Hydroponik, Grow-Tent) werden CO\textsubscript{2}-
+  und VOC-Abfälle bei gleichzeitigem Temperaturwechsel als Lüftungsereignis
+  gewertet (\emph{should\_alert\,=\,false}), während anhaltender
+  CO\textsubscript{2}-Anstieg oder pH/EC-Drift als echtes Problem eingestuft wird.
+
+  eine Erklärung der Ursache (\emph{explanation}), Konfidenz (\emph{confidence})
+  und Umgebungsbewertung (\emph{environment\_score}) jeweils auf einer Skala
+  von 0–1, einen Luftqualitätsscore (\emph{air\_quality\_score}), die Erkennung
+  eines Lüftungsereignisses (\emph{is\_ventilation\_event}), ein Alert-Flag
+  (\emph{should\_alert}), einen Alert-Schweregrad
+  (\emph{alert\_severity}: \texttt{NONE} $|$ \texttt{LOW} $|$ \texttt{MEDIUM}
+  $|$ \texttt{HIGH} $|$ \texttt{CRITICAL}), eine Liste betroffener Sensortypen
+  (\emph{affected\_sensors}) sowie eine konkrete Handlungsempfehlung
+  (\emph{recommendation}).
+  Die App stellt diese Ausgabe im \texttt{AnomalyDetailView} übersichtlich dar:
+  Erklärungstext, qualitative Kennzahlen mit farbcodierten Badges sowie die
+  priorisierte Maßnahme. Administratoren können über ein dediziertes
+  Analytics-Dashboard den Token-Verbrauch und die geschätzten Kosten je
+  Analysezeitraum einsehen.
 
       \section*{Datenvisualisierung und Benutzerinteraktion}
                                                             
