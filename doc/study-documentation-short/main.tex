@@ -1,0 +1,673 @@
+\documentclass[11pt,a4paper]{scrartcl}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,backgrounds,calc,fit,positioning,shapes.geometric}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{etoolbox}
+
+\definecolor{colgreen}{HTML}{2E7D32}
+\definecolor{colorange}{HTML}{E65100}
+\definecolor{colblue}{HTML}{0B4F6C}
+\definecolor{colred}{HTML}{C62828}
+\definecolor{rowgray}{HTML}{F5F5F5}
+
+\newcommand{\status}[1]{%
+  \ifstrequal{#1}{Fertig}{\textcolor{colgreen}{\textbf{Fertig}}}{}%
+  \ifstrequal{#1}{In Arbeit}{\textcolor{colorange}{\textbf{In Arbeit}}}{}%
+  \ifstrequal{#1}{Geplant}{\textcolor{colblue}{\textbf{Geplant}}}{}%
+  \ifstrequal{#1}{Weggelassen}{\textcolor{colred}{\textbf{Weggelassen}}}{}%
+}
+
+\definecolor{accent}{HTML}{0B4F6C}
+\setstretch{1.1}
+\setkomafont{disposition}{\color{accent}\bfseries}
+
+\begin{document}
+
+% ── Titelseite ──────────────────────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Large OTH Regensburg\par}
+  \vspace{0.8cm}
+  {\large Studiengang: Technische Informatik\par}
+  \vspace{2.5cm}
+  {\Huge\bfseries Projektdokumentation (Kurzfassung)\par}
+  \vspace{0.6cm}
+  {\LARGE HydroNodeStation01\par}
+  \vspace{1.5cm}
+  {\large Fach: Ausgewählte Projekte der IT\par}
+  \vspace{0.3cm}
+  {\large Semester: IT6\par}
+  \vfill
+  \begin{tabular}{rl}
+    Name:           & Felix Knoll \\
+    Matrikelnummer: & 0000000 \\
+    Abgabedatum:    & \today
+  \end{tabular}
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+% ── 1. Einleitung und Projektbeschreibung ───────────────────────────────────
+\section{Einleitung und Projektbeschreibung}
+
+\textit{HydroNodeStation01} ist eine energieeffiziente, solar-betriebene Umweltmessstation für den autonomen Außeneinsatz ohne externe Infrastruktur. Sie überträgt meteorologische und luftqualitätsrelevante Messdaten über LoRaWAN an das Helium-Netzwerk und von dort in Echtzeit ins HydroNode-Backend sowie an ein öffentliches Web-Dashboard. Kernziele sind Langzeitautonomie (Monate ohne Wartung), Reproduzierbarkeit zu niedrigen Kosten und vollständige Open-Source-Verfügbarkeit.
+
+\paragraph{Sensoren (I2C-Bus):}
+\begin{itemize}
+  \item \textbf{SHT45} (Sensirion): Temperatur $\pm0{,}1\,^\circ$C, Feuchte $\pm1{,}0\,\%\text{rH}$
+  \item \textbf{BMP390} (Bosch): Luftdruck $\pm0{,}5\,\text{hPa}$
+  \item \textbf{LTR390} (Lite-On): UV-Index (UVA + ALS)
+  \item \textbf{SCD41} (Sensirion): CO$_2$-Konzentration $\pm40\,\text{ppm}$ (photoacoustisch, Single-Shot)
+  \item \textbf{SPS30} (Sensirion): Feinstaub PM1.0/2.5/4.0/10.0 und Zahlkonzentration, 5\,V
+  \item \textbf{MAX17048} (Maxim): LiPo-Fuel-Gauge über I2C
+\end{itemize}
+
+\paragraph{Anwendungsszenarien:} Landwirtschaftliche Feldmessungen, wissenschaftliche Langzeitstudien, partizipative Luftqualitätsnetzwerke, Frühwarnsysteme für Naturkatastrophen. Die offene I2C-Architektur erlaubt beliebige Sensor-Erweiterungen. Reproduktionskosten: Minimal\-variante $< 30$\,€, vollbestückt 120–150\,€.
+
+% ── 2. Hardware ─────────────────────────────────────────────────────────────
+\section{Hardware}
+
+\subsection*{Prototyp}
+
+Die gesamte Software-Entwicklung startete auf dem \textbf{Seeed Studio Wio-E5 Mini} (STM32WL55JC): Sensoren als Breakout-Boards auf Steckbrett, alle sechs Sensoren über denselben I2C-Bus (SDA: PA11, SCL: PA12, $4{,}7\,\text{k}\Omega$ Pull-ups) wie im späteren Custom PCB. Erst nachdem die Software vollständig funktionierte und das PCB-Design abgeschlossen war, wurde das Custom PCB bei JLCPCB bestellt. Geflasht wurden sowohl das Wio-E5 Mini als auch das Custom PCB über einen \textbf{ST-Link V2}, angeschlossen via RST, CLK, DIO und GND.
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lllll}
+    \hline
+    \textbf{Sensor} & \textbf{Hersteller} & \textbf{Messgrößen} & \textbf{I2C-Addr.} & \textbf{Breakout} \\
+    \hline
+    SHT45    & Sensirion & Temperatur, Feuchte      & 0x44 & Adafruit \\
+    BMP390   & Bosch     & Luftdruck                & 0x77 & Adafruit \\
+    LTR390   & Lite-On   & UV, Umgebungslicht       & 0x53 & Adafruit \\
+    SCD41    & Sensirion & CO$_2$                   & 0x62 & Seeed Studio \\
+    SPS30    & Sensirion & Feinstaub (PM/NC)        & 0x69 & Sensirion \\
+    MAX17048 & Maxim     & Akkuspannung             & 0x36 & Adafruit \\
+    \hline
+  \end{tabular}
+  \caption{Sensoren im Prototyp}
+\end{table}
+
+\subsection*{Custom PCB}
+
+Das Herzstück bildet der \textbf{STM32WLE5CCU6} – ein SoC mit ARM Cortex-M4 (48\,MHz) und integriertem Sub-GHz-LoRa-Transceiver. Das selbst entworfene \textbf{4-Lagen-PCB} (EasyEDA Pro) trennt RF-, Digital- und Versorgungslagen. Das RF-Frontend besteht aus BALFHB-WL-02D3 (Balun) und BGS12SN6 (TX/RX-Schalter, GPIO PC13) mit 50\,$\Omega$ Controlled-Impedance-Leiterbahnen bei 868\,MHz.
+
+Energieversorgung: zwei \textbf{TPS63900} Buck-Boost-Wandler ($<0{,}5\,\mu\text{A}$ Quiescent, $>95\,\%$ Effizienz) für 3,3\,V (Primär) und 5\,V für SPS30 (Sekundär, software-gesteuert via GPIO). Solar-MPPT-Laden übernimmt der \textbf{BQ25185}. Gefertigt und bestückt bei JLCPCB (5 Platinen, ca.~200\,€ inkl. Versand, teilfinanziert durch 150-USD-OSHWLab-Gutschein).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.72\linewidth]{../../hardware/ordered_pcb/pcb_3d_render}
+  \caption{3D-Render des Custom PCB (EasyEDA Pro)}
+\end{figure}
+
+\subsection*{Gehäuse: Stevenson Screen}
+
+Ein selbst in Fusion\,360 entworfenes, mehrlagiges Lamellen-Gehäuse aus weißem \textbf{ASA-Kunststoff} (UV-beständig, witterungsfest) schützt die Sensoren vor Direktsonne und Regen bei freier Luftzirkulation. Mehrere 3D-Druckdurchläufe für Passgenauigkeit nötig. Der \textbf{LTR390-UV-Sensor} ist hinter einer Polystyrol-Abdeckung (ca.~2\,mm) verbaut; ein empirischer Korrekturfaktor $17/13 \approx 1{,}31$ wird als Ganzzahl-Bruchrechnung in der Firmware angewandt.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.55\linewidth]{../assets/station_outdoor}
+  \caption{Montierte HydroNodeStation01 im Außeneinsatz}
+\end{figure}
+
+% ── 3. Firmware und Software ─────────────────────────────────────────────────
+\section{Firmware und Software}
+
+\subsection*{Build-System und Entwicklungsinfrastruktur}
+
+CMake + ARM GCC (\texttt{arm-none-eabi-gcc}). Das Build-System wurde von Anfang an zweigleisig gefahren: Das \texttt{Debug}-Target (Wio-E5 Mini, \texttt{-O0 -g3}) existierte von Beginn der Prototyping-Phase an; das \texttt{Release}-Target (Custom PCB, STM32WLE5CCU6, \texttt{-Os}) wurde parallel entwickelt und angepasst, sobald das PCB verfügbar war. Beide Targets teilen die gesamte Applikationslogik; nur Hardware-spezifische Pin-Mappings und MCU-Variante unterscheiden sich. GitHub Actions prüft beide Targets bei jedem Push. Geflasht wurde per \textbf{ST-Link V2} über SWD (RST, CLK, DIO, GND) mit JetBrains CLion + OpenOCD. Eine eigene \textbf{Remote-Entwicklungsinfrastruktur} (dedizierter Server, OpenOCD als Systemdienst, serieller Konsolen-Dienst via SW-UART auf PA6 mit 115200\,Baud) ermöglicht Flashen, Debuggen und Live-Monitoring von beliebigen Standorten.
+
+\subsection*{Firmware-Architektur}
+
+\textbf{Boot-Sequenz:} HAL-Init → SystemClock (48\,MHz MSI, LSE 32,768\,kHz für RTC) → GPIO → I2C2 → LoRaWAN-Init → Sensor-Init → Hauptschleife (\texttt{MX\_LoRaWAN\_Process()}).
+
+\textbf{Hauptschleife / Low-Power:} Nach jedem \texttt{smtc\_modem\_run\_engine()}-Aufruf tritt das System in \textbf{STOP2} ein (RTC-Alarm + EXTI aktiv, alle anderen Peripherien aus). Weckung erfolgt per RTC-Alarm zum nächsten Sendezeitpunkt.
+
+\textbf{60-Minuten-Superzyklus:} Ein Tx-Zähler (1–30, Basis-Intervall 2\,min) steuert die Sensor-Aktivierung. Temperatur/Feuchte/Druck/UV/Akku werden bei \textit{jedem} Uplink gemessen (schnell, energiearm). CO$_2$ (SCD41) nur alle 20\,min (jeder 10.~Uplink), Feinstaub (SPS30) nur alle 30\,min (jeder 15.~Uplink). \textbf{Pre-Measurement-Timer} starten SCD41 (5,5\,s vorher) und SPS30 (16,5\,s vorher), damit der MCU während der Messung in STOP2 schläft.
+
+\textbf{Payload-Format} (Big-Endian, 2\,Byte pro Feld):
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabular}{llll}
+    \hline
+    \textbf{fPort} & \textbf{Felder} & \textbf{Skalierung} & \textbf{Bytes} \\
+    \hline
+    2 & Temp, Feuchte, Druck, Akku, UV & i16/u16, 0,01/0,01/0,1/1/0,01 & 10 \\
+    3 & wie fPort\,2 + CO$_2$ & u16, 1\,ppm & 12 \\
+    4 & wie fPort\,3 + PM1.0/2.5/4.0/10.0, NC0.5–NC10, TypSize & u16 div. & 32 \\
+    \hline
+  \end{tabular}
+  \caption{Uplink-Payload-Format (alle Felder Big-Endian)}
+\end{table}
+
+\textbf{Batterie-adaptives Verhalten:}
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lll}
+    \hline
+    \textbf{Akkuspannung} & \textbf{Intervall} & \textbf{Verhalten} \\
+    \hline
+    $\geq 3400\,\text{mV}$ & 2\,min & Vollbetrieb \\
+    $< 3400\,\text{mV}$ & 4\,min & Intervall $\times2$ \\
+    $< 3000\,\text{mV}$ & 12\,min & Intervall $\times6$, nur fPort\,2 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\textbf{Downlink-Befehle:} \texttt{0x11} – SPS30 Fan Cleaning; \texttt{0xFF} – Software Reset. NVM-Persistenz (Session-Keys, Frame-Counter) im letzten Flash-Sektor: kein Re-Join nach Neustart nötig. Device-EUI wird automatisch aus der 96-Bit-UID des STM32 abgeleitet.
+
+\textbf{Sensor-Treiber} (\texttt{sys\_sensors.c}): \texttt{EnvSensors\_Init()} – tolerant bei fehlenden Sensoren. \texttt{EnvSensors\_Read(flags)} – automatischer I2C-Bus-Recovery bei Fehlern (relevant bei SPS30-Gebläse-Spikes). SPS30 alle 120\,h automatische Fan-Reinigung (wenn Akku $> 4120\,\text{mV}$).
+
+% ── 4. Inbetriebnahme ────────────────────────────────────────────────────────
+\section{Inbetriebnahme}
+
+\subsection*{Schritt 1: Hardware beschaffen}
+
+Zwei Optionen:
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lp{9cm}}
+    \hline
+    \textbf{Option} & \textbf{Details} \\
+    \hline
+    \textbf{Custom PCB} (empfohlen) &
+      Schaltplan, BOM und Gerber-Dateien im Repository (\texttt{hardware/ordered\_pcb/}).
+      Bestellung + maschinelle Bestückung bei JLCPCB, 5 Stück ca.~200\,€ inkl.\ Versand.
+      Lieferzeit ca.\ 2–3 Wochen. Flashen via ST-Link V2 (RST, CLK, DIO, GND). \\[4pt]
+    \textbf{Seeed Studio Wio-E5 Mini} (Prototyping) &
+      Fertig verfügbares Entwicklungsboard mit STM32WL55JC + LoRa-Transceiver und
+      Stiftleisten. Kein Lötkolben nötig. Sensoren als Breakout-Boards über
+      Jumper-Kabel anschließen (alle sechs Sensoren unterstützt; gleicher I2C-Bus
+      wie Custom PCB). Flashen ebenfalls via ST-Link V2 (RST, CLK, DIO, GND). \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Für das Wio-E5 Mini werden zusätzlich benötigt: Breakout-Boards für SHT45, BMP390, LTR390, SCD41, SPS30 und MAX17048 (alle über I2C), Jumperwires sowie ein Step-Up-Konverter auf 5\,V für den SPS30.
+
+\subsection*{Schritt 2: Build-Voraussetzungen installieren}
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lll}
+    \hline
+    \textbf{Werkzeug} & \textbf{Version} & \textbf{Zweck} \\
+    \hline
+    \texttt{arm-none-eabi-gcc} & $\geq 12$ & ARM GCC Toolchain \\
+    \texttt{cmake}             & $\geq 3.22$ & Build-System \\
+    \texttt{ninja}             & beliebig & CMake-Generator \\
+    ST-Link V2                 & Hardware & Flashen via SWD \\
+    \texttt{openocd}           & beliebig & Flash-Utility / GDB-Server \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\textbf{macOS:} \quad\texttt{brew install arm-none-eabi-gcc cmake ninja}\\
+\textbf{Ubuntu:} \quad\texttt{sudo apt install gcc-arm-none-eabi cmake ninja-build}
+
+\subsection*{Schritt 3: Repository klonen und Firmware initial bauen}
+
+\begin{verbatim}
+git clone https://github.com/TexhFexLabs/hydroNodeStation01.git
+cd hydroNodeStation01/stm32_node
+\end{verbatim}
+
+\textbf{Custom PCB (Release):}
+\begin{verbatim}
+cmake -B build/Release \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
+cmake --build build/Release
+\end{verbatim}
+
+\textbf{Wio-E5 Mini (Debug):}
+\begin{verbatim}
+cmake -B build/Debug \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
+cmake --build build/Debug
+\end{verbatim}
+
+Die Datei \texttt{se-identity.h} bleibt zunächst unverändert: \texttt{LORAWAN\_DEVICE\_EUI} auf \texttt{00,00,...,00} lassen. Die Firmware leitet die Device-EUI automatisch aus der Hardware-UID des STM32 ab.
+
+\subsection*{Schritt 4: Erstmaliges Flashen und Device-EUI auslesen}
+
+Beide Boards werden identisch über einen \textbf{ST-Link V2} geflasht. ST-Link V2 an die SWD-Pins anschließen (RST, CLK, DIO, GND; Pinbelegung siehe Schaltplan). Anschließend mit \textbf{STM32CubeProgrammer} (GUI) oder \textbf{JetBrains CLion + OpenOCD} die erzeugte \texttt{.elf}-Datei flashen:
+\begin{itemize}
+  \item Custom PCB: \texttt{build/Release/LoRaWAN\_End\_Node\_LBM.elf}
+  \item Wio-E5 Mini: \texttt{build/Debug/LoRaWAN\_End\_Node\_LBM.elf}
+\end{itemize}
+
+Nach dem Flashen: LED blinkt 10\,Sekunden. Anschließend USB-UART-Adapter an \textbf{PA6} (115200\,Baud) anschließen. Die Firmware gibt beim Boot die abgeleitete \textbf{Device-EUI} in der seriellen Konsole aus. Diese notieren.
+
+\subsection*{Schritt 5: Gerät beim Netzwerk-Server registrieren}
+
+Mit der ausgelesenen Device-EUI ein neues OTAA-Gerät anlegen (LoRaWAN 1.0.4, EU868). Unterstützte Netzwerk-Server: \textbf{Helium IoT}, \textbf{ChirpStack v4}, \textbf{The Things Network (TTN)}.
+
+Der Netzwerk-Server generiert dabei \textbf{Join EUI} (App EUI) und \textbf{App Key}. Diese beiden Werte werden im nächsten Schritt in den Code eingetragen.
+
+\subsection*{Schritt 6: LoRaWAN-Schlüssel eintragen, neu bauen und flashen}
+
+Datei: \texttt{stm32\_node/LoRaWAN/App/se-identity.h}
+
+\begin{verbatim}
+#define LORAWAN_DEVICE_EUI    00,00,00,00,00,00,00,00  // immer auf 00 lassen
+#define LORAWAN_JOIN_EUI      AA,BB,CC,DD,EE,FF,00,11  // vom Netzwerk-Server
+#define LORAWAN_APP_KEY       AA,BB,...,99              // vom Netzwerk-Server
+#define LORAWAN_GEN_APP_KEY   AA,BB,...,99              // gleich wie APP_KEY
+\end{verbatim}
+
+\textbf{Schlüssel nicht committen}: \texttt{se-identity.h} in \texttt{.git/info/exclude} eintragen. Danach Firmware neu bauen (\texttt{cmake --build build/Release}) und erneut flashen wie in Schritt~4. Die Station startet dann den OTAA-Join mit den echten Credentials.
+
+\subsection*{Schritt 7: HydroNode-Anbindung einrichten (Helium / SNS)}
+
+\begin{enumerate}
+  \item \textbf{AWS-SNS-Integration:} In der Helium-Konsole unter \textit{Integrations} eine \textit{AWS SNS}-Integration anlegen (AWS-Region, SNS-Topic-ARN, IAM-Zugangsdaten mit \texttt{sns:Publish}).
+  \item \textbf{SNS-Subscription:} Im AWS-SNS-Topic HTTPS-Subscription auf:\\
+        \texttt{https://hydronode.texhfexlabs.de/api/webhook/lorawan/sns}\\
+        \textbf{Raw Message Delivery deaktiviert lassen.} Backend bestätigt automatisch.
+\end{enumerate}
+
+Bei ChirpStack oder TTN: SNS-Integration analog konfigurieren; Endpunkt und Ablauf identisch.
+
+\subsection*{Schritt 8: Station in HydroNode aktivieren}
+
+\begin{enumerate}
+  \item HydroNode-App öffnen oder \url{https://hydronode.texhfexlabs.de} aufrufen.
+  \item Registrierung: erster Sensor-Slot kostenlos enthalten.
+  \item Sensor auswählen → \textbf{Einstellungen → LoRaWAN-Binding}.
+  \item \textbf{Device-EUI} (aus Schritt~4) eintragen und auf \textbf{Save} drücken.
+  \item Nach dem Speichern zeigt HydroNode einen \textbf{Webhook-URL} an. Diesen URL im Netzwerk-Server (TTN, ChirpStack oder Helium) unter \textbf{Integrations → Webhook} eintragen.
+  \item Ab diesem Zeitpunkt sendet der Netzwerk-Server jeden eingehenden Uplink automatisch an das HydroNode-Backend; keine weitere Konfiguration nötig.
+\end{enumerate}
+
+Das HydroNode-Backend verarbeitet die Uplinks vollautomatisch: Payload-Dekodierung anhand des \texttt{fPort}, Datenbankablage und KI-Anomalieerkennung laufen ohne weiteren Setup. Messwerte erscheinen ab dem nächsten Uplink im Dashboard und in der App.
+
+\subsection*{Schritt 9: Betrieb verifizieren und Debug-Ausgabe}
+
+\textbf{Debug-Ausgabe (SW-UART):} USB-UART-Adapter an \textbf{PA6}, 115200\,Baud.
+Logging im normalen LoRaWAN-Betrieb: \texttt{APP\_LOG\_ENABLED~1} in \texttt{Core/Inc/sys\_conf.h}.
+
+\textbf{Debug-Profil-Modus:} PB4 beim Einschalten HIGH → startet ohne LoRaWAN, liest alle Sensoren im ~8\,s-Takt, Rohwerte über PA6. Nützlich für Sensor-Verifikation und Kalibrierung.
+
+\textbf{Wichtige konfigurierbare Parameter} (in \texttt{lora\_app.h}):
+\begin{itemize}
+  \item \texttt{APP\_TX\_DUTYCYCLE} (Standard 300\,000\,ms = 5\,min): Sendeintervall
+  \item \texttt{LOW\_BAT\_TX\_DUTYCYCLE} (600\,000\,ms): Intervall bei $<3400\,\text{mV}$
+  \item \texttt{CRITICAL\_BAT\_TX\_DUTYCYCLE} (3\,600\,000\,ms): Intervall bei $<3000\,\text{mV}$
+  \item \texttt{SCD41\_PREMEASUREMENT\_MS} (5500): Vorlaufzeit CO$_2$ (min.\ 5000)
+  \item \texttt{SPS30\_PREMEASUREMENT\_MS} (16500): Vorlaufzeit Feinstaub (min.\ 16000)
+\end{itemize}
+
+RF-Region: \texttt{ACTIVE\_REGION} in \texttt{LoRaWAN/Target/lorawan\_conf.h} (\texttt{EU868}, \texttt{US915}, \texttt{AS923} etc.).
+
+% ── 5. Energieeffizienz ──────────────────────────────────────────────────────
+\section{Energieeffizienz}
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{llll}
+    \hline
+    \textbf{Komponente} & \textbf{Zustand} & \textbf{Strom} & \textbf{Quelle} \\
+    \hline
+    STM32WLE5 & STOP2 + RTC      & $1{,}07\,\mu\text{A}$ & DS13105 \\
+    STM32WLE5 & Aktiv (48\,MHz)  & $\approx5\,\text{mA}$ & Datenblatt \\
+    STM32WLE5 & LoRa TX @14\,dBm & $\approx22\,\text{mA}$ & Datenblatt \\
+    SCD41     & Power-down       & $\approx0\,\mu\text{A}$& Sensirion \\
+    SHT45     & Deep Sleep       & $0{,}1\,\mu\text{A}$ & Datenblatt \\
+    BMP390    & Sleep            & $2{,}0\,\mu\text{A}$ & Datenblatt \\
+    MAX17048  & Sleep            & $1{,}5\,\mu\text{A}$ & Datenblatt \\
+    TPS63900  & Idle (je Regler) & $<0{,}5\,\mu\text{A}$ & Datenblatt \\
+    \hline
+  \end{tabular}
+  \caption{Komponentenstromverbrauch (Datenblattwerte)}
+\end{table}
+
+Theoretischer STOP2-Systemstrom: $I_\text{sleep,theo} = 1{,}07 + 0{,}10 + 2{,}00 + 1{,}50 + 2\times0{,}5 \approx 5{,}67\,\mu\text{A}$.
+
+Gemessener STOP2-Strom (PPK2, Custom PCB, 01.06.2026): ca.~\textbf{900\,µA}. Zwei Größenordnungen über Theorie, vermutlich durch SCD41-IR-Leckstrom, BQ25185-Quiescent und PCB-Leckströme. Zum Vergleich: Steckbrett-Prototyp (Wio-E5): ca.~3\,mA (Onboard-LEDs, CP2102, Pololu-Step-Up 400\,µA).
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lll}
+    \hline
+    \textbf{Akku} & \textbf{$I_\text{avg}$} & \textbf{Autonomie ohne Solar} \\
+    \hline
+    1000\,mAh & 900\,µA & $\approx46$ Tage \\
+    1200\,mAh & 900\,µA & $\approx56$ Tage \\
+    \hline
+  \end{tabular}
+  \caption{Batterielaufzeit (PPK2-Messung, Custom PCB)}
+\end{table}
+
+% ── 5. Tests und Validierung ─────────────────────────────────────────────────
+\section{Tests und Validierung}
+
+\textbf{Prototyp:} Alle sechs Sensoren auf Plausibilität und I2C-Korrektheit verifiziert. LoRaWAN-OTAA-Join und Uplinks auf fPort\,2/3/4 stabil. Feldtest: $>10\,\text{km}$ Reichweite nachgewiesen. NVM-Persistenz durch Neustarts bestätigt. I2C-Bus-Recovery durch absichtlich induzierte Fehler verifiziert. Downlinks \texttt{0x11} und \texttt{0xFF} funktional.
+
+\textbf{Custom PCB:} TPS63900-Fehler identifiziert und mit Breakout-Workaround behoben. Alle fünf Kernsensoren verifiziert. LoRaWAN-Uplinks fließen über Amazon SNS ins HydroNode-Backend. PPK2-Strommessung durchgeführt. Station seit Ende Mai 2026 im Außen-Feldtest.
+
+Live-Dashboard: \url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{../assets/dashboard_preview}
+  \caption{Live-Dashboard der HydroNodeStation01}
+\end{figure}
+
+\textbf{Noch ausstehend:} Solar-Autarkie-Verifikation (BQ25185) unter verschiedenen Lichtbedingungen; Langzeit-Batterie-Laufzeitmessung.
+
+% ── 6. HydroNodeNetzwerk ─────────────────────────────────────────────────────
+\section{HydroNodeNetzwerk}
+
+Das HydroNodeNetzwerk verbindet Sensorstationen mit Backend und iOS-App. Es unterstützt zwei Übertragungspfade:
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      font=\small,
+      box/.style={draw, rounded corners=4pt, minimum height=11mm, minimum width=40mm, align=center},
+      sensor/.style={box, fill=blue!10, draw=blue!40!black},
+      transport/.style={box, fill=orange!12, draw=orange!55!black},
+      backend/.style={box, fill=green!10, draw=green!45!black},
+      app/.style={box, fill=purple!10, draw=purple!45!black},
+      flow/.style={-{Stealth[length=2.5mm]}, thick},
+      layerlabel/.style={font=\footnotesize\itshape, text=gray!65!black, anchor=west}
+  ]
+    \node[sensor]    (https) at (-2.6,  0.0) {HTTPS-Station\\Arduino / ESP32};
+    \node[sensor]    (lora)  at ( 2.6,  0.0) {LoRaWAN-Station\\HydroNodeStation01};
+    \node[transport] (inet)  at (-2.6, -2.2) {HTTPS\\TLS\,1.2+ / HMAC};
+    \node[transport] (hel)   at ( 2.6, -2.2) {LoRaWAN\\HTTPS Webhook};
+    \node[backend, minimum width=84mm] (back) at (0, -4.4)
+      {HydroNode Backend\\Kafka $\cdot$ PostgreSQL $\cdot$ Verifikation};
+    \node[app, minimum width=62mm] (appn) at (0, -6.2)
+      {iOS-App \textit{HydroNode} \enspace REST-API};
+    \node[layerlabel] at (5.0,  0.0) {Sensorschicht};
+    \node[layerlabel] at (5.0, -2.2) {Übertragungsschicht};
+    \node[layerlabel] at (5.0, -4.4) {Backend-Schicht};
+    \node[layerlabel] at (5.0, -6.2) {Applikationsschicht};
+    \draw[flow, blue!60!black]   (https) -- (inet);
+    \draw[flow, orange!60!black] (lora)  -- (hel);
+    \draw[flow, blue!60!black]   (inet)  -- (back.north -| inet);
+    \draw[flow, orange!60!black] (hel)   -- (back.north -| hel);
+    \draw[flow, green!45!black]  (back)  -- (appn);
+  \end{tikzpicture}
+  \caption{Systemarchitektur des HydroNodeNetzwerks}
+\end{figure}
+
+\textbf{HTTPS-Pfad:} Stationen signieren JSON-Payloads mit HMAC-SHA256 (Header \texttt{X-Signature}, Replay-Schutz via \texttt{X-Timestamp} $\pm20$\,min). Backend publiziert in Kafka-Topic \texttt{hydronode.ingress.sensor} → \texttt{DeviceKeyVerifier} → \texttt{hydronode.verified.sensor} → \texttt{SensorValueProcessor} → PostgreSQL.
+
+\textbf{LoRaWAN-Pfad:} Station → Helium Network → ChirpStack v4 → Amazon SNS → Backend-Endpunkt \texttt{POST /api/webhook/lorawan/sns}. Backend ermittelt Sensor via \texttt{SensorLookupCache} (DevEUI), dekodiert Payload per \texttt{LoRaFPortConfig} (Big-Endian, kanalweise Skalierung) und publiziert direkt nach \texttt{hydronode.verified.sensor}.
+
+\textbf{Backend:} Quarkus-3-Anwendung. In-Process-Caches (\texttt{DeviceKeyCache}, \texttt{SensorLookupCache}, \texttt{FPortConfigCache}, TTL 90\,min) reduzieren DB-Last. Kafka entkoppelt Empfang und Verarbeitung.
+
+\textbf{KI-Analyse (Amazon Bedrock Nova Micro):} Alle 15\,min automatische Anomalieerkennung (SPIKE, DROP, GRADUAL\_DRIFT, THRESHOLD\_BREACH) mit 48\,h Historienkontext. Alle 6\,h Routineanalyse aller aktiven Sensoren. Antwort enthält Erklärung, Konfidenz, Alert-Flag und Handlungsempfehlung. Outdoor- und Indoor-Sensoren erhalten unterschiedliche System-Prompts.
+
+% ── 7. Open-Source-Veröffentlichung ──────────────────────────────────────────
+\section{Open-Source-Veröffentlichung}
+
+\textbf{Lizenzen:} Hardware (Schaltplan, PCB, CAD-Gehäuse) unter \textbf{CC BY-NC-SA 4.0}; Firmware (\texttt{stm32\_node}) unter \textbf{BSD-3-Clause}.
+
+\textbf{Veröffentlichung:} \url{https://github.com/TexhFexLabs/hydroNodeStation01} (Schaltplan-PDF, PCB-Renders, BOM, vollständige CMake-Firmware, Inbetriebnahme-Anleitung und 3MF-Dateien des Gehäuses).
+
+\textbf{OSHWLab Start 2026 Contest:} Projekt angemeldet; erzielte einen \textbf{150-USD-JLCPCB-Fertigungsgutschein}, der einen Teil der ~200\,€ Produktionskosten abdeckte.
+
+% ── 8. Stundenaufwand ────────────────────────────────────────────────────────
+\section{Stundenaufwand}
+
+Projektplan: 20 Features, \textbf{160 Stunden} geplant. Tatsächlich laut Arbeitstagebuch: \textbf{170 Stunden}.
+
+\textbf{Wichtigste Abweichungen:} PCB-Design mit ca.~50\,h weit über den geplanten 9\,h ($+41\,\text{h}$). 3D-Gehäuse mit ca.~12\,h ungeplanter Zusatzaufwand. KI-Evaluation mit $-14\,\text{h}$ deutlich unter Plan (PCB-Inbetriebnahme hatte Priorität). Solar-Lade-Bug-Fix und Projekt-Cleanup nach Abschluss: $+8\,\text{h}$. Einsparungen in anderen Bereichen gleichen den Mehraufwand teilweise aus; Gesamtabweichung $+10\,\text{h}$.
+
+Detaillierter Soll/Ist-Vergleich nach Features und Bereichen sowie vollständiges Arbeitstagebuch: siehe Anhang~\ref{app:stunden}.
+
+
+% ── 9. Abweichungen, Probleme und Lösungen ───────────────────────────────────
+\section{Abweichungen, Probleme und Lösungen}
+
+\subsection*{Architekturelle Abweichungen vom Projektplan}
+
+\paragraph{SW-UART statt Hardware-USART für Debug-Ausgabe.}
+Im Projektplan war USART1 als Debug-Schnittstelle vorgesehen. Im ersten PCB-Revisionsstand lag USART1 auf einem falschen Pin (Pinout-Irrtum); die Debug-Ausgabe wurde daher auf eine \textbf{software-emulierte UART} (\texttt{sw\_uart.c}) auf Pin PA6 umgestellt. Im überarbeiteten PCB-Design ist der Fehler behoben.
+
+\paragraph{Dualer Build-Target (Prototyp + Custom PCB).}
+Im Plan war ein einzelnes Firmware-Target vorgesehen. Tatsächlich existierten zwei Targets von Beginn an: das \textbf{Debug}-Target (Wio-E5 Mini, STM32WL55, \texttt{-O0 -g3}) für die gesamte Prototyping-Phase und das \textbf{Release}-Target (STM32WLE5CCU6, \texttt{-Os}) als Anpassung für das Custom PCB. Applikationslogik identisch; nur Pin-Mappings und MCU-Variante unterscheiden sich.
+
+\paragraph{Pre-Measurement-Timer-Architektur.}
+Der Projektplan sah einen einfachen Messzyklus (Aufwachen → Messen → Senden → Schlafen) vor. Tatsächlich wurde eine \textbf{asynchrone Pre-Measurement-Logik} eingeführt: SCD41 und SPS30 werden durch separate Timer \textit{vor} dem Sendezeitpunkt geweckt (SCD41: 5,5\,s, SPS30: 16,5\,s), damit der MCU während der Messzeit in STOP2 schläft und aktives Warten entfällt.
+
+\paragraph{60-Minuten-Superzyklus mit sensorspezifischen Häufigkeiten.}
+Im Plan war gleichmäßige Übertragung aller Sensorwerte bei jedem Uplink vorgesehen. Tatsächlich wurde ein \textbf{Tx-Zähler-basiertes Superzyklus-Modell} eingeführt: Temperatur/Feuchte/Druck/UV bei jedem Uplink, CO$_2$ alle 20\,min, Feinstaub (SPS30) alle 30\,min. Der SPS30-Gebläsebetrieb ist energetisch dominant; seltene Aktivierung reduziert den mittleren Verbrauch erheblich.
+
+\subsection*{Probleme und Lösungen}
+
+\paragraph{PCB-Aufwand deutlich höher als geplant.}
+9\,h geplant, ca.~56\,h tatsächlich aufgewendet. Kein geeignetes Open-Source-Design für den STM32WLE5JC verfügbar; vollständige Neuentwicklung in EasyEDA Pro mit mehreren Iterationen für RF-Design, Antennenmatching und Komponentenplatzierung. Nach Lieferung zusätzliche Bugs (u.\,a.\ TPS63900, SW-UART). Mehraufwand durch Einsparungen in anderen Bereichen und Verzicht auf Lautstärke-Sensor teilweise ausgeglichen; Gesamtabweichung $+10\,\text{h}$.
+
+\paragraph{Fehler im TPS63900-Spannungsregler.}
+Nach Lieferung der JLCPCB-Platinen funktionierte der primäre TPS63900 (3,3-V-Systemversorgung) nicht; Designfehler im Schaltplan (in Absprache mit einem Experten identifiziert). \textbf{Lösung:} Chip von LiPo-Plus und 3,3-V-Netz getrennt; identischer Chip auf Breakout-Board montiert und an PCB-Header angesteckt. System läuft vollständig funktionsfähig mit identischer Effizienz. Korrigiertes PCB-Design für zukünftige Revisionen bereit.
+
+\paragraph{BQ25185-Solarlade-Bug: 6-h-Timeout.}
+Im Feldtest: Laden startete täglich ca.~07:00\,Uhr und stoppte um ca.~13:00\,Uhr, obwohl die Solarzelle noch Energie lieferte. Ursache: interner 6-Stunden-Sicherheits-Countdown des BQ25185; bei dauerhaft anliegendem CE-Pin bricht der Chip nach 6\,h das Laden ab. \textbf{Lösung (17.06.2026):} STM32-GPIO direkt an CE-Pin des BQ25185 angelötet; bei jeder Messung (alle 5\,min) wird CE für ca.~200\,ms auf HIGH gezogen und der interne Countdown resettet, ohne den Ladevorgang zu unterbrechen.
+
+\paragraph{Sensor-Wechsel gegenüber Projektplan.}
+\begin{itemize}
+  \item BME280 → \textbf{SHT45 + BMP390}: höhere Genauigkeit ($\pm0{,}1\,^\circ$C / $\pm0{,}5\,\text{hPa}$), getrennte Sleep-Modi.
+  \item VEML6075 → \textbf{LTR390}: breiterer UV-Messbereich, I2C-Ausgang statt analog, direkter UVI-Output.
+  \item \textbf{MAX4466-Lautstärke-Sensor entfallen:} Signalverarbeitung im Zeitrahmen nicht sauber realisierbar; alle Kern-Umweltparameter dennoch vollständig erfasst.
+\end{itemize}
+
+\paragraph{3D-Gehäuse: ungeplanter Mehraufwand.}
+Kein Gehäuse-Design im Projektplan vorgesehen; ca.~12\,h tatsächlich aufgewendet. Für korrekte Außenmessungen zwingend erforderlich: Stevenson-Screen-Design (überlagerte Lamellen, kein direkter Sonnenkontakt, freie Luftzirkulation). Mehrere Druckdurchläufe, Material weißes ASA (UV-beständig, witterungsfest).
+
+\paragraph{UV-Sensorschutz: Kunststofffenster mit Korrekturfaktor.}
+LTR390 muss vor Schmutz und Niederschlag geschützt werden, darf aber UV-Licht empfangen. UV-transparentes Quarzglas (~50\,€) wirtschaftlich nicht vertretbar. \textbf{Lösung:} Polystyrol-Fenster (ca.~2\,mm). Empirischer Korrekturfaktor aus Vergleichsmessungen:
+\[ \frac{\text{UVI}_{\text{ohne}}}{\text{UVI}_{\text{mit}}} = \frac{6{,}8}{5{,}2} = \frac{17}{13} \approx 1{,}31 \]
+In Firmware als Ganzzahl-Bruchrechnung implementiert (\texttt{uvi\_raw $\times$ 17 / 13}).
+
+\paragraph{KI-Evaluation nicht abgeschlossen.}
+16\,h geplant, ca.~2\,h investiert. PCB-Inbetriebnahme hatte Priorität. KI-Anomalieerkennung läuft bereits produktiv im HydroNode-Backend (Amazon Bedrock Nova Micro, alle 15\,min); formale Evaluation folgt nach Hardware-Stabilisierung.
+
+\paragraph{Versionsverwaltung und Arbeitsablauf.}
+Branches enthielten häufig mehrere inhaltlich unterschiedliche Änderungen, was Nachvollziehbarkeit und Review erschwerte. Für zukünftige Arbeiten: konsequent thematisch getrennte Branches, je Änderung ein eigenes Issue und Pull Request.
+
+\subsection*{Ergebnisse}
+
+\begin{itemize}
+  \item Funktionsfähiges Custom PCB (4-Lagen, STM32WLE5CCU6) im Außeneinsatz seit Ende Mai 2026.
+  \item Alle fünf Kernsensoren (SHT45, BMP390, LTR390, SPS30, SCD41) validiert, stabile Feldtest-Daten.
+  \item LoRaWAN-Pipeline (Helium → HTTPS Webhook → HydroNode Backend) aktiv.
+  \item STOP2-Ruhestrom ca.~900\,µA (gemessen, PPK2, Custom PCB).
+  \item Live-Dashboard und iOS-App operativ. Open-Source-Veröffentlichung auf GitHub abgeschlossen.
+\end{itemize}
+
+\textbf{Offene Punkte:} Solar-Autarkie-Verifikation; Langzeit-Batterie-Laufzeitmessung; KI-Evaluation; permanente Feldtest-Aufstellung an der OTH Regensburg.
+
+% ── 10. KI-Verwendung ────────────────────────────────────────────────────────
+\section{KI-Verwendung}
+
+Im Projektverlauf wurde \textbf{Claude Code} (Anthropic) als KI-Werkzeug für Dokumentation, Code-Analyse und Problemlösung eingesetzt. Testweise wurde außerdem \textbf{Gemini CLI} (Google) zum Vergleich genutzt. Empfehlung: Token-Verbrauch aktiv überwachen, Konversationen thematisch bündeln und KI-Werkzeuge gezielt einsetzen, da Kosten bei langen Kontexten schnell steigen.
+
+% ── Anhang ───────────────────────────────────────────────────────────────────
+\clearpage
+\appendix
+
+\section{Stundenaufwand -- Detailtabellen}
+\label{app:stunden}
+
+\subsection*{Soll/Ist-Vergleich nach Features}
+
+\begin{longtable}{>{\bfseries}p{0.5cm} p{5.5cm} r r l}
+  \toprule
+  \# & Feature & Geplant & Ist & Status \\
+  \midrule
+  \endfirsthead
+  \toprule
+  \# & Feature & Geplant & Ist & Status \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  1  & Hardware-Auswahl \& Beschaffung & 8\,h & 7\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  2  & Schaltplan \& Elektronik-Aufbau & 9\,h & 4\,h & \status{Fertig} \\
+  3  & Sensor: Temperatur / Feuchte / Druck & 2\,h & 3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  4  & Sensor: UV-Index (LTR390) & 2\,h & 2\,h & \status{Fertig} \\
+  5  & Sensor: Feinstaub SPS30 & 4\,h & 3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  6  & Sensor: CO$_2$ SCD41 & 4\,h & 3\,h & \status{Fertig} \\
+  7  & Sensor: Lautstärke (MAX4466) & 3\,h & 0\,h & \status{Weggelassen} \\
+  \rowcolor{rowgray}
+  8  & Standalone-Tests & 8\,h & 3\,h & \status{Fertig} \\
+  9  & PCB-Design, Bestellung \& Inbetriebnahme & 9\,h & \textasciitilde56\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  10 & Autarke Stromversorgung Solar & 13\,h & \textasciitilde7\,h & \status{In Arbeit} \\
+  11 & Deep-Sleep \& Power-Management & 7\,h & \textasciitilde10\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  12 & LoRaWAN-Firmware & 12\,h & \textasciitilde11\,h & \status{Fertig} \\
+  13 & Helium \& Decoder & 5\,h & \textasciitilde3\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  14 & Backend: Pipeline zu HydroNode & 8\,h & \textasciitilde3\,h & \status{Fertig} \\
+  15 & Website Echtzeit-Dashboard & 14\,h & 10\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  16 & App: Verlaufsdiagramme & 6\,h & \textasciitilde6\,h & \status{Fertig} \\
+  17 & App: Stationsverwaltung & 4\,h & \textasciitilde6\,h & \status{Fertig} \\
+  \rowcolor{rowgray}
+  18 & KI-Eval: Datensatz \& Modellauswahl & 8\,h & \textasciitilde2\,h & \status{In Arbeit} \\
+  19 & KI-Eval: Testing \& Benchmarking & 8\,h & 0\,h & \status{Geplant} \\
+  \rowcolor{rowgray}
+  20 & Feldtest \& Abschlussdoku & 16\,h & \textasciitilde7\,h & \status{In Arbeit} \\
+  -- & 3D-Gehäuse (nicht geplant) & 0\,h & \textasciitilde12\,h & \status{Fertig} \\
+  \midrule
+  \multicolumn{2}{l}{\textbf{Gesamt}} & \textbf{160\,h} & \textbf{170\,h} & \\
+\end{longtable}
+
+\subsection*{Soll/Ist-Vergleich nach Bereichen}
+
+\begin{table}[H]
+  \centering
+  \begin{tabularx}{\textwidth}{X r r r}
+    \toprule
+    \textbf{Bereich} & \textbf{Geplant (h)} & \textbf{Ist (h, est.)} & \textbf{Differenz} \\
+    \midrule
+    Hardware, Beschaffung, Schaltplan       & 17 & \textasciitilde9  & $-8$  \\
+    Sensorik (5 von 6 Sensoren)             & 12 & \textasciitilde11 & $-1$  \\
+    Standalone-Tests                         & 8  & \textasciitilde3  & $-5$  \\
+    PCB-Design, Bestellung, Inbetriebnahme  & 9  & \textasciitilde50 & $\mathbf{+41}$ \\
+    Autarke Stromversorgung (Solar)         & 13 & \textasciitilde7  & $-6$  \\
+    Firmware (Deep-Sleep, LoRaWAN)          & 19 & \textasciitilde21 & $+2$  \\
+    Helium-Netzwerk \& Backend              & 13 & \textasciitilde6  & $-7$  \\
+    Website \& App                          & 24 & \textasciitilde23 & $-1$  \\
+    KI-Evaluation                           & 16 & \textasciitilde2  & $-14$ \\
+    Feldtest \& Dokumentation               & 16 & \textasciitilde10 & $-6$  \\
+    3D-Gehäuse (nicht geplant)              & 0  & \textasciitilde12 & $+12$ \\
+    \midrule
+    \textbf{Gesamt (laut Arbeitstagebuch)}  & \textbf{160} & \textbf{170} & $+10$ \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Stundenvergleich Soll/Ist nach Bereichen}
+\end{table}
+
+\subsection*{Arbeitstagebuch}
+
+\small
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\begin{longtable}{|l|c|l|p{7cm}|}
+\hline
+\textbf{Datum} & \textbf{h} & \textbf{Kategorie} & \textbf{Beschreibung} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Datum} & \textbf{h} & \textbf{Kategorie} & \textbf{Beschreibung} \\
+\hline
+\endhead
+\hline
+\multicolumn{4}{|r|}{\footnotesize Fortsetzung auf nächster Seite} \\
+\hline
+\endfoot
+\hline
+\endlastfoot
+23.03.2026 & 5 & Hardware  & Energieeffiziente Kernkomponenten ausgewählt und bestellt (STM32, Laderegler, Konverter, SCD41). \\ \hline
+27.03.2026 & 4 & Software  & Testprojekt aufgebaut, Dummy-Werte stabil via LoRaWAN übertragen. \\ \hline
+29.03.2026 & 2 & Hardware  & Lötarbeiten (STM32, BQ25185), Inbetriebnahme vorbereitet. \\ \hline
+30.03.2026 & 4 & Software  & Erste Firmware per ST-Link geflasht, LoRaWAN-Parameter konfiguriert. \\ \hline
+30.03.2026 & 2 & Software  & Versandzyklen und Low-Power-Ablauf im LoRaWAN-Sendeprozess getestet. \\ \hline
+31.03.2026 & 2 & Hardware  & Weitere Sensorik (SHT45, BMP390, LTR390) ausgewählt und nachbestellt. \\ \hline
+31.03.2026 & 1 & Hardware  & Sendetests mit eigenem und externem Gateway, verschiedene Antennen. \\ \hline
+01.04.2026 & 1 & Hardware  & LoRa-Funktionstest im Gebäude K104. \\ \hline
+01.04.2026 & 2 & Software  & Projektstruktur überarbeitet, SCD41 integriert, Build via Makefiles verbessert. \\ \hline
+03.04.2026 & 2 & Planung   & Mindestanforderungen für Batterie- und Solarversorgung rechnerisch ausgelegt. \\ \hline
+05.04.2026 & 2 & Software  & Energieeffizienz verbessert, Batteriemonitor LC709203F integriert. \\ \hline
+05.04.2026 & 2 & Software  & Feldtests bei schwachen Empfangsbedingungen ($>10\,\text{km}$), GitHub-Actions eingerichtet. \\ \hline
+06.04.2026 & 6 & CAD       & PCB-Design erstellt, Datenblattabgleich und Leistungsbudget-Berechnungen. \\ \hline
+07.04.2026 & 6 & CAD       & PCB-Layout detailliert ausgearbeitet und für Integrationsschritte vorbereitet. \\ \hline
+10.04.2026 & 6 & Software  & Kommunikations- und Applikations-Stack verbessert und stabilisiert. \\ \hline
+11.04.2026 & 3 & Planung   & Vorbereitung PCB-Design und MCU-Wechsel strukturiert abgeschlossen. \\ \hline
+13.04.2026 & 6 & Software  & SHT45, BMP390, LTR390, MAX17048 implementiert, eingebunden, verifiziert. \\ \hline
+14.04.2026 & 2 & Hardware  & Signalstärketests am OTH-Standort, Empfang durch mehrere Stationen. \\ \hline
+15.04.2026 & 6 & Software  & Remote-Debugging eingerichtet, Pre-Wake-Logik verbessert. \\ \hline
+16.04.2026 & 2 & Software  & SPS30 in Messzyklus integriert und in Betrieb genommen. \\ \hline
+16.04.2026 & 1 & Software  & Fan-Cleaning-Abläufe nachgeschärft, zugehörige Fehler behoben. \\ \hline
+18.04.2026 & 7 & CAD       & PCB- und RF-Design finalisiert, für Fertigung freigegeben. \\ \hline
+20.04.2026 & 5 & Software  & CMake-Projektstruktur für STM32WLE5CCU6 neu aufgebaut. \\ \hline
+21.04.2026 & 1 & Planung   & LaTeX-Dokumentationsprojekt initial angelegt. \\ \hline
+22.04.2026 & 1 & Software  & RX-Aktionen in Kommunikationsablauf integriert. \\ \hline
+22.04.2026 & 1 & Software  & Fehler im manuellen SPS30-Fan-Cleaning reproduziert und korrigiert. \\ \hline
+24.04.2026 & 2 & CAD       & PCB-Layout finalisiert, letzte Hardwareanpassungen. \\ \hline
+24.04.2026 & 2 & Software  & Firmware an finalisiertes PCB angepasst, Regressionen geprüft. \\ \hline
+26.04.2026 & 6 & Software  & Helium-SNS in HydroNodeNetwork integriert, End-to-End-Datenfluss validiert. \\ \hline
+27.04.2026 & 5 & Software  & HydroNode-App um Funktionen für HydroNodeStationen erweitert. \\ \hline
+27.04.2026 & 3 & Software  & Firmware an Netzwerkabläufe angepasst, Station in App eingerichtet. \\ \hline
+28.04.2026 & 2 & CAD       & PCB finalisiert, Bestellung inkl. Bestückung bei JLCPCB aufgegeben. \\ \hline
+29.04.2026 & 2 & Software  & Energieanalyse ohne Solarladegerät durchgeführt und dokumentiert. \\ \hline
+30.04.2026 & 1 & Software  & State-of-Charge-Ausgabe des MAX17048 in Messzyklus integriert. \\ \hline
+30.04.2026 & 2 & Software  & Troubleshooting SubGHz-Fehler (write CMD error 1) analysiert. \\ \hline
+01.05.2026 & 3 & Planung   & Studiendokumentation erweitert (Hardware, Software, Energie, Testing). \\ \hline
+02.05.2026 & 6 & CAD       & 3D-Gehäuse in Fusion 360 konstruiert und für 3D-Druck aufbereitet. \\ \hline
+07.05.2026 & 3 & Hardware  & Langzeittest ohne Solar mit WioE5-Prototyp gestartet. \\ \hline
+11.05.2026 & 4 & Hardware  & PCB-Fehlersuche: defekter TPS63900 als Ursache identifiziert. \\ \hline
+12.05.2026 & 3 & Software  & Erste Firmware-Uploads auf Custom PCB, LoRa-Core-Probleme eingegrenzt. \\ \hline
+16.05.2026 & 10 & Software & Projektwebsite erstellt, mit Live-Messdaten und technischen Details befüllt. \\ \hline
+18.05.2026 & 2 & CAD       & Sensorgehäuse für Außenmontage modelliert, ersten 3D-Druckdurchlauf gestartet. \\ \hline
+20.05.2026 & 3 & CAD       & Zweiten Druckdurchlauf abgeschlossen, Passgenauigkeit geprüft. \\ \hline
+22.05.2026 & 6 & Software  & iOS-App aktualisiert, Fehler behoben, Webapp-Funktionen erweitert. \\ \hline
+26.05.2026 & 4 & Software  & PCB-Fehler behoben, Firmware erstmals stabil mit Batterieversorgung. \\ \hline
+27.05.2026 & 1 & Hardware  & Kleinere Solarzelle auf Eignung für Energieversorgung getestet. \\ \hline
+28.05.2026 & 3 & Hardware  & Outdoor-Gehäuse montiert, Sensoren eingebaut, Feldtest gestartet. \\ \hline
+30.05.2026 & 1 & Software  & Erste Feldtest-Messwerte auf Plausibilität geprüft. \\ \hline
+06.06.2026 & 2 & Hardware  & Plexiglasabdeckung für UV-Sensor gefertigt und eingepasst. \\ \hline
+08.06.2026 & 4 & Software  & UV-Index-Berechnung refaktoriert, Sensorkabel überarbeitet, Testläufe. \\ \hline
+17.06.2026 & 5 & Hardware  & Solar-Lade-Bug behoben: BQ25185 beendete Laden nach internem 6-h-Timeout automatisch und startete erst bei erneutem Solar-Null-Übergang neu. Ursache: kein regelmäßiges CE-Signal. Fix: STM32-GPIO an CE-Pin des BQ25185 angelötet; bei jeder Messung wird CE für ca.~200\,ms auf HIGH gezogen, was den internen Countdown resettet. Tägliches Lademuster 07:00--13:00\,Uhr dadurch behoben. \\ \hline
+19.06.2026 & 3 & Software/Doku & Projekt-Cleanup für Abgabe und Open-Source-Veröffentlichung: Codestruktur aufgeräumt, Dokumentation finalisiert, Repository-Metadaten gepflegt. \\ \hline
+\textbf{Gesamt} & \textbf{170} & & \\ \hline
+\caption{Dokumentierter Stundenaufwand nach Datum (Stand: 19.06.2026)}
+\end{longtable}
+\normalsize
+
+\end{document}
