@@ -38,6 +38,7 @@
 \definecolor{accent}{HTML}{0B4F6C}
 \setstretch{1.1}
 \setkomafont{disposition}{\color{accent}\bfseries}
+\emergencystretch=3em
 
 \begin{document}
 
@@ -107,9 +108,23 @@ Die gesamte Software-Entwicklung startete auf dem \textbf{Seeed Studio Wio-E5 Mi
 
 \subsection*{Custom PCB}
 
-Das Herzstück bildet der \textbf{STM32WLE5CCU6} – ein SoC mit ARM Cortex-M4 (48\,MHz) und integriertem Sub-GHz-LoRa-Transceiver. Das selbst entworfene \textbf{4-Lagen-PCB} (EasyEDA Pro) trennt RF-, Digital- und Versorgungslagen. Das RF-Frontend besteht aus BALFHB-WL-02D3 (Balun) und BGS12SN6 (TX/RX-Schalter, GPIO PC13) mit 50\,$\Omega$ Controlled-Impedance-Leiterbahnen bei 868\,MHz.
+Das Herzstück bildet der \textbf{STM32WLE5CCU6} – ein SoC mit ARM Cortex-M4 (48\,MHz) und integriertem Sub-GHz-LoRa-Transceiver. Das selbst entworfene \textbf{4-Lagen-PCB} (EasyEDA Pro) wurde vollständig neu entwickelt, da kein geeignetes Open-Source-Design für diesen Chip verfügbar war.
 
-Energieversorgung: zwei \textbf{TPS63900} Buck-Boost-Wandler ($<0{,}5\,\mu\text{A}$ Quiescent, $>95\,\%$ Effizienz) für 3,3\,V (Primär) und 5\,V für SPS30 (Sekundär, software-gesteuert via GPIO). Solar-MPPT-Laden übernimmt der \textbf{BQ25185}. Gefertigt und bestückt bei JLCPCB (5 Platinen, ca.~200\,€ inkl. Versand, teilfinanziert durch 150-USD-OSHWLab-Gutschein).
+\textbf{Lagenaufbau:} Top und Bottom tragen Signal- und Versorgungsleitungen; Inner\,1 ist dedizierte GND-Lage (durchgängiges Kupferpour); Inner\,2 wird ebenfalls als Signallage genutzt. Die durchgehende GND-Innenlage ermöglicht kurze Rückstrompfade und reduziert Gleichtaktstörungen auf den I2C- und Steuerleitungen.
+
+\textbf{RF-Frontend:} Balun BALFHB-WL-02D3 und TX/RX-Schalter BGS12SN6 (GPIO PC13). Leiterbahnen im RF-Bereich sind auf 50\,$\Omega$ Controlled Impedance ausgelegt (868\,MHz). Rund um das RF-Signal-Feld (Balun, Schalter, Entkopplungskondensatoren, SMA-Pfad) wurde ein dichter GND-Via-Zaun gesetzt, der das RF-Feld nach unten an die GND-Lage anbindet und seitliche Abstrahlung in andere Boardbereiche unterdrückt. Antenne: externe \textbf{SMA-Buchse}.
+
+\textbf{Energieversorgung:} Zwei \textbf{TPS63900} Buck-Boost-Wandler ($<0{,}5\,\mu\text{A}$ Quiescent, $>95\,\%$ Effizienz) liefern 3,3\,V (Primär, immer an) und 5\,V (Sekundär, software-gesteuert via GPIO für SPS30). Solar-MPPT-Laden übernimmt der \textbf{BQ25185} (CE-Pin an STM32-GPIO für 6-h-Timeout-Reset).
+
+\textbf{Anschlüsse:}
+\begin{itemize}
+  \item \textbf{Akku:} 2-poliger JST-Stecker sowie parallel ein 2-poliger Schraubklemmenblock.
+  \item \textbf{Solar:} 2-poliger Schraubklemmenblock (neben Akku-Klemme).
+  \item \textbf{Stevensonscreen-Kabel:} 6-poliger Schraubklemmenblock für das 6-adrige Verbindungskabel zum Stevenson-Screen-Gehäuse (I2C, Versorgung, Solarpanel-Leitungen zu den außen montierten Sensoren).
+  \item \textbf{SWD-Debugger:} Pinheader (NRST, SWDCLK, SWDIO, GND) für ST-Link\,V2.
+\end{itemize}
+
+\textbf{Testpads} sind für kritische Signale (Versorgungsspannungen, I2C-Bus, CE-Pin) vorgesehen, um im Fehlerfall mit Logikanalysator oder Multimeter direkt messen zu können. Gefertigt und bestückt bei JLCPCB (5 Platinen, ca.~200\,€ inkl. Versand).
 
 \begin{figure}[H]
   \centering
@@ -117,6 +132,7 @@ Energieversorgung: zwei \textbf{TPS63900} Buck-Boost-Wandler ($<0{,}5\,\mu\text{
   \caption{3D-Render des Custom PCB (EasyEDA Pro)}
 \end{figure}
 
+\clearpage
 \subsection*{Gehäuse: Stevenson Screen}
 
 Ein selbst in Fusion\,360 entworfenes, mehrlagiges Lamellen-Gehäuse aus weißem \textbf{ASA-Kunststoff} (UV-beständig, witterungsfest) schützt die Sensoren vor Direktsonne und Regen bei freier Luftzirkulation. Mehrere 3D-Druckdurchläufe für Passgenauigkeit nötig. Der \textbf{LTR390-UV-Sensor} ist hinter einer Polystyrol-Abdeckung (ca.~2\,mm) verbaut; ein empirischer Korrekturfaktor $17/13 \approx 1{,}31$ wird als Ganzzahl-Bruchrechnung in der Firmware angewandt.
@@ -127,6 +143,7 @@ Ein selbst in Fusion\,360 entworfenes, mehrlagiges Lamellen-Gehäuse aus weißem
   \caption{Montierte HydroNodeStation01 im Außeneinsatz}
 \end{figure}
 
+\clearpage
 \section{Firmware und Software}
 
 \subsection*{Build-System und Entwicklungsinfrastruktur}
@@ -146,13 +163,13 @@ CMake + ARM GCC (\texttt{arm-none-eabi-gcc}). Das Build-System wurde von Anfang 
 \begin{table}[H]
   \centering
   \small
-  \begin{tabular}{llll}
+  \begin{tabular}{lp{5.5cm}p{3.5cm}r}
     \hline
     \textbf{fPort} & \textbf{Felder} & \textbf{Skalierung} & \textbf{Bytes} \\
     \hline
     2 & Temp, Feuchte, Druck, Akku, UV & i16/u16, 0,01/0,01/0,1/1/0,01 & 10 \\
     3 & wie fPort\,2 + CO$_2$ & u16, 1\,ppm & 12 \\
-    4 & wie fPort\,3 + PM1.0/2.5/4.0/10.0, NC0.5–NC10, TypSize & u16 div. & 32 \\
+    4 & wie fPort\,3 + PM1.0/2.5/4.0/10.0, NC, TypSize & u16 div. & 32 \\
     \hline
   \end{tabular}
   \caption{Uplink-Payload-Format (alle Felder Big-Endian)}
@@ -177,6 +194,7 @@ CMake + ARM GCC (\texttt{arm-none-eabi-gcc}). Das Build-System wurde von Anfang 
 
 \textbf{Sensor-Treiber} (\texttt{sys\_sensors.c}): \texttt{EnvSensors\_Init()} – tolerant bei fehlenden Sensoren. \texttt{EnvSensors\_Read(flags)} – automatischer I2C-Bus-Recovery bei Fehlern (relevant bei SPS30-Gebläse-Spikes). SPS30 alle 120\,h automatische Fan-Reinigung (wenn Akku $> 4120\,\text{mV}$).
 
+\clearpage
 \section{Inbetriebnahme}
 
 \subsection*{Schritt 1: Hardware beschaffen}
@@ -185,7 +203,8 @@ Zwei Optionen:
 
 \begin{table}[H]
   \centering
-  \begin{tabular}{lp{9cm}}
+  \small
+  \begin{tabularx}{\textwidth}{lX}
     \hline
     \textbf{Option} & \textbf{Details} \\
     \hline
@@ -199,7 +218,7 @@ Zwei Optionen:
       Jumper-Kabel anschließen (alle sechs Sensoren unterstützt; gleicher I2C-Bus
       wie Custom PCB). Flashen ebenfalls via ST-Link V2 (RST, CLK, DIO, GND). \\
     \hline
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 Für das Wio-E5 Mini werden zusätzlich benötigt: Breakout-Boards für SHT45, BMP390, LTR390, SCD41, SPS30 und MAX17048 (alle über I2C), Jumperwires sowie ein Step-Up-Konverter auf 5\,V für den SPS30.
@@ -320,6 +339,7 @@ Logging im normalen LoRaWAN-Betrieb: \texttt{APP\_LOG\_ENABLED~1} in \texttt{Cor
 
 RF-Region: \texttt{ACTIVE\_REGION} in \texttt{LoRaWAN/Target/lorawan\_conf.h} (\texttt{EU868}, \texttt{US915}, \texttt{AS923} etc.).
 
+\clearpage
 \section{Energieeffizienz}
 
 \begin{table}[H]
@@ -358,6 +378,7 @@ Gemessener STOP2-Strom (PPK2, Custom PCB, 01.06.2026): ca.~\textbf{900\,µA}. Zw
   \caption{Batterielaufzeit (PPK2-Messung, Custom PCB)}
 \end{table}
 
+\clearpage
 \section{Tests und Validierung}
 
 \textbf{Prototyp:} Alle sechs Sensoren auf Plausibilität und I2C-Korrektheit verifiziert. LoRaWAN-OTAA-Join und Uplinks auf fPort\,2/3/4 stabil. Feldtest: $>10\,\text{km}$ Reichweite nachgewiesen. NVM-Persistenz durch Neustarts bestätigt. I2C-Bus-Recovery durch absichtlich induzierte Fehler verifiziert. Downlinks \texttt{0x11} und \texttt{0xFF} funktional.
@@ -374,6 +395,7 @@ Live-Dashboard: \url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5
 
 \textbf{Noch ausstehend:} Solar-Autarkie-Verifikation (BQ25185) unter verschiedenen Lichtbedingungen; Langzeit-Batterie-Laufzeitmessung.
 
+\clearpage
 \section{HydroNodeNetzwerk}
 
 Das HydroNodeNetzwerk verbindet Sensorstationen mit Backend und iOS-App. Es unterstützt zwei Übertragungspfade:
@@ -411,21 +433,24 @@ Das HydroNodeNetzwerk verbindet Sensorstationen mit Backend und iOS-App. Es unte
   \caption{Systemarchitektur des HydroNodeNetzwerks}
 \end{figure}
 
+\begin{sloppypar}
 \textbf{HTTPS-Pfad:} Stationen signieren JSON-Payloads mit HMAC-SHA256 (Header \texttt{X-Signature}, Replay-Schutz via \texttt{X-Timestamp} $\pm20$\,min). Backend publiziert in Kafka-Topic \texttt{hydronode.ingress.sensor} → \texttt{DeviceKeyVerifier} → \texttt{hydronode.verified.sensor} → \texttt{SensorValueProcessor} → PostgreSQL.
 
 \textbf{LoRaWAN-Pfad:} Station → Helium Network → ChirpStack v4 → Amazon SNS → Backend-Endpunkt \texttt{POST /api/webhook/lorawan/sns}. Backend ermittelt Sensor via \texttt{SensorLookupCache} (DevEUI), dekodiert Payload per \texttt{LoRaFPortConfig} (Big-Endian, kanalweise Skalierung) und publiziert direkt nach \texttt{hydronode.verified.sensor}.
+\end{sloppypar}
 
 \textbf{Backend:} Quarkus-3-Anwendung. In-Process-Caches (\texttt{DeviceKeyCache}, \texttt{SensorLookupCache}, \texttt{FPortConfigCache}, TTL 90\,min) reduzieren DB-Last. Kafka entkoppelt Empfang und Verarbeitung.
 
 \textbf{KI-Analyse (Amazon Bedrock Nova Micro):} Alle 15\,min automatische Anomalieerkennung (SPIKE, DROP, GRADUAL\_DRIFT, THRESHOLD\_BREACH) mit 48\,h Historienkontext. Alle 6\,h Routineanalyse aller aktiven Sensoren. Antwort enthält Erklärung, Konfidenz, Alert-Flag und Handlungsempfehlung. Outdoor- und Indoor-Sensoren erhalten unterschiedliche System-Prompts.
 
+\clearpage
 \section{Open-Source-Veröffentlichung}
 
 \textbf{Lizenzen:} Hardware (Schaltplan, PCB, CAD-Gehäuse) unter \textbf{CC BY-NC-SA 4.0}; Firmware (\texttt{stm32\_node}) unter \textbf{BSD-3-Clause}.
 
 \textbf{Veröffentlichung:} \url{https://github.com/TexhFexLabs/hydroNodeStation01} (Schaltplan-PDF, PCB-Renders, BOM, vollständige CMake-Firmware, Inbetriebnahme-Anleitung und 3MF-Dateien des Gehäuses).
 
-\textbf{OSHWLab Start 2026 Contest:} Projekt angemeldet; erzielte einen \textbf{150-USD-JLCPCB-Fertigungsgutschein}, der einen Teil der ~200\,€ Produktionskosten abdeckte.
+\textbf{OSHWLab Start 2026 Contest:} Projekt angemeldet – ein Wettbewerb, bei dem Open-Hardware-Erfindungen und Prototyp-PCBs eingereicht und ausgezeichnet werden.
 
 \section{Stundenaufwand}
 
@@ -435,13 +460,17 @@ Projektplan: 20 Features, \textbf{160 Stunden} geplant. Tatsächlich laut Arbeit
 
 Detaillierter Soll/Ist-Vergleich nach Features und Bereichen sowie vollständiges Arbeitstagebuch: siehe Anhang~\ref{app:stunden}.
 
+\section{KI-Verwendung}
 
+Im Projektverlauf wurde \textbf{Claude Code} (Anthropic) als KI-Werkzeug für Dokumentation, Code-Analyse und Problemlösung eingesetzt. Testweise wurde außerdem \textbf{Gemini CLI} (Google) zum Vergleich genutzt. Empfehlung: Token-Verbrauch aktiv überwachen, Konversationen thematisch bündeln und KI-Werkzeuge gezielt einsetzen, da Kosten bei langen Kontexten schnell steigen.
+
+\clearpage
 \section{Abweichungen, Probleme und Lösungen}
 
 \subsection*{Architekturelle Abweichungen vom Projektplan}
 
 \paragraph{SW-UART statt Hardware-USART für Debug-Ausgabe.}
-Im Projektplan war USART1 als Debug-Schnittstelle vorgesehen. Im ersten PCB-Revisionsstand lag USART1 auf einem falschen Pin (Pinout-Irrtum); die Debug-Ausgabe wurde daher auf eine \textbf{software-emulierte UART} (\texttt{sw\_uart.c}) auf Pin PA6 umgestellt. Im überarbeiteten PCB-Design ist der Fehler behoben.
+Im Projektplan war USART1 als Debug-Schnittstelle vorgesehen. Im ersten PCB-Revisionsstand lag USART1 auf einem falschen Pin; die Debug-Ausgabe wurde daher auf eine \textbf{software-emulierte UART} (\texttt{sw\_uart.c}) auf Pin PA6 umgestellt. Im überarbeiteten PCB-Design ist der Fehler behoben.
 
 \paragraph{Dualer Build-Target (Prototyp + Custom PCB).}
 Im Plan war ein einzelnes Firmware-Target vorgesehen. Tatsächlich existierten zwei Targets von Beginn an: das \textbf{Debug}-Target (Wio-E5 Mini, STM32WL55, \texttt{-O0 -g3}) für die gesamte Prototyping-Phase und das \textbf{Release}-Target (STM32WLE5CCU6, \texttt{-Os}) als Anpassung für das Custom PCB. Applikationslogik identisch; nur Pin-Mappings und MCU-Variante unterscheiden sich.
@@ -458,7 +487,7 @@ Im Plan war gleichmäßige Übertragung aller Sensorwerte bei jedem Uplink vorge
 9\,h geplant, ca.~56\,h tatsächlich aufgewendet. Kein geeignetes Open-Source-Design für den STM32WLE5JC verfügbar; vollständige Neuentwicklung in EasyEDA Pro mit mehreren Iterationen für RF-Design, Antennenmatching und Komponentenplatzierung. Nach Lieferung zusätzliche Bugs (u.\,a.\ TPS63900, SW-UART). Mehraufwand durch Einsparungen in anderen Bereichen und Verzicht auf Lautstärke-Sensor teilweise ausgeglichen; Gesamtabweichung $+10\,\text{h}$.
 
 \paragraph{Fehler im TPS63900-Spannungsregler.}
-Nach Lieferung der JLCPCB-Platinen funktionierte der primäre TPS63900 (3,3-V-Systemversorgung) nicht; Designfehler im Schaltplan (in Absprache mit einem Experten identifiziert). \textbf{Lösung:} Chip von LiPo-Plus und 3,3-V-Netz getrennt; identischer Chip auf Breakout-Board montiert und an PCB-Header angesteckt. System läuft vollständig funktionsfähig mit identischer Effizienz. Korrigiertes PCB-Design für zukünftige Revisionen bereit.
+Nach Lieferung der JLCPCB-Platinen funktionierte der primäre TPS63900 (3,3-V) nicht; Designfehler im Schaltplan (nach Absprache mit Experten identifiziert). \textbf{Lösung:} Chip von LiPo-Plus und 3,3-V-Netz getrennt; identischer Chip auf Breakout-Board montiert und an PCB-Header angesteckt. System läuft vollständig funktionsfähig mit identischer Effizienz. Korrigiertes PCB-Design für zukünftige Revisionen bereit.
 
 \paragraph{BQ25185-Solarlade-Bug: 6-h-Timeout.}
 Im Feldtest: Laden startete täglich ca.~07:00\,Uhr und stoppte um ca.~13:00\,Uhr, obwohl die Solarzelle noch Energie lieferte. Ursache: interner 6-Stunden-Sicherheits-Countdown des BQ25185; bei dauerhaft anliegendem CE-Pin bricht der Chip nach 6\,h das Laden ab. \textbf{Lösung (17.06.2026):} STM32-GPIO direkt an CE-Pin des BQ25185 angelötet; bei jeder Messung (alle 5\,min) wird CE für ca.~200\,ms auf HIGH gezogen und der interne Countdown resettet, ohne den Ladevorgang zu unterbrechen.
@@ -495,10 +524,6 @@ Branches enthielten häufig mehrere inhaltlich unterschiedliche Änderungen, was
 \end{itemize}
 
 \textbf{Offene Punkte:} Solar-Autarkie-Verifikation; Langzeit-Batterie-Laufzeitmessung; KI-Evaluation; permanente Feldtest-Aufstellung an der OTH Regensburg.
-
-\section{KI-Verwendung}
-
-Im Projektverlauf wurde \textbf{Claude Code} (Anthropic) als KI-Werkzeug für Dokumentation, Code-Analyse und Problemlösung eingesetzt. Testweise wurde außerdem \textbf{Gemini CLI} (Google) zum Vergleich genutzt. Empfehlung: Token-Verbrauch aktiv überwachen, Konversationen thematisch bündeln und KI-Werkzeuge gezielt einsetzen, da Kosten bei langen Kontexten schnell steigen.
 
 \clearpage
 \appendix
