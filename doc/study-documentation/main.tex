@@ -39,6 +39,7 @@
 \setstretch{1.1}
 \setkomafont{disposition}{\color{accent}\bfseries}
 \emergencystretch=3em
+\RedeclareSectionCommand[tocnumwidth=2.5em]{section}
 
 \begin{document}
 
@@ -108,19 +109,19 @@ Die gesamte Software-Entwicklung startete auf dem \textbf{Seeed Studio Wio-E5 Mi
 
 \subsection*{Custom PCB}
 
-Das Herzstück bildet der \textbf{STM32WLE5CCU6} – ein SoC mit ARM Cortex-M4 (48\,MHz) und integriertem Sub-GHz-LoRa-Transceiver. Das selbst entworfene \textbf{4-Lagen-PCB} (EasyEDA Pro) wurde vollständig neu entwickelt, da kein geeignetes Open-Source-Design für diesen Chip verfügbar war.
+Das Herzstück bildet der \textbf{STM32WLE5CCU6}. Ein SoC mit ARM Cortex-M4 (48\,MHz) und integriertem Sub-GHz-LoRa-Transceiver. Das selbst entworfene \textbf{4-Lagen-PCB} (EasyEDA Pro) wurde vollständig neu entwickelt, da kein geeignetes Open-Source-Design für diesen Chip verfügbar war.
 
 \textbf{Lagenaufbau:} Top und Bottom tragen Signal- und Versorgungsleitungen; Inner\,1 ist dedizierte GND-Lage (durchgängiges Kupferpour); Inner\,2 wird ebenfalls als Signallage genutzt. Die durchgehende GND-Innenlage ermöglicht kurze Rückstrompfade und reduziert Gleichtaktstörungen auf den I2C- und Steuerleitungen.
 
 \textbf{RF-Frontend:} Balun BALFHB-WL-02D3 und TX/RX-Schalter BGS12SN6 (GPIO PC13). Leiterbahnen im RF-Bereich sind auf 50\,$\Omega$ Controlled Impedance ausgelegt (868\,MHz). Rund um das RF-Signal-Feld (Balun, Schalter, Entkopplungskondensatoren, SMA-Pfad) wurde ein dichter GND-Via-Zaun gesetzt, der das RF-Feld nach unten an die GND-Lage anbindet und seitliche Abstrahlung in andere Boardbereiche unterdrückt. Antenne: externe \textbf{SMA-Buchse}.
 
-\textbf{Energieversorgung:} Zwei \textbf{TPS63900} Buck-Boost-Wandler ($<0{,}5\,\mu\text{A}$ Quiescent, $>95\,\%$ Effizienz) liefern 3,3\,V (Primär, immer an) und 5\,V (Sekundär, software-gesteuert via GPIO für SPS30). Solar-MPPT-Laden übernimmt der \textbf{BQ25185} (CE-Pin an STM32-GPIO für 6-h-Timeout-Reset).
+\textbf{Energieversorgung:} Zwei \textbf{TPS63900} Buck-Boost-Wandler ($<0{,}5\,\mu\text{A}$ Quiescent, $>95\,\%$ Effizienz) liefern 3,3\,V (Primär, immer an) und 5\,V (Sekundär, software-gesteuert via GPIO für SPS30). Solar-MPPT-Laden übernimmt der \textbf{BQ25185}.
 
 \textbf{Anschlüsse:}
 \begin{itemize}
   \item \textbf{Akku:} 2-poliger JST-Stecker sowie parallel ein 2-poliger Schraubklemmenblock.
   \item \textbf{Solar:} 2-poliger Schraubklemmenblock (neben Akku-Klemme).
-  \item \textbf{Stevensonscreen-Kabel:} 6-poliger Schraubklemmenblock für das 6-adrige Verbindungskabel zum Stevenson-Screen-Gehäuse (I2C, Versorgung, Solarpanel-Leitungen zu den außen montierten Sensoren).
+  \item \textbf{Stevensonscreen-Kabel:} 6-poliger Schraubklemmenblock für das 6-adrige Verbindungskabel zum Stevenson-Screen-Gehäuse (I2C, Versorgung, Solarpanel-Leitung).
   \item \textbf{SWD-Debugger:} Pinheader (NRST, SWDCLK, SWDIO, GND) für ST-Link\,V2.
 \end{itemize}
 
@@ -526,14 +527,25 @@ Branches enthielten häufig mehrere inhaltlich unterschiedliche Änderungen, was
 \textbf{Offene Punkte:} Solar-Autarkie-Verifikation; Langzeit-Batterie-Laufzeitmessung; KI-Evaluation; permanente Feldtest-Aufstellung an der OTH Regensburg.
 
 \clearpage
+\section{Fazit}
+
+Das Projekt hat sein Kernziel erreicht: Eine selbst entworfene, solar-betriebene Umweltmessstation läuft seit Ende Mai 2026 im Außeneinsatz und überträgt zuverlässig Messdaten über LoRaWAN. Alle fünf Kernsensoren liefern stabile Feldtest-Daten, die Pipeline bis ins Backend funktioniert end-to-end.
+
+Der größte Lerneffekt war das PCB-Design. Was im Projektplan mit 9\,h veranschlagt war, hat am Ende rund 56\,h gekostet. Das liegt nicht daran, dass der Plan schlecht war, sondern daran, dass RF-Design, 4-Lagen-Stackup und LoRa-Antennenpfad Themen sind, die man erst wirklich versteht, wenn man sie selbst debuggt. Die Bugs nach der ersten Lieferung (TPS63900, SW-UART, und zuletzt der BQ25185-Solar-Timeout) waren frustrierend, aber gleichzeitig die lehrreichsten Momente des Projekts. Jeder dieser Fehler hat ein konkretes Verständnis hinterlassen, das kein Lehrbuch so direkt vermitteln kann.
+
+Was mich am meisten überrascht hat: Das System läuft tatsächlich. Es steht draußen, sendet Daten, das Dashboard zeigt Live-Werte. Das klingt selbstverständlich, ist es aber nicht. Zwischen Prototyp auf dem Steckbrett und funktionierendem Custom PCB im Stevenson-Screen-Gehäuse liegt ein langer Weg, den man erst einmal gehen muss.
+
+Offen bleibt die Langzeit-Solar-Autarkie-Verifikation. Das System ist dafür ausgelegt, aber belastbare Daten über mehrere Wochen stehen noch aus. Das ist der nächste logische Schritt.
+
+\clearpage
 \appendix
 
-\section{Stundenaufwand -- Detailtabellen}
+\section{Stundenaufwand: Detailtabellen}
 \label{app:stunden}
 
 \subsection*{Soll/Ist-Vergleich nach Features}
 
-\begin{longtable}{>{\bfseries}p{0.5cm} p{5.5cm} r r l}
+\begin{longtable}{>{\bfseries}p{0.5cm} p{7.5cm} r r l}
   \toprule
   \# & Feature & Geplant & Ist & Status \\
   \midrule
