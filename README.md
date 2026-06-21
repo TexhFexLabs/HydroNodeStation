@@ -42,7 +42,7 @@ This is not a paper concept. It was designed, built, and field-tested as part of
 | UV index | Lite-On **LTR390** | UVA + ambient light |
 | Battery state-of-charge | Maxim **MAX17048** | Fuel gauge via I2C |
 
-All sensors share an I2C bus and are powered through load switches — the firmware cuts power completely to idle peripherals, keeping average system current in the single-digit microamp range between transmissions. The platform is open to extension: any I2C-compatible sensor can be added with a firmware adaptation.
+All sensors share an I2C bus and are powered through load switches — the firmware cuts power completely to idle peripherals between transmissions. The platform is open to extension: any I2C-compatible sensor can be added with a firmware adaptation.
 
 ---
 
@@ -64,7 +64,11 @@ The PCB was designed from scratch in **EasyEDA Pro**, fabricated at JLCPCB, and 
 
 Special attention was paid to RF layout: controlled-impedance traces, solid ground plane under the antenna feed, and proper keepout areas around the chip antenna.
 
-> **Honest note on revision 1:** the initial board had a bug in the TPS63900 regulator section. Root cause was found, documented, and a corrected design is ready. The station runs perfectly in the meantime with the same chip on a breakout adapter. This is exactly the kind of real-world iteration documented openly so you don't repeat it.
+> **Honest note on revision 1:** two issues were found on the first fabricated board and fixed in the corrected design:
+> - **TPS63900 regulator** — a wiring bug in the regulator section. The station runs perfectly in the meantime with the same chip on a breakout adapter.
+> - **BQ25185 charger `CE` pin** — must be driven by an MCU GPIO so the firmware can reset the charger's internal 6 h safety timeout (pulsed HIGH ~200 ms each cycle). The corrected design routes this; on the already-ordered boards the `CE` pin has to be hand-soldered to the GPIO.
+>
+> This is exactly the kind of real-world iteration documented openly so you don't repeat it.
 
 ### Stevenson Screen Enclosure
 
@@ -85,6 +89,7 @@ flowchart LR
 
     subgraph Network ["LoRaWAN Infrastructure"]
         Helium["Helium\nNetwork"]
+        ChirpStack["ChirpStack v4"]
         SNS["AWS SNS"]
     end
 
@@ -100,7 +105,8 @@ flowchart LR
 
     Node1 -- LoRaWAN --> Helium
     Node2 -- LoRaWAN --> Helium
-    Helium -- Integration --> SNS
+    Helium --> ChirpStack
+    ChirpStack -- Integration --> SNS
     SNS -- HTTPS --> API
     API --> Kafka
     Kafka --> DB
@@ -122,13 +128,15 @@ flowchart LR
 
 The firmware runs on the **STM32Cube ecosystem** with the Semtech LoRa Basics Modem (LBM). Every design decision prioritizes ultra-low power:
 
-- **STOP2 deep sleep** between transmissions — system current well under 20 µA
+- **STOP2 deep sleep** between transmissions — all idle peripherals powered down
 - **Single-shot sensor reads** — sensors powered down completely when not in use
-- **5-minute measurement cycle** — wakes, reads all sensors, packs payload, transmits, sleeps
+- **3-minute measurement cycle** — wakes, reads all sensors, packs payload, transmits, sleeps
 - **LoRaWAN Class A** with adaptive data rate (ADR) — SF7 by default to minimize on-air time
-- **Staggered slow-sensor pre-wakeup** — SCD41 (5.5 s) and SPS30 (16.5 s) start measuring before the TX window while the MCU sleeps
+- **Staggered slow-sensor pre-wakeup** — slow sensors measure ahead of the TX window so the MCU never busy-waits:
+    - **SCD41** runs two power-cycled single shots: a throw-away *stabilisation* shot starts **12 s** before the uplink, then the *useful* shot starts **6 s** before it (each ~5 s, settling during sleep). Only the second is transmitted.
+    - **SPS30** starts its measurement **16.5 s** before the uplink (fan spin-up + settling).
 
-**Power budget (SF12/DR0 worst case):** ~200 µA average current → ~208 days on a 1000 mAh LiPo without solar. With ADR at SF7 this drops to ~97 µA / ~429 days.
+**Power budget (measured, PPK2 on the custom PCB):** STOP2 idle current ~900 µA → ~46 days on a 1000 mAh LiPo without solar (~56 days on 1200 mAh). The datasheet floor from component sleep currents is ~5.7 µA; the gap is under investigation (suspected SCD41 IR leakage, BQ25185 quiescent, PCB leakage). Solar harvesting is designed to keep the node online indefinitely — long-term autonomy verification is ongoing.
 
 ### Build
 
@@ -146,15 +154,29 @@ ELF/binary output lands in `build/Release/`. Requires `arm-none-eabi-gcc`.
 
 ### Flashing LoRaWAN Keys
 
-Copy your network's credentials into `stm32_node/LoRaWAN/App/se-identity.h`:
+The **Device EUI is auto-derived from the STM32's 96-bit UID** — leave it at zero. On boot the firmware prints the derived Device EUI over SW-UART (PA6); register that EUI as an OTAA device (LoRaWAN 1.0.4, EU868) on your network server, then copy the resulting keys into `stm32_node/LoRaWAN/App/se-identity.h`:
 
 ```c
-#define LORAWAN_DEVICE_EUI   AA,BB,CC,DD,EE,FF,00,11   // your device EUI
-#define LORAWAN_JOIN_EUI     AA,BB,CC,DD,EE,FF,00,11   // your join/app EUI
-#define LORAWAN_APP_KEY      AA,BB,CC,...               // your 16-byte app key
+#define LORAWAN_DEVICE_EUI   00,00,00,00,00,00,00,00   // leave 00 — derived from chip UID
+#define LORAWAN_JOIN_EUI     AA,BB,CC,DD,EE,FF,00,11   // from your network server
+#define LORAWAN_APP_KEY      AA,BB,CC,...               // 16-byte app key from network server
+#define LORAWAN_GEN_APP_KEY  AA,BB,CC,...               // same value as APP_KEY (LoRaWAN 1.0.x)
 ```
 
+Supported network servers: **Helium IoT**, **ChirpStack v4**, **The Things Network**.
+
 > `se-identity.h` is intentionally shipped with all-zero placeholder keys and is excluded from any sensitive commit.
+
+### Downlink Commands
+
+The node accepts LoRaWAN downlinks for remote control:
+
+| Byte | Action |
+|---|---|
+| `0x11` | Trigger SPS30 fan cleaning |
+| `0xFF` | Software reset |
+
+The SPS30 also runs an automatic fan-cleaning cycle every 120 h (when battery > 4120 mV).
 
 ### Debug Profile Mode
 
@@ -192,8 +214,6 @@ The design is modular — not every sensor needs to be populated:
 |---|---|
 | Minimal (temp + humidity + pressure) | < $30 in sensors |
 | Fully populated (all six sensors) | ~$120–150 |
-
-EasyEDA being browser-based means you can fork the schematic and board, swap parts, and order from JLCPCB directly — no desktop EDA install needed.
 
 ---
 

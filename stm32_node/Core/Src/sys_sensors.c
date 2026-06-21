@@ -231,6 +231,15 @@ int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags)
   }
   return -1;
 }
+
+int32_t EnvSensors_RestartPreMeasurement(uint8_t sensor_flags)
+{
+  if(sensor_flags & SENSOR_FLAG_CO2)
+  {
+    return SCD41_DiscardAndRestartCo2SingleShot();
+  }
+  return -1;
+}
 /* USER CODE END EF */
 
 /* Private Functions Definition -----------------------------------------------*/

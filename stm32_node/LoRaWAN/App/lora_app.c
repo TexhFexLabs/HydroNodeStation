@@ -69,7 +69,14 @@ typedef enum TxEventType_e
 } TxEventType_t;
 
 /* USER CODE BEGIN PTD */
-
+/**
+  * @brief Persistent application configuration layout (8 bytes, flash-stored).
+  */
+typedef struct
+{
+  uint32_t magic;
+  uint32_t tx_dutycycle_s;
+} app_config_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -121,11 +128,27 @@ typedef enum TxEventType_e
   */
 #define RX_CMD_PORT                      LORAWAN_USER_APP_PORT
 #define RX_CMD_TRIGGER_SPS30_CLEANING    0x11U
+#define RX_CMD_SET_TX_INTERVAL           0x10U
 #define RX_CMD_SOFTWARE_RESET            0xFFU
 
 #define TX_PORT_ENV_BASE                 2U
 #define TX_PORT_ENV_EXTENDED             3U
 #define TX_PORT_ENV_FULL                 4U
+
+/**
+  * @brief Persistent application configuration in flash.
+  * @note  Stored in the last flash page (0x0803F800). The LoRaWAN NVM reserves the
+  *        last two pages of the device but only ever writes the first (0x0803F000),
+  *        so this page is free for application use.
+  */
+#define APP_CONFIG_FLASH_ADDRESS         (0x0803F800UL)
+#define APP_CONFIG_MAGIC                 (0x484E4331UL)   /* "HNC1" - HydroNode Config v1 */
+
+/**
+  * @brief BQ25185 charger safety-timer reset cadence in ms (independent CE-pulse timer).
+  * @note  Must stay well below the charger's internal ~6 h safety timeout.
+  */
+#define BQ25185_SAFETY_RESET_INTERVAL_MS (2U * 60U * 60U * 1000U)
 
 /* USER CODE END PD */
 
@@ -274,6 +297,12 @@ static void OnJoinTimerLedEvent(void *context);
 static void OnScd41TimerEvent(void *context);
 
 /**
+  * @brief  SCD41 restart timer callback function (power-cycled single shot, phase 2)
+  * @param  context ptr
+  */
+static void OnScd41RestartTimerEvent(void *context);
+
+/**
   * @brief  SPS30 pre-measurement timer callback function
   * @param  context ptr
   */
@@ -296,6 +325,24 @@ static void OnChargerCeTimerEvent(void *context);
   *         re-enable after BQ25185_CE_RESET_PULSE_MS (timer driven)
   */
 static void ChargerSafetyTimerReset(void);
+
+/**
+  * @brief  Charger safety-timer periodic callback: pulses CE to reset the BQ25185 safety timer
+  * @param  context ptr
+  */
+static void OnChargerSafetyTimerEvent(void *context);
+
+/**
+  * @brief  Load persistent app config from flash into RAM (falls back to defaults if invalid)
+  */
+static void AppConfig_Load(void);
+
+/**
+  * @brief  Persist the TX duty cycle to flash
+  * @param  dutycycle_s  duty cycle in seconds (assumed already range-validated)
+  * @retval true on success, false on flash write error
+  */
+static bool AppConfig_SaveTxDutycycle(uint32_t dutycycle_s);
 
 /* USER CODE END PFP */
 
@@ -331,7 +378,7 @@ static uint8_t                  rx_remaining    = 0;
 /**
  * @brief TX counter
  */
-static uint8_t                  tx_counter    = 4U;
+static uint8_t                  tx_counter    = 0U;
 
 /**
  * @brief Last SPS30 fan cleaning timestamp
@@ -401,9 +448,14 @@ static UTIL_TIMER_Object_t RxLedTimer;
 static UTIL_TIMER_Object_t JoinLedTimer;
 */
 /**
-  * @brief Timer to trigger SCD41 pre-measurement
+  * @brief Timer to trigger SCD41 pre-measurement (start stabilisation single shot, phase 1)
   */
 static UTIL_TIMER_Object_t Scd41Timer;
+
+/**
+  * @brief Timer to discard the SCD41 stabilisation shot and start the useful shot (phase 2)
+  */
+static UTIL_TIMER_Object_t Scd41RestartTimer;
 
 /**
   * @brief Timer to trigger SPS30 pre-measurement
@@ -419,6 +471,17 @@ static UTIL_TIMER_Object_t Sps30CleanupTimer;
   * @brief Timer to end the BQ25185 CE pulse (re-enable charging)
   */
 static UTIL_TIMER_Object_t ChargerCeTimer;
+
+/**
+  * @brief Periodic timer to reset the BQ25185 charger safety timer, independent of the TX loop
+  */
+static UTIL_TIMER_Object_t ChargerSafetyTimer;
+
+/**
+  * @brief Active TX duty cycle in seconds. Defaults to APP_TX_DUTYCYCLE, overridden by a
+  *        flash-stored value at boot and by the downlink SET_TX_INTERVAL command at runtime.
+  */
+static uint32_t tx_dutycycle_s = APP_TX_DUTYCYCLE;
 
 /* USER CODE END PV */
 
@@ -483,10 +546,15 @@ void LoRaWAN_Init(void)
   // UTIL_TIMER_Create(&RxLedTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnRxTimerLedEvent, NULL);
   // UTIL_TIMER_Create(&JoinLedTimer, LED_PERIOD_TIME, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
   UTIL_TIMER_Create(&Scd41Timer, SCD41_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnScd41TimerEvent, NULL);
+  UTIL_TIMER_Create(&Scd41RestartTimer, SCD41_RESTART_TIME_MS, UTIL_TIMER_ONESHOT, OnScd41RestartTimerEvent, NULL);
   UTIL_TIMER_Create(&Sps30Timer, SPS30_PRE_MEASUREMENT_TIME_MS, UTIL_TIMER_ONESHOT, OnSps30TimerEvent, NULL);
   UTIL_TIMER_Create(&Sps30CleanupTimer, SPS30_CLEANING_DURATION_MS, UTIL_TIMER_ONESHOT, OnSps30CleanupTimerEvent, NULL);
   UTIL_TIMER_Create(&ChargerCeTimer, BQ25185_CE_RESET_PULSE_MS, UTIL_TIMER_ONESHOT, OnChargerCeTimerEvent, NULL);
   BQ25185_ChargeEnable();
+
+  /* Independent periodic CE pulse to keep the BQ25185 safety timer from expiring */
+  UTIL_TIMER_Create(&ChargerSafetyTimer, BQ25185_SAFETY_RESET_INTERVAL_MS, UTIL_TIMER_PERIODIC, OnChargerSafetyTimerEvent, NULL);
+  UTIL_TIMER_Start(&ChargerSafetyTimer);
 
   /* USER CODE END LoRaWAN_Init_1 */
 
@@ -511,6 +579,9 @@ void LoRaWAN_Init(void)
 
   /* USER CODE BEGIN LoRaWAN_Init_Last */
   // UTIL_TIMER_Start(&JoinLedTimer);
+
+  /* Restore the persisted TX duty cycle (FLASH_IF already initialised above) */
+  AppConfig_Load();
 
   EnvSensors_Init();
 
@@ -955,23 +1026,16 @@ static void SendTxData(uint8_t port)
 
   /* Increment tx_counter */
   tx_counter++;
-  if (tx_counter > 30U)
+  if (tx_counter > 10U)
   {
     tx_counter = 1U;
   }
 
-  /* Reset the charger safety timer once per 30-TX cycle (~1 h) at counter==5
-   * so it never expires during long charging phases (BQ25185 safety timer is ~6 h) */
-  if (tx_counter == 5U)
-  {
-    ChargerSafetyTimerReset();
-  }
-
   /* Determine which sensors to read this cycle.
-   * Base TX every 120 s. CO2 every 10th TX (20 min), SPS30 every 15th TX (30 min). */
+   * Base TX every 180 s. CO2 every 5th TX (15 min), SPS30 every 10th TX (30 min). */
   uint8_t sensor_flags = 0U;
-  if (tx_counter % 10U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
-  if (tx_counter % 15U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
+  if (tx_counter % 5U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
+  if (tx_counter % 10U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
 
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
@@ -1013,7 +1077,7 @@ static void SendTxData(uint8_t port)
   {
     uplink_port = TX_PORT_ENV_FULL;
   }
-  else if ((tx_counter % 10U) == 0U)
+  else if ((sensor_flags & SENSOR_FLAG_CO2) != 0U)
   {
     uplink_port = TX_PORT_ENV_EXTENDED;
   }
@@ -1029,7 +1093,7 @@ static void SendTxData(uint8_t port)
   append_u16_be(AppDataBuffer, &bufferSize, sensor_data.battery_voltage);
   append_u16_be(AppDataBuffer, &bufferSize, sensor_data.uvi_x100);
 
-  if (uplink_port >= TX_PORT_ENV_EXTENDED)
+  if ((sensor_flags & SENSOR_FLAG_CO2) != 0U)
   {
     append_u16_be(AppDataBuffer, &bufferSize, sensor_data.co2_ppm);
   }
@@ -1085,7 +1149,7 @@ static void SendTxData(uint8_t port)
   {
     smtc_modem_status_mask_t status_mask = 0;
     smtc_modem_get_status(STACK_ID, &status_mask);
-    uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : APP_TX_DUTYCYCLE;
+    uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : tx_dutycycle_s;
 
     if (sensor_data.battery_voltage < LOW_BATTERY_THRESHOLD_MV)
     {
@@ -1102,15 +1166,17 @@ static void SendTxData(uint8_t port)
     ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
 
     /* Schedule pre-measurement only for the next cycle where data is needed */
-    uint8_t next_counter = (tx_counter % 30U) + 1U;
+    uint8_t next_counter = (tx_counter % 10U) + 1U;
 
-    if (next_counter % 10U == 0U)
+    if (next_counter % 5U == 0U)
     {
       UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U) - SCD41_PRE_MEASUREMENT_TIME_MS);
       UTIL_TIMER_Start(&Scd41Timer);
+      UTIL_TIMER_SetPeriod(&Scd41RestartTimer, (dutycycle * 1000U) - SCD41_RESTART_TIME_MS);
+      UTIL_TIMER_Start(&Scd41RestartTimer);
     }
 
-    if (next_counter % 15U == 0U)
+    if (next_counter % 10U == 0U)
     {
       UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U) - SPS30_PRE_MEASUREMENT_TIME_MS);
       UTIL_TIMER_Start(&Sps30Timer);
@@ -1199,6 +1265,34 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
 
       break;
     }
+    case RX_CMD_SET_TX_INTERVAL:
+    {
+      if (size < 3U)
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: payload too short (size=%u)\r\n", (unsigned)size);
+        break;
+      }
+
+      uint16_t new_interval = (uint16_t)(((uint16_t)payload[1] << 8) | (uint16_t)payload[2]);
+
+      if ((new_interval < APP_TX_DUTYCYCLE_MIN_S) || (new_interval > APP_TX_DUTYCYCLE_MAX_S))
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: %u s out of range [%u..%u], ignored\r\n",
+                (unsigned)new_interval, (unsigned)APP_TX_DUTYCYCLE_MIN_S, (unsigned)APP_TX_DUTYCYCLE_MAX_S);
+        break;
+      }
+
+      tx_dutycycle_s = new_interval;
+      if (AppConfig_SaveTxDutycycle(tx_dutycycle_s))
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval set to %u s (saved)\r\n", (unsigned)tx_dutycycle_s);
+      }
+      else
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval set to %u s (flash save FAILED)\r\n", (unsigned)tx_dutycycle_s);
+      }
+      break;
+    }
     case RX_CMD_SOFTWARE_RESET:
       APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger software reset\r\n");
       HAL_NVIC_SystemReset();
@@ -1241,8 +1335,14 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
 
 static void OnScd41TimerEvent(void *context)
 {
-  APP_LOG(TS_ON, VLEVEL_M, "SCD41 pre-measurement started\r\n");
+  APP_LOG(TS_ON, VLEVEL_M, "SCD41 pre-measurement started (stabilisation shot)\r\n");
   EnvSensors_StartPreMeasurement(SENSOR_FLAG_CO2);
+}
+
+static void OnScd41RestartTimerEvent(void *context)
+{
+  APP_LOG(TS_ON, VLEVEL_M, "SCD41 stabilisation shot discarded, useful shot started\r\n");
+  EnvSensors_RestartPreMeasurement(SENSOR_FLAG_CO2);
 }
 
 static void OnSps30TimerEvent(void *context)
@@ -1267,6 +1367,45 @@ static void ChargerSafetyTimerReset(void)
 static void OnChargerCeTimerEvent(void *context)
 {
   BQ25185_ChargeEnable();
+}
+
+static void OnChargerSafetyTimerEvent(void *context)
+{
+  ChargerSafetyTimerReset();
+}
+
+static void AppConfig_Load(void)
+{
+  app_config_t cfg = { 0 };
+
+  if (FLASH_IF_Read(&cfg, (const void *)APP_CONFIG_FLASH_ADDRESS, sizeof(cfg)) != FLASH_IF_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "AppConfig: flash read failed, using default TX interval %u s\r\n",
+            (unsigned)tx_dutycycle_s);
+    return;
+  }
+
+  if ((cfg.magic == APP_CONFIG_MAGIC) &&
+      (cfg.tx_dutycycle_s >= APP_TX_DUTYCYCLE_MIN_S) &&
+      (cfg.tx_dutycycle_s <= APP_TX_DUTYCYCLE_MAX_S))
+  {
+    tx_dutycycle_s = cfg.tx_dutycycle_s;
+    APP_LOG(TS_OFF, VLEVEL_M, "AppConfig: loaded TX interval %u s from flash\r\n", (unsigned)tx_dutycycle_s);
+  }
+  else
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "AppConfig: no valid config, using default TX interval %u s\r\n",
+            (unsigned)tx_dutycycle_s);
+  }
+}
+
+static bool AppConfig_SaveTxDutycycle(uint32_t dutycycle_s)
+{
+  app_config_t cfg;
+  cfg.magic          = APP_CONFIG_MAGIC;
+  cfg.tx_dutycycle_s = dutycycle_s;
+
+  return (FLASH_IF_Write((void *)APP_CONFIG_FLASH_ADDRESS, (const void *)&cfg, sizeof(cfg)) == FLASH_IF_OK);
 }
 
 /* USER CODE END PrFD_LedEvents */

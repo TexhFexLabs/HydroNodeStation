@@ -336,6 +336,10 @@ int32_t SCD41_ReadRhtSingleShot(int16_t *temperature, uint16_t *humidity)
   return SCD41_STATUS_OK;
 }
 
+/* Power-cycled single shot, phase 1 of 3.
+ * Wakes the sensor and starts the first, throw-away single shot. The ~5 s
+ * measurement runs while the MCU is in low-power sleep; the result is discarded
+ * in phase 2. Returns immediately - does not block on the measurement. */
 int32_t SCD41_StartCo2SingleShot(void)
 {
   int32_t status;
@@ -353,9 +357,42 @@ int32_t SCD41_StartCo2SingleShot(void)
     status = SCD41_WriteCommandWithWord(SCD41_CMD_SET_AMBIENT_PRESSURE, (uint16_t)SCD41_AMBIENT_PRESSURE_MBAR);
     if (status != SCD41_STATUS_OK)
     {
+      (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN);
       SCD41_BusDeInit();
       return status;
     }
+  }
+
+  status = SCD41_WriteCommand(SCD41_CMD_MEASURE_SINGLE_SHOT);
+  SCD41_BusDeInit();
+
+  return status;
+}
+
+/* Power-cycled single shot, phase 2 of 3.
+ * Called after the first (stabilisation) single shot has completed during
+ * low-power sleep. Reads and discards that unstabilised result (Sensirion SCD4x
+ * Low Power Operation, section 2.4), then starts the second, useful single shot.
+ * That measurement runs during the next sleep window and is read by
+ * SCD41_ReadCo2SingleShot() at the uplink. Does not block on a measurement: the
+ * discarded shot is expected to be ready already, so the data-ready wait returns
+ * promptly. */
+int32_t SCD41_DiscardAndRestartCo2SingleShot(void)
+{
+  uint16_t discard_co2 = 0U;
+  uint16_t discard_temperature = 0U;
+  uint16_t discard_humidity = 0U;
+  int32_t status;
+
+  if (SCD41_BusInit() != SCD41_STATUS_OK)
+  {
+    return SCD41_STATUS_ERROR;
+  }
+
+  /* The first single shot should already be finished; this returns promptly. */
+  if (SCD41_WaitDataReady(SCD41_DATA_READY_TIMEOUT_MS) == SCD41_STATUS_OK)
+  {
+    (void)SCD41_ReadMeasurementWords(&discard_co2, &discard_temperature, &discard_humidity);
   }
 
   status = SCD41_WriteCommand(SCD41_CMD_MEASURE_SINGLE_SHOT);
@@ -381,9 +418,11 @@ int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, int16_t *temperature, uint16_
     return SCD41_STATUS_ERROR;
   }
 
-  /* No WAKE_UP needed: sensor is already measuring after StartCo2SingleShot().
-   * SCD41 ignores all commands except get_data_ready_status and read_measurement
-   * while a measurement is in progress. */
+  /* Power-cycled single shot, phase 3 of 3.
+   * No WAKE_UP needed: sensor is already measuring the second (useful) single
+   * shot started in SCD41_DiscardAndRestartCo2SingleShot(). SCD41 ignores all
+   * commands except get_data_ready_status and read_measurement while a
+   * measurement is in progress. */
 
   status = SCD41_WaitDataReady(SCD41_DATA_READY_TIMEOUT_MS);
   if (status != SCD41_STATUS_OK)

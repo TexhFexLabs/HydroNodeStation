@@ -96,6 +96,12 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags);
   * @brief  Start pre-measurement
   */
 int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags);
+
+/**
+  * @brief  Discard the stabilisation single shot and start the useful one
+  *         (power-cycled SCD41 single shot, phase 2 of 3)
+  */
+int32_t EnvSensors_RestartPreMeasurement(uint8_t sensor_flags);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus
