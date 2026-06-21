@@ -52,14 +52,35 @@ extern "C" {
 #define ULTRA_LOW_BATTERY_THRESHOLD_MV                    3000
 /*!
   * Defines the application data transmission duty cycle in seconds.
+  * @note This is the default/fallback value. The active value is configurable at
+  *       runtime via downlink and persisted in flash (see lora_app.c).
   */
-#define APP_TX_DUTYCYCLE                            120
+#define APP_TX_DUTYCYCLE                            180
+
+/*!
+  * Min/max bounds (seconds) for the runtime-configurable TX duty cycle.
+  * @note Floor stays well above the SPS30 pre-measurement time (16.5 s).
+  */
+#define APP_TX_DUTYCYCLE_MIN_S                      30U
+#define APP_TX_DUTYCYCLE_MAX_S                      3600U
 
 /**
-  * @brief SCD41 pre-measurement time in milliseconds.
-  * @note TThis is the time the node wakes up before the uplink to start the CO2 measurement.
+  * @brief SCD41 pre-measurement time in milliseconds (power-cycled single shot, phase 1).
+  * @note Time before the uplink at which the node wakes to start the first,
+  *       throw-away stabilisation single shot. That measurement (~5 s) runs while the
+  *       MCU is asleep; the MCU never busy-waits on it. Phase 2 follows at
+  *       SCD41_RESTART_TIME_MS. Must leave room for both single shots plus margin.
   */
-#define SCD41_PRE_MEASUREMENT_TIME_MS               5500
+#define SCD41_PRE_MEASUREMENT_TIME_MS               12000
+
+/**
+  * @brief SCD41 restart time in milliseconds (power-cycled single shot, phase 2).
+  * @note Time before the uplink at which the node wakes to discard the stabilisation
+  *       shot and start the second, useful single shot. Must be < SCD41_PRE_MEASUREMENT_TIME_MS
+  *       by at least one single shot duration (~5 s) and leave ~5 s before the uplink
+  *       for the second shot to settle during low-power sleep.
+  */
+#define SCD41_RESTART_TIME_MS                       6000
 
 /**
   * @brief SPS30 pre-measurement time in milliseconds.

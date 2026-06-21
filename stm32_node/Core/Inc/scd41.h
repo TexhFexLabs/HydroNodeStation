@@ -28,6 +28,7 @@ int32_t SCD41_Init(void);
 /* temperature: 0.01 degC (degC*100), humidity: 0.01 % (%*100) */
 int32_t SCD41_ReadRhtSingleShot(int16_t *temperature, uint16_t *humidity);
 int32_t SCD41_StartCo2SingleShot(void);
+int32_t SCD41_DiscardAndRestartCo2SingleShot(void);
 int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, int16_t *temperature, uint16_t *humidity);
 
 #ifdef __cplusplus
