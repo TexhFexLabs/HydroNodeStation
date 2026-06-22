@@ -87,10 +87,8 @@ flowchart LR
         Node2(("HydroNode\nStation02"))
     end
 
-    subgraph Network ["LoRaWAN Infrastructure"]
-        Helium["Helium\nNetwork"]
-        ChirpStack["ChirpStack v4"]
-        SNS["AWS SNS"]
+    subgraph Network ["LoRaWAN Network Server"]
+        NS["Helium IoT / ChirpStack v4 / TTN"]
     end
 
     subgraph Backend ["HydroNode Cloud"]
@@ -103,11 +101,9 @@ flowchart LR
         App["iOS App"]
     end
 
-    Node1 -- LoRaWAN --> Helium
-    Node2 -- LoRaWAN --> Helium
-    Helium --> ChirpStack
-    ChirpStack -- Integration --> SNS
-    SNS -- HTTPS --> API
+    Node1 -- LoRaWAN --> NS
+    Node2 -- LoRaWAN --> NS
+    NS -- HTTPS Webhook --> API
     API --> Kafka
     Kafka --> DB
     DB --> App
@@ -136,7 +132,19 @@ The firmware runs on the **STM32Cube ecosystem** with the Semtech LoRa Basics Mo
     - **SCD41** runs two power-cycled single shots: a throw-away *stabilisation* shot starts **12 s** before the uplink, then the *useful* shot starts **6 s** before it (each ~5 s, settling during sleep). Only the second is transmitted.
     - **SPS30** starts its measurement **16.5 s** before the uplink (fan spin-up + settling).
 
-**Power budget (measured, PPK2 on the custom PCB):** STOP2 idle current ~900 µA → ~46 days on a 1000 mAh LiPo without solar (~56 days on 1200 mAh). The datasheet floor from component sleep currents is ~5.7 µA; the gap is under investigation (suspected SCD41 IR leakage, BQ25185 quiescent, PCB leakage). Solar harvesting is designed to keep the node online indefinitely — long-term autonomy verification is ongoing.
+**Power budget (measured, PPK2 on the custom PCB):** day-average baseline draw ~1.1 mA. The datasheet floor from component sleep currents is ~5.7 µA; the gap is under investigation (suspected SCD41 IR leakage, BQ25185 quiescent, PCB leakage). Including the transmit events, the time-averaged draw is **~2.12 mA** → **~24 days on a 1200 mAh LiPo** without solar. Solar harvesting is designed to keep the node online indefinitely — long-term autonomy verification is ongoing.
+
+**Measured daily consumption (PPK2):** baseline plus the extra charge per transmit event sums to **~50.9 mAh/day** (~183,408 mC/day). At 1200 mAh this is `1200 / 50.9 ≈ 24 days`.
+
+| Source | Interval | Extra charge/event | Events/day | mC/day |
+|---|---|---|---|---|
+| Baseline (1.1 mA × 86400 s) | — | — | — | 95,040 |
+| LoRa TX (+0.7 mA × 10 s) | 3 min | 7 mC | 480 | 3,360 |
+| SCD41 CO₂ (+77 mC) | 15 min | 77 mC | 96 | 7,392 |
+| SPS30 (55 mA × 30 s − idle) | 30 min | ~1,617 mC | 48 | 77,616 |
+| **Total** | | | | **~183,408** |
+
+`183,408 mC / 3600 = ~50.9 mAh/day`
 
 ### Build
 
@@ -169,10 +177,11 @@ Supported network servers: **Helium IoT**, **ChirpStack v4**, **The Things Netwo
 
 ### Downlink Commands
 
-The node accepts LoRaWAN downlinks for remote control:
+The node accepts LoRaWAN downlinks (fPort matching the command port) for remote control:
 
-| Byte | Action |
+| Bytes | Action |
 |---|---|
+| `0x10 HH LL` | Set TX interval to `HHLL` seconds (2-byte big-endian, range 30–3600 s, persisted to flash). E.g. `10 00 B4` = 180 s. Handy for testing without re-flashing. |
 | `0x11` | Trigger SPS30 fan cleaning |
 | `0xFF` | Software reset |
 
