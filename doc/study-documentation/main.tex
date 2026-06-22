@@ -191,7 +191,7 @@ CMake + ARM GCC (\texttt{arm-none-eabi-gcc}). Das Build-System wurde von Anfang 
   \end{tabular}
 \end{table}
 
-\textbf{Downlink-Befehle:} \texttt{0x11} – SPS30 Fan Cleaning; \texttt{0xFF} – Software Reset. NVM-Persistenz (Session-Keys, Frame-Counter) im letzten Flash-Sektor: kein Re-Join nach Neustart nötig. Device-EUI wird automatisch aus der 96-Bit-UID des STM32 abgeleitet.
+\textbf{Downlink-Befehle:} \texttt{0x10\,HH\,LL} – TX-Intervall setzen (2-Byte Big-Endian Sekunden, 30--3600\,s, flash-persistent, z.\,B.\ zum Testen ohne Neu-Flashen); \texttt{0x11} – SPS30 Fan Cleaning; \texttt{0xFF} – Software Reset. NVM-Persistenz (Session-Keys, Frame-Counter) im letzten Flash-Sektor: kein Re-Join nach Neustart nötig. Device-EUI wird automatisch aus der 96-Bit-UID des STM32 abgeleitet.
 
 \textbf{Sensor-Treiber} (\texttt{sys\_sensors.c}): \texttt{EnvSensors\_Init()} – tolerant bei fehlenden Sensoren. \texttt{EnvSensors\_Read(flags)} – automatischer I2C-Bus-Recovery bei Fehlern (relevant bei SPS30-Gebläse-Spikes). SPS30 alle 120\,h automatische Fan-Reinigung (wenn Akku $> 4120\,\text{mV}$).
 
@@ -298,16 +298,9 @@ Datei: \texttt{stm32\_node/LoRaWAN/App/se-identity.h}
 
 \textbf{Schlüssel nicht committen}: \texttt{se-identity.h} in \texttt{.git/info/exclude} eintragen. Danach Firmware neu bauen (\texttt{cmake --build build/Release}) und erneut flashen wie in Schritt~4. Die Station startet dann den OTAA-Join mit den echten Credentials.
 
-\subsection*{Schritt 7: HydroNode-Anbindung einrichten (Helium / SNS)}
+\subsection*{Schritt 7: LoRaWAN-Anbindung über HTTP-Webhook}
 
-\begin{enumerate}
-  \item \textbf{AWS-SNS-Integration:} In der Helium-Konsole unter \textit{Integrations} eine \textit{AWS SNS}-Integration anlegen (AWS-Region, SNS-Topic-ARN, IAM-Zugangsdaten mit \texttt{sns:Publish}).
-  \item \textbf{SNS-Subscription:} Im AWS-SNS-Topic HTTPS-Subscription auf:\\
-        \texttt{https://hydronode.texhfexlabs.de/api/webhook/lorawan/sns}\\
-        \textbf{Raw Message Delivery deaktiviert lassen.} Backend bestätigt automatisch.
-\end{enumerate}
-
-Bei ChirpStack oder TTN: SNS-Integration analog konfigurieren; Endpunkt und Ablauf identisch.
+Der Netzwerk-Server (Helium IoT, ChirpStack\,v4 oder TTN) sendet jeden Uplink per \textbf{HTTP-Webhook direkt} an das HydroNode-Backend – kein AWS SNS o.\,ä.\ dazwischen. Die konkrete Webhook-URL stellt HydroNode in Schritt~8 bereit; sie wird im Netzwerk-Server unter \textit{Integrations → HTTP/Webhook} hinterlegt. Das Backend bestätigt eingehende Uplinks automatisch.
 
 \subsection*{Schritt 8: Station in HydroNode aktivieren}
 
@@ -364,7 +357,28 @@ RF-Region: \texttt{ACTIVE\_REGION} in \texttt{LoRaWAN/Target/lorawan\_conf.h} (\
 
 Theoretischer STOP2-Systemstrom: $I_\text{sleep,theo} = 1{,}07 + 0{,}10 + 2{,}00 + 1{,}50 + 2\times0{,}5 \approx 5{,}67\,\mu\text{A}$.
 
-Gemessener STOP2-Strom (PPK2, Custom PCB, 01.06.2026): ca.~\textbf{900\,µA}. Zwei Größenordnungen über Theorie, vermutlich durch SCD41-IR-Leckstrom, BQ25185-Quiescent und PCB-Leckströme. Zum Vergleich: Steckbrett-Prototyp (Wio-E5): ca.~3\,mA (Onboard-LEDs, CP2102, Pololu-Step-Up 400\,µA).
+Gemessene Tagesmittel-Baseline: ca.~\textbf{1,1\,mA}. Mehrere Größenordnungen über Theorie, vermutlich durch SCD41-IR-Leckstrom, BQ25185-Quiescent und PCB-Leckströme. Zum Vergleich: Steckbrett-Prototyp (Wio-E5): ca.~3\,mA (Onboard-LEDs, CP2102, Pololu-Step-Up 400\,µA).
+
+\textbf{Tagesverbrauch (PPK2-Messung):} Aus der Baseline und den Mehrladungen der einzelnen Sendeereignisse ergibt sich der mittlere Ladungsbedarf pro Tag.
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lllll}
+    \hline
+    \textbf{Quelle} & \textbf{Intervall} & \textbf{Mehrladung/Ereignis} & \textbf{Ereignisse/Tag} & \textbf{mC/Tag} \\
+    \hline
+    Baseline ($1{,}1\,\text{mA}\times86400\,\text{s}$)    & ---     & ---                   & ---  & 95.040 \\
+    LoRa TX ($+0{,}7\,\text{mA}\times10\,\text{s}$)        & 3\,min  & 7\,mC                 & 480  & 3.360  \\
+    SCD41 CO$_2$ ($+77\,\text{mC}$)                        & 15\,min & 77\,mC                & 96   & 7.392  \\
+    SPS30 ($55\,\text{mA}\times30\,\text{s}-\text{idle}$)  & 30\,min & ${\approx}1.617\,\text{mC}$ & 48   & 77.616 \\
+    \hline
+    \textbf{Gesamt} &  &  &  & \textbf{${\approx}183.408$} \\
+    \hline
+  \end{tabular}
+  \caption{Tagesverbrauch nach Quelle (PPK2-Messung, Custom PCB)}
+\end{table}
+
+Gesamtladung pro Tag: ${\approx}183.408\,\text{mC} \;/\; 3600 = \mathbf{{\approx}50{,}9\,\text{mAh/Tag}}$. Daraus folgt ein mittlerer Systemstrom $I_\text{avg} = 50{,}9\,\text{mAh} / 24\,\text{h} \approx 2{,}12\,\text{mA}$ -- deutlich über dem reinen STOP2-Strom, da die Sendeereignisse (v.a.\ SPS30-Gebläse) den Mittelwert dominieren.
 
 \begin{table}[H]
   \centering
@@ -372,11 +386,10 @@ Gemessener STOP2-Strom (PPK2, Custom PCB, 01.06.2026): ca.~\textbf{900\,µA}. Zw
     \hline
     \textbf{Akku} & \textbf{$I_\text{avg}$} & \textbf{Autonomie ohne Solar} \\
     \hline
-    1000\,mAh & 900\,µA & $\approx46$ Tage \\
-    1200\,mAh & 900\,µA & $\approx56$ Tage \\
+    1200\,mAh & ${\approx}2{,}12$\,mA & $\approx24$ Tage \\
     \hline
   \end{tabular}
-  \caption{Batterielaufzeit (PPK2-Messung, Custom PCB)}
+  \caption{Batterielaufzeit ($1200\,\text{mAh} / 50{,}9\,\text{mAh/Tag}$, PPK2-Messung, Custom PCB)}
 \end{table}
 
 \clearpage
@@ -384,7 +397,7 @@ Gemessener STOP2-Strom (PPK2, Custom PCB, 01.06.2026): ca.~\textbf{900\,µA}. Zw
 
 \textbf{Prototyp:} Alle sechs Sensoren auf Plausibilität und I2C-Korrektheit verifiziert. LoRaWAN-OTAA-Join und Uplinks auf fPort\,2/3/4 stabil. Feldtest: $>10\,\text{km}$ Reichweite nachgewiesen. NVM-Persistenz durch Neustarts bestätigt. I2C-Bus-Recovery durch absichtlich induzierte Fehler verifiziert. Downlinks \texttt{0x11} und \texttt{0xFF} funktional.
 
-\textbf{Custom PCB:} TPS63900-Fehler identifiziert und mit Breakout-Workaround behoben. Alle fünf Kernsensoren verifiziert. LoRaWAN-Uplinks fließen über Amazon SNS ins HydroNode-Backend. PPK2-Strommessung durchgeführt. Station seit Ende Mai 2026 im Außen-Feldtest.
+\textbf{Custom PCB:} TPS63900-Fehler identifiziert und mit Breakout-Workaround behoben. Alle fünf Kernsensoren verifiziert. LoRaWAN-Uplinks fließen per HTTP-Webhook direkt ins HydroNode-Backend. PPK2-Strommessung durchgeführt. Station seit Ende Mai 2026 im Außen-Feldtest.
 
 Live-Dashboard: \url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658}
 
@@ -437,7 +450,7 @@ Das HydroNodeNetzwerk verbindet Sensorstationen mit Backend und iOS-App. Es unte
 \begin{sloppypar}
 \textbf{HTTPS-Pfad:} Stationen signieren JSON-Payloads mit HMAC-SHA256 (Header \texttt{X-Signature}, Replay-Schutz via \texttt{X-Timestamp} $\pm20$\,min). Backend publiziert in Kafka-Topic \texttt{hydronode.ingress.sensor} → \texttt{DeviceKeyVerifier} → \texttt{hydronode.verified.sensor} → \texttt{SensorValueProcessor} → PostgreSQL.
 
-\textbf{LoRaWAN-Pfad:} Station → Helium Network → ChirpStack v4 → Amazon SNS → Backend-Endpunkt \texttt{POST /api/webhook/lorawan/sns}. Backend ermittelt Sensor via \texttt{SensorLookupCache} (DevEUI), dekodiert Payload per \texttt{LoRaFPortConfig} (Big-Endian, kanalweise Skalierung) und publiziert direkt nach \texttt{hydronode.verified.sensor}.
+\textbf{LoRaWAN-Pfad:} Station → Netzwerk-Server (Helium IoT / ChirpStack v4 / TTN) → HTTP-Webhook → HydroNode-Backend. Backend ermittelt Sensor via \texttt{SensorLookupCache} (DevEUI), dekodiert Payload per \texttt{LoRaFPortConfig} (Big-Endian, kanalweise Skalierung) und publiziert direkt nach \texttt{hydronode.verified.sensor}.
 \end{sloppypar}
 
 \textbf{Backend:} Quarkus-3-Anwendung. In-Process-Caches (\texttt{DeviceKeyCache}, \texttt{SensorLookupCache}, \texttt{FPortConfigCache}, TTL 90\,min) reduzieren DB-Last. Kafka entkoppelt Empfang und Verarbeitung.
