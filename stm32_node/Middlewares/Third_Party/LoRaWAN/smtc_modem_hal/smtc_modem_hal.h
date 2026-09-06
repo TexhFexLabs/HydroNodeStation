@@ -73,9 +73,17 @@ extern "C" {
  * @brief Panic macro for modem issues
 */
 
-#define SMTC_MODEM_HAL_PANIC(...) Runtime_Fault(RUNTIME_FAULT_MODEM)
+/* These fire on conditions the stack recovers from on its own: it sets its
+ * error state and retries. The upstream port made them log-only for that
+ * reason, and several are reachable in normal operation - the no-downlink
+ * threshold in lr1_stack_mac_layer.c trips after 2400 uplinks, about five
+ * days at this duty cycle. Resetting the MCU at each detection site turns a
+ * quiet network into a reboot loop on a station nobody can reach.
+ * Recovery belongs to the progress deadline and the watchdog; these only
+ * count, so the 0x12 diagnostic still shows that something tripped. */
+#define SMTC_MODEM_HAL_PANIC(...) Runtime_NotePanic()
 #define SMTC_MODEM_HAL_PANIC_ON_FAILURE(expr) \
-    do { if (!(expr)) { Runtime_Fault(RUNTIME_FAULT_MODEM); } } while (0)
+    do { if (!(expr)) { Runtime_NotePanic(); } } while (0)
 
 /*
  * -----------------------------------------------------------------------------

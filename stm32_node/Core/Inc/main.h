@@ -81,6 +81,10 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 #define LED1_Pin GPIO_PIN_5
 #define LED1_GPIO_Port GPIOB
+/* Second LED, used only for fault diagnostics so the startup blink on LED1
+ * stays readable. PB3 is JTDO-TRACESWO by default; SWO is unused here. */
+#define LED_DIAG_Pin GPIO_PIN_3
+#define LED_DIAG_GPIO_Port GPIOB
 #define DEBUG_SW_Pin        GPIO_PIN_4
 #define DEBUG_SW_GPIO_Port  GPIOB
 /* USER CODE END Private defines */

@@ -2,7 +2,7 @@
 function decodeUplink(input) {
   const bytes = input.bytes;
   const port = input.fPort;
-  const lengths = {2: 10, 3: 12, 4: 32, 5: 22};
+  const lengths = {2: 10, 3: 12, 4: 32, 5: 26};
   if (!Array.isArray(bytes) || bytes.length !== lengths[port] ||
       bytes.some(b => !Number.isInteger(b) || b < 0 || b > 255)) {
     return {errors: ["Invalid HydroNode port, length or byte value"]};
@@ -13,8 +13,10 @@ function decodeUplink(input) {
   if (port === 5) {
     if (bytes[0] !== 1) return {errors: ["Unsupported diagnostic version"]};
     return {data: {version: bytes[0], power_mode: bytes[1], uptime_s: u32(2),
-      boot_count: u32(6), reset_flags: u32(10), last_fault: u16(14),
-      tx_errors: u16(16), sensor_errors: u16(18), sensor_valid_mask: u16(20)}};
+      boot_count: u32(6), reset_flags: u32(10),
+      last_fault: bytes[14], last_fault_detail: bytes[15],
+      tx_errors: u16(16), sensor_errors: u16(18), sensor_valid_mask: u16(20),
+      modem_panics: u16(22), nvm_errors: bytes[24], last_nvm_error: bytes[25]}};
   }
   const rawTemperature = u16(0);
   const data = {

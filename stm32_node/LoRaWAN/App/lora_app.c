@@ -568,10 +568,12 @@ void LoRaWAN_Init(void)
 
   /* USER CODE END LoRaWAN_Init_1 */
 
-  if (!Nvm_Init())
-  {
-    Runtime_Fault(RUNTIME_FAULT_NVM);
-  }
+  /* Both snapshots unreadable on a migrated device is a condition stored in
+   * flash: resetting re-reads the same flash and loops forever, killing a
+   * station nobody can reach. Carry on with an uninitialised store instead -
+   * reads and writes then fail and are counted, the stack falls back to a
+   * factory-reset context, and the node keeps measuring and reporting. */
+  if (!Nvm_Init()) { Runtime_NoteNvmError(Nvm_LastError()); }
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
   UTIL_TIMER_Create(&SleepTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnSleepTimerEvent, NULL);
@@ -803,19 +805,24 @@ static bool ContextRange(modem_context_type_t type, uint32_t offset, uint32_t si
   return true;
 }
 
+/* A failed restore leaves the caller's buffer untouched; every caller zeroes
+ * it first and CRC-checks the result, so it falls back to a factory reset. */
 static void RestoreContext(const modem_context_type_t type, uint32_t offset, uint8_t *buffer, const uint32_t size)
 {
   uint32_t address;
-  if (!ContextRange(type,offset,size,&address) || !Nvm_Read(address,buffer,size))
-    Runtime_Fault(RUNTIME_FAULT_NVM);
+  if (!ContextRange(type,offset,size,&address)) { Runtime_NoteNvmError(NVM_ERR_CONTEXT); return; }
+  if (!Nvm_Read(address,buffer,size)) { Runtime_NoteNvmError(Nvm_LastError()); }
 }
 
 static void StoreContext(const modem_context_type_t type, uint32_t offset, const uint8_t *buffer, const uint32_t size)
 {
   uint32_t address;
-  /* Never proceed with a Join after a nonce persistence failure. */
-  if (!ContextRange(type,offset,size,&address) || !Nvm_Write(address,buffer,size))
-    Runtime_Fault(RUNTIME_FAULT_NVM);
+  /* A persistence failure must not reset. The DevNonce lives in RAM and keeps
+   * incrementing; a reset restarts the join from the same persisted state and
+   * so causes the nonce reuse it was meant to prevent, right in the JoinAccept
+   * window. Count it and report it in the 0x12 diagnostic instead. */
+  if (!ContextRange(type,offset,size,&address)) { Runtime_NoteNvmError(NVM_ERR_CONTEXT); return; }
+  if (!Nvm_Write(address,buffer,size)) { Runtime_NoteNvmError(Nvm_LastError()); }
 }
 
 static void EventCallback(void)
@@ -1382,15 +1389,18 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
     }
     case 0x12U:
     {
-      uint8_t diagnostic[24] = {1U, (uint8_t)power_policy.mode};
+      uint8_t diagnostic[26] = {1U, (uint8_t)power_policy.mode};
       uint8_t n = 2U;
       uint32_t words[] = {SysTimeGetMcuTime().Seconds, Runtime_BootCount(), Runtime_ResetFlags()};
       for (uint8_t i = 0; i < 3U; ++i)
       { append_u16_be(diagnostic, &n, (uint16_t)(words[i] >> 16)); append_u16_be(diagnostic, &n, (uint16_t)words[i]); }
-      append_u16_be(diagnostic, &n, (uint16_t)Runtime_LastFault());
+      append_u16_be(diagnostic, &n, (uint16_t)((Runtime_LastFault() << 8) | Runtime_LastFaultDetail()));
       append_u16_be(diagnostic, &n, tx_failures);
       append_u16_be(diagnostic, &n, sensor_failures);
       append_u16_be(diagnostic, &n, last_valid_sensors);
+      append_u16_be(diagnostic, &n, Runtime_PanicCount());
+      diagnostic[n++] = Runtime_NvmErrorCount();
+      diagnostic[n++] = Runtime_LastNvmError();
       (void)smtc_modem_request_uplink(STACK_ID, 5U, false, diagnostic, n);
       break;
     }

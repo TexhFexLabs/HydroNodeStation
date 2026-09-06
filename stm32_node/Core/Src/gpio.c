@@ -59,6 +59,16 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : LED_DIAG_Pin (PB3)
+   * Diagnostic LED, driven only by Runtime_Fault. Same active-low wiring as
+   * LED1, so it is parked HIGH (off) here. */
+  HAL_GPIO_WritePin(LED_DIAG_GPIO_Port, LED_DIAG_Pin, GPIO_PIN_SET);
+  GPIO_InitStruct.Pin = LED_DIAG_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(LED_DIAG_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : BUT1_Pin BUT2_Pin */
   GPIO_InitStruct.Pin = BUT1_Pin|BUT2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;

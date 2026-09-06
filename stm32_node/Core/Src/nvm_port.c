@@ -34,12 +34,11 @@ bool NvmPort_Read(uint32_t slot,uint32_t offset,void *data,uint32_t size)
     if(slot>1U || offset>NVM_PAGE_BYTES || size>NVM_PAGE_BYTES-offset) return false;
     return read_flash(NVM_BASE+slot*NVM_PAGE_BYTES+offset,data,size);
 }
-bool NvmPort_Erase(uint32_t slot)
+static bool erase_page(uint32_t page)
 {
-    if(slot>1U || !NvmPort_CanWrite()) return false;
     FLASH_EraseInitTypeDef erase={0};
     erase.TypeErase=FLASH_TYPEERASE_PAGES;
-    erase.Page=(NVM_BASE-FLASH_BASE)/FLASH_PAGE_SIZE+slot;
+    erase.Page=page;
     erase.NbPages=1U;
     uint32_t error=0;
     if(HAL_FLASH_Unlock()!=HAL_OK) return false;
@@ -47,6 +46,11 @@ bool NvmPort_Erase(uint32_t slot)
     HAL_StatusTypeDef status=HAL_FLASHEx_Erase(&erase,&error);
     HAL_FLASH_Lock();
     return status==HAL_OK;
+}
+bool NvmPort_Erase(uint32_t slot)
+{
+    if(slot>1U || !NvmPort_CanWrite()) return false;
+    return erase_page((NVM_BASE-FLASH_BASE)/FLASH_PAGE_SIZE+slot);
 }
 static bool program(uint32_t address,const void *data,uint32_t size)
 {
@@ -84,8 +88,15 @@ bool NvmPort_MarkMigrated(void)
 {
     if(NvmPort_WasMigrated()) return true;
     uint64_t marker=MIGRATED;
-    if(!program(MIGRATION_ADDR,&marker,8U)) return false;
-    return NvmPort_WasMigrated();
+    if(program(MIGRATION_ADDR,&marker,8U)) return NvmPort_WasMigrated();
+    /* A board upgraded from the legacy layout has this doubleword already
+     * programmed with all ones: the old flash_if rewrote whole pages, tail
+     * included. It reads erased but cannot be programmed a second time.
+     * Erasing its page is safe here, because the caller only marks after
+     * committing the snapshot that supersedes the legacy context. */
+    if(!NvmPort_CanWrite()) return false;
+    if(!erase_page((LEGACY_CONTEXT-FLASH_BASE)/FLASH_PAGE_SIZE)) return false;
+    return program(MIGRATION_ADDR,&marker,8U) && NvmPort_WasMigrated();
 }
 bool NvmPort_CanWrite(void)
 {

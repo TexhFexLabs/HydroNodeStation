@@ -35,13 +35,17 @@ Application code is limited to 248 KiB. `0x0803E000` and `0x0803E800` store new 
 
 The first page rewrite implementation has been bypassed for application and modem state. `flash_if.c` remains available for legacy interfaces but is no longer used by these persistence callbacks. Read/write callbacks validate context type, offset and size. Flash writes require a valid battery reading at or above the recovery threshold. Reads of interrupted flash records handle ECC errors only while accessing those records; other CPU/NMI faults reset.
 
+A write is reported successful once its snapshot is committed and verified. The migration marker is set afterwards and never decides the result: reporting a committed write as lost would reset the MCU over data that is safe. Because the legacy `flash_if.c` reprogrammed whole pages including their unused tail, the marker doubleword reads erased on an upgraded board but cannot be programmed again; the marker step therefore erases the legacy context page once before retrying. That page is obsolete at this point, since the snapshot being marked already carries the migrated content.
+
+A fault blinks its reason on the diagnostic LED (PB3), then after a pause the failing step, and stores both in `RTC_BKP_DR6`/`DR7` for the next boot and the `0x12` diagnostic. Without this an unattended reset is undiagnosable: trace and debugger are disabled in the production build.
+
 The modem performs OTAA after a restart; this is not full session continuation. Repeated power loss, flash endurance, oscillator failures and supply ramps still require physical fault-injection tests.
 
 ## Payload compatibility and diagnostics
 
 fPort 2/3/4 keep 10/12/32 bytes and unchanged scaling for valid measurements. Missing unsigned fields are `0xFFFF`; missing temperature is `0x8000`. Consumers must decode these as missing, not large numeric readings. Use [payload-decoder.js](payload-decoder.js). The HydroNode backend is a separate project and was not changed here; its decoder needs equivalent sentinel handling before rollout.
 
-Downlink `0x12` on fPort 2 requests a diagnostic uplink on fPort 5 (22 bytes, big-endian). This optional response can be deferred/rejected by a busy modem; it is not sent automatically every cycle.
+Downlink `0x12` on fPort 2 requests a diagnostic uplink on fPort 5 (26 bytes, big-endian; byte 14 is the fault reason, byte 15 the failing step, bytes 22-23 the modem anomaly count, byte 24 the NVM error count and byte 25 the last NVM error). This optional response can be deferred/rejected by a busy modem; it is not sent automatically every cycle.
 
 | Offset | Field |
 |---|---|
@@ -67,6 +71,8 @@ cmake --build stm32_node/build/Release
 ```
 
 Host tests compile the actual health module, power policy, NVM store, SPS30/SCD41 drivers, extracted modem alarm setter/supervisor function and extracted RTC epoch reader. They cover five simulated years / 876,000 alarms, 208 interrupted-write scenarios, CRC fallback, migration, invalid battery reads, hysteresis, SPS30 command timing and RTC interrupt ordering. These tests do not emulate an entire STM32 or RF network.
+
+Resets are confined to conditions nothing else can recover from: CPU faults, the HAL error handler, a broken modem event queue, a transmission stuck for 15 minutes, five consecutive non-busy uplink rejections, a lost alarm timer, and the progress deadline. Modem panics, context read/write failures and an unreadable store are counted and reported, not reset: their conditions either resolve on their own or persist in flash, where a reset only loops. The stack's own panic sites are reachable in normal operation - the no-downlink threshold trips after 2400 uplinks, roughly five days at the default duty cycle.
 
 Before field deployment, verify watchdog recovery, STOP2 current, RTC rollover, missing/shorted sensors, no-gateway behavior, voltage ramps with load spikes, actual flash power cuts and decoder compatibility on the board. Run a soak test beyond the former 50-day failure point. Firmware was built and host-tested, not flashed remotely.
 
