@@ -66,7 +66,7 @@ cmake -S stm32_node -B stm32_node/build/Release -DCMAKE_BUILD_TYPE=Release -DCMA
 cmake --build stm32_node/build/Release
 ```
 
-Host tests compile the actual health module, power policy, NVM store, SPS30 driver, extracted modem alarm setter/supervisor function and extracted RTC epoch reader. They cover five simulated years / 876,000 alarms, 208 interrupted-write scenarios, CRC fallback, migration, invalid battery reads, hysteresis, SPS30 command timing and RTC interrupt ordering. These tests do not emulate an entire STM32 or RF network.
+Host tests compile the actual health module, power policy, NVM store, SPS30/SCD41 drivers, extracted modem alarm setter/supervisor function and extracted RTC epoch reader. They cover five simulated years / 876,000 alarms, 208 interrupted-write scenarios, CRC fallback, migration, invalid battery reads, hysteresis, SPS30 command timing and RTC interrupt ordering. These tests do not emulate an entire STM32 or RF network.
 
 Before field deployment, verify watchdog recovery, STOP2 current, RTC rollover, missing/shorted sensors, no-gateway behavior, voltage ramps with load spikes, actual flash power cuts and decoder compatibility on the board. Run a soak test beyond the former 50-day failure point. Firmware was built and host-tested, not flashed remotely.
 
@@ -76,4 +76,4 @@ The study's roughly 1.1-mA baseline alone represents 26.4 mAh/day. Finding its p
 
 Hardware sources: [BQ25185 datasheet](https://www.ti.com/lit/ds/symlink/bq25185.pdf), repository `hardware/datasheets/sps30_datasheet.pdf` (Table 8, Sleep only in Idle), `hardware/datasheets/scd4x_low_power_appnote.pdf` (discard first single shot after power-down). Original study and schematic exports are retained as historical project documents.
 
-Local verification on 2026-09-06: Release 88,040 B ROM, Debug 168,808 B ROM, CO2-disabled Release 87,000 B ROM. All three link successfully within the reserved flash limit. Remaining three compiler warnings are existing middleware variables unused when tracing is disabled.
+Local verification on 2026-09-06: Release 88,040 B ROM (before the final phase-validity follow-up), Debug 168,808 B ROM, CO2-disabled Release 87,000 B ROM. All three link successfully within the reserved flash limit. Remaining three compiler warnings are existing middleware variables unused when tracing is disabled.

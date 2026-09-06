@@ -5,6 +5,7 @@ import re
 import subprocess
 import tempfile
 import test_sps30
+import test_scd41
 import test_health
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,6 +30,7 @@ with tempfile.TemporaryDirectory(prefix='hydronode-tests-') as temp:
     tmp = Path(temp)
     test_health.run(ROOT, tmp)
     test_sps30.run(ROOT, tmp)
+    test_scd41.run(ROOT, tmp)
     compile_run(tmp, 'power', [ROOT/'tests/test_power.c', ROOT/'Core/Src/power_policy.c'])
     compile_run(tmp, 'nvm', [ROOT/'tests/test_nvm.c', ROOT/'Core/Src/nvm_store.c'])
     alarm = function('Middlewares/Third_Party/LoRaWAN/smtc_modem_core/modem_supervisor/modem_supervisor_light.c',

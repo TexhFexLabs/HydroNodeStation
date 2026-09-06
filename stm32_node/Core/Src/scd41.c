@@ -46,6 +46,9 @@ static int32_t SCD41_ReadMeasurementWords(uint16_t *co2_raw, uint16_t *temperatu
 static int16_t  SCD41_ConvertTemperature(uint16_t temperature_raw);
 static uint16_t SCD41_ConvertHumidity(uint16_t humidity_raw);
 
+enum { SCD_OFF, SCD_STABILIZING, SCD_USEFUL };
+static uint8_t shot_phase;
+
 /* Private functions ---------------------------------------------------------*/
 static uint8_t SCD41_CalculateCrc(const uint8_t *data, uint8_t length)
 {
@@ -218,6 +221,7 @@ static uint16_t SCD41_ConvertHumidity(uint16_t humidity_raw)
 /* Exported functions --------------------------------------------------------*/
 int32_t SCD41_Init(void)
 {
+  shot_phase = SCD_OFF;
   uint32_t temp_offset_x100 = SCD41_TEMPERATURE_OFFSET_C_X100;
 
   if (SCD41_BusInit() != SCD41_STATUS_OK)
@@ -325,6 +329,7 @@ int32_t SCD41_ReadRhtSingleShot(int16_t *temperature, uint16_t *humidity)
  * in phase 2. Returns immediately - does not block on the measurement. */
 int32_t SCD41_StartCo2SingleShot(void)
 {
+  shot_phase = SCD_OFF;
   int32_t status;
 
   if (SCD41_BusInit() != SCD41_STATUS_OK)
@@ -348,6 +353,7 @@ int32_t SCD41_StartCo2SingleShot(void)
 
   status = SCD41_WriteCommand(SCD41_CMD_MEASURE_SINGLE_SHOT);
   if (status != SCD41_STATUS_OK) { (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN); }
+  shot_phase = status == SCD41_STATUS_OK ? SCD_STABILIZING : SCD_OFF;
   SCD41_BusDeInit();
 
   return status;
@@ -373,14 +379,19 @@ int32_t SCD41_DiscardAndRestartCo2SingleShot(void)
     return SCD41_STATUS_ERROR;
   }
 
-  /* The first single shot should already be finished; this returns promptly. */
-  if (SCD41_WaitDataReady(SCD41_DATA_READY_TIMEOUT_MS) == SCD41_STATUS_OK)
+  if (shot_phase != SCD_STABILIZING) return SCD41_STATUS_ERROR;
+  shot_phase = SCD_OFF;
+  status = SCD41_WaitDataReady(SCD41_DATA_READY_TIMEOUT_MS);
+  if (status == SCD41_STATUS_OK)
+    status = SCD41_ReadMeasurementWords(&discard_co2, &discard_temperature, &discard_humidity);
+  if (status != SCD41_STATUS_OK)
   {
-    (void)SCD41_ReadMeasurementWords(&discard_co2, &discard_temperature, &discard_humidity);
+    (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN);
+    return status;
   }
-
   status = SCD41_WriteCommand(SCD41_CMD_MEASURE_SINGLE_SHOT);
-  if (status != SCD41_STATUS_OK) { (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN); }
+  if (status == SCD41_STATUS_OK) shot_phase = SCD_USEFUL;
+  else (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN);
   SCD41_BusDeInit();
 
   return status;
@@ -393,8 +404,9 @@ int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, int16_t *temperature, uint16_
   uint16_t humidity_raw = 0;
   int32_t status;
 
-  if (co2_ppm == NULL)
+  if (co2_ppm == NULL || shot_phase != SCD_USEFUL)
   {
+    (void)SCD41_Sleep();
     return SCD41_STATUS_ERROR;
   }
 
@@ -403,6 +415,7 @@ int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, int16_t *temperature, uint16_
     return SCD41_STATUS_ERROR;
   }
 
+  shot_phase = SCD_OFF;
   /* Power-cycled single shot, phase 3 of 3.
    * No WAKE_UP needed: sensor is already measuring the second (useful) single
    * shot started in SCD41_DiscardAndRestartCo2SingleShot(). SCD41 ignores all
@@ -442,6 +455,7 @@ int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, int16_t *temperature, uint16_
 
 int32_t SCD41_Sleep(void)
 {
+  shot_phase = SCD_OFF;
   if (SCD41_BusInit() != SCD41_STATUS_OK) { return SCD41_STATUS_ERROR; }
   return SCD41_WriteCommand(SCD41_CMD_POWER_DOWN);
 }
