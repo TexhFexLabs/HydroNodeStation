@@ -2,6 +2,8 @@
 
 For fault recovery, migration and hardware test requirements see [RELIABILITY.md](RELIABILITY.md).
 
+Deutsche Backend-Übergabe einschließlich Fehlerwerte, TTN-Webhooks, Testvektoren und Kalibrierung: [BACKEND_UMBAU_UND_KALIBRIERUNG.md](BACKEND_UMBAU_UND_KALIBRIERUNG.md).
+
 ## Credentials
 
 Put production credentials in `stm32_node/LoRaWAN/App/se-identity-local.h`, which is ignored by Git. Use the same four `LORAWAN_DEVICE_EUI`, `LORAWAN_JOIN_EUI`, `LORAWAN_APP_KEY`, and `LORAWAN_GEN_APP_KEY` macro names as in `se-identity.h`. Do not edit the tracked default header or use skip-worktree to hide production keys. Byte lists use comma-separated hexadecimal tokens without `0x`, as in the default header. An all-zero DevEUI selects the silicon-derived ID; a nonzero one is respected.
