@@ -76,4 +76,4 @@ The study's roughly 1.1-mA baseline alone represents 26.4 mAh/day. Finding its p
 
 Hardware sources: [BQ25185 datasheet](https://www.ti.com/lit/ds/symlink/bq25185.pdf), repository `hardware/datasheets/sps30_datasheet.pdf` (Table 8, Sleep only in Idle), `hardware/datasheets/scd4x_low_power_appnote.pdf` (discard first single shot after power-down). Original study and schematic exports are retained as historical project documents.
 
-Local verification on 2026-09-06: Release 88,040 B ROM (before the final phase-validity follow-up), Debug 168,808 B ROM, CO2-disabled Release 87,000 B ROM. All three link successfully within the reserved flash limit. Remaining three compiler warnings are existing middleware variables unused when tracing is disabled.
+Local verification on 2026-09-06: Release 88,144 B ROM, Debug 168,936 B ROM, CO2-disabled Release 87,000 B ROM. All three link successfully within the reserved flash limit. Remaining three compiler warnings are existing middleware variables unused when tracing is disabled.
