@@ -105,7 +105,9 @@ UTIL_ADV_TRACE_Status_t vcom_Init(void (*cb)(void *))
 
   /* USER CODE END vcom_Init_1 */
   TxCpltCallback = cb;
+#if APP_LOG_ENABLED
   SW_UART_Init();
+#endif
   return UTIL_ADV_TRACE_OK;
   /* USER CODE BEGIN vcom_Init_2 */
 
@@ -185,7 +187,9 @@ void vcom_Resume(void)
   /* USER CODE BEGIN vcom_Resume_1 */
 
   /* USER CODE END vcom_Resume_1 */
+#if APP_LOG_ENABLED
   SW_UART_Init();
+#endif
   /* USER CODE BEGIN vcom_Resume_2 */
 
   /* USER CODE END vcom_Resume_2 */

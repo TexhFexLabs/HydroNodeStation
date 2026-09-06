@@ -167,7 +167,7 @@ void lr1_stack_mac_session_init( lr1_stack_mac_t* lr1_mac )
     lr1_mac->retry_join_cpt                      = 0;
     lr1_mac->no_rx_packet_count_in_mobile_mode   = 0;
 #if defined (ENDNODE) || defined (ENDNODE_RELAY)
-    lr1_mac->no_rx_packet_since_s                = (SysTimeToMs(SysTimeGet())/1000);
+    lr1_mac->no_rx_packet_since_s                = (SysTimeGetMcuTime().Seconds);
 #endif
     lr1_mac->no_rx_packet_count                  = 0;
     lr1_mac->adr_ack_cnt                         = 0;
@@ -1018,7 +1018,7 @@ rx_packet_type_t lr1_stack_mac_rx_frame_decode( lr1_stack_mac_t* lr1_mac )
             lr1_mac->no_rx_packet_count_in_mobile_mode = 0;
             lr1_mac->no_rx_packet_count                = 0;
 #if defined (ENDNODE) || defined (ENDNODE_RELAY)
-            lr1_mac->no_rx_packet_since_s              = (SysTimeToMs(SysTimeGet())/1000);
+            lr1_mac->no_rx_packet_since_s              = (SysTimeGetMcuTime().Seconds);
 #endif
             rx_packet_type                             = JOIN_ACCEPT_PACKET;
             lr1_mac->rx_down_data.rx_payload_size      = lr1_mac->rx_down_data.rx_payload_size - MICSIZE;
@@ -1205,7 +1205,7 @@ rx_packet_type_t lr1_stack_mac_rx_frame_decode( lr1_stack_mac_t* lr1_mac )
         lr1_mac->no_rx_packet_count_in_mobile_mode   = 0;
         lr1_mac->no_rx_packet_count                  = 0;
 #if defined (ENDNODE) || defined (ENDNODE_RELAY)
-        lr1_mac->no_rx_packet_since_s                = (SysTimeToMs(SysTimeGet())/1000);
+        lr1_mac->no_rx_packet_since_s                = (SysTimeGetMcuTime().Seconds);
 #endif
         lr1_mac->tx_fopts_current_length             = 0;  // reset the fopts of the sticky set in payload
         lr1_mac->tx_fopts_lengthsticky = 0;  // reset the fopts of the sticky cmd received on a valid frame
@@ -1257,7 +1257,7 @@ void lr1_stack_mac_update( lr1_stack_mac_t* lr1_mac )
     if( lr1_mac->join_status == JOINING )
     {
         // get current timestamp to check which duty cycle will be applied
-        uint32_t current_time_s = (SysTimeToMs(SysTimeGet())/1000);
+        uint32_t current_time_s = (SysTimeGetMcuTime().Seconds);
         lr1_mac->adr_mode_select = JOIN_DR_DISTRIBUTION;
         lr1_mac->retry_join_cpt++;
 
@@ -1453,7 +1453,7 @@ status_lorawan_t lr1_stack_mac_cmd_parse( lr1_stack_mac_t* lr1_mac )
             if( device_time_ans_parser( lr1_mac ) == OKLORAWAN )
             {
                 lr1_mac->timestamp_tx_done_device_time_req_ms = lr1_mac->timestamp_tx_done_device_time_req_ms_tmp;
-                lr1_mac->timestamp_last_device_time_ans_s     = (SysTimeToMs(SysTimeGet())/1000);
+                lr1_mac->timestamp_last_device_time_ans_s     = (SysTimeGetMcuTime().Seconds);
             }
             break;
         }

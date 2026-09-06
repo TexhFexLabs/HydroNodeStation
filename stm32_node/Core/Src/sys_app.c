@@ -27,6 +27,7 @@
 #include "stm32_systime.h"
 #include "stm32_lpm.h"
 #include "timer_if.h"
+#include "runtime_health.h"
 #include "utilities_def.h"
 #include "sys_debug.h"
 #include "sys_sensors.h"
@@ -99,6 +100,8 @@ void SystemApp_Init(void)
   /*Initialize timer and RTC*/
   UTIL_TIMER_Init();
   SYS_TimerInitialisedFlag = 1;
+  SysTick->CTRL = 0U;
+  Runtime_Init();
   /* Initializes the SW probes pins and the monitor RF pins via Alternate Function */
   DBG_Init();
 
@@ -161,13 +164,14 @@ uint8_t GetBatteryLevel(void)
   /* USER CODE END GetBatteryLevel_0 */
 
   /* Convert battery level from mV to linear scale: 1 (very low) to 254 (fully charged) */
+  if (!(bat_sensor_data.valid & SENSOR_VALID_BATTERY)) return 255U;
   if (bat_sensor_data.battery_voltage > VDD_BAT)
   {
     batteryLevel = LORAWAN_MAX_BAT;
   }
   else if (bat_sensor_data.battery_voltage < VDD_MIN)
   {
-    batteryLevel = 0;
+    batteryLevel = 1;
   }
   else
   {
@@ -321,6 +325,11 @@ static void tiny_snprintf_like(char *buf, uint32_t maxsize, const char *strForma
 HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 {
   /*Don't enable SysTick if TIMER_IF is based on other counters (e.g. RTC) */
+  if (!SYS_TimerInitialisedFlag)
+  {
+    HAL_SYSTICK_Config(SystemCoreClock / 1000U);
+    HAL_NVIC_SetPriority(SysTick_IRQn, 15U, 0U);
+  }
   /* USER CODE BEGIN HAL_InitTick_1 */
 
   /* USER CODE END HAL_InitTick_1 */
@@ -348,13 +357,16 @@ uint32_t HAL_GetTick(void)
     /* to rework the above function HAL_InitTick() and to call HAL_IncTick() on the timebase IRQ */
     /* Note: when TIMER_IF is based on RTC, stm32wlxx_hal_rtc.c calls this function before TimeServer is functional */
     /* RTC TIMEOUT will not expire, i.e. if RTC has an hw problem it will keep looping in the RTC_Init function */
+    ret = uwTick;
     /* USER CODE BEGIN HAL_GetTick_EarlyCall */
 
     /* USER CODE END HAL_GetTick_EarlyCall */
   }
   else
   {
-    ret = TIMER_IF_GetTimerValue();
+    uint16_t ms;
+    uint32_t seconds = TIMER_IF_GetTime(&ms);
+    ret = seconds * 1000U + ms;
   }
   /* USER CODE BEGIN HAL_GetTick_2 */
 
@@ -371,7 +383,12 @@ void HAL_Delay(__IO uint32_t Delay)
   /* USER CODE BEGIN HAL_Delay_1 */
 
   /* USER CODE END HAL_Delay_1 */
-  TIMER_IF_DelayMs(Delay);
+  if (SYS_TimerInitialisedFlag) { TIMER_IF_DelayMs(Delay); }
+  else
+  {
+    uint32_t start = HAL_GetTick();
+    while ((uint32_t)(HAL_GetTick() - start) < Delay) { }
+  }
   /* USER CODE BEGIN HAL_Delay_2 */
 
   /* USER CODE END HAL_Delay_2 */

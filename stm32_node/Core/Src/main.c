@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "sw_uart.h"
 #include "debug_profile.h"
+#include "runtime_health.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -74,6 +75,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  Runtime_EarlyInit();
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -117,6 +119,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
     MX_LoRaWAN_Process();
+    Runtime_Process();
 
     /* USER CODE BEGIN 3 */
 
@@ -184,10 +187,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+  Runtime_Fault(RUNTIME_FAULT_HAL);
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT

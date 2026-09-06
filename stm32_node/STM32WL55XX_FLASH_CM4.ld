@@ -11,7 +11,7 @@ ENTRY(Reset_Handler)
 /* Memories definition */
 MEMORY
 {
-  ROM    (rx)    : ORIGIN = 0x08000000, LENGTH = 256K
+  ROM    (rx)    : ORIGIN = 0x08000000, LENGTH = 248K /* last 8 KiB: NVM snapshots + legacy migration */
   RAM1   (xrw)   : ORIGIN = 0x20000000, LENGTH = 32K    /* Non-backup SRAM1 */
   RAM2   (xrw)   : ORIGIN = 0x20008000, LENGTH = 32K    /* Backup SRAM2 */
 }

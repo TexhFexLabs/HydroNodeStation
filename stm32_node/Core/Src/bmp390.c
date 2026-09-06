@@ -33,6 +33,7 @@
  */
 
 #include "bmp390.h"
+#include <math.h>
 #include "i2c.h"
 #include "stm32wlxx_hal.h"
 
@@ -345,7 +346,7 @@ int32_t BMP390_Read(BMP390_Data_t *data)
         return BMP390_ERR_PARAM;
     }
 
-    if (s_initialised == 0U)
+    if ((s_initialised == 0U) && (BMP390_Init() != BMP390_OK))
     {
         return BMP390_ERR_INIT;
     }
@@ -415,6 +416,7 @@ int32_t BMP390_Read(BMP390_Data_t *data)
     float t_c  = compensate_temperature(raw_t);            /* degC */
     float p_pa = compensate_pressure(raw_p);               /* Pa   */
 
+    if (!isfinite(t_c) || !isfinite(p_pa)) return BMP390_ERR_I2C;
     float t_scaled = t_c * 100.0f;
     if (t_scaled >  32767.0f) { t_scaled =  32767.0f; }
     if (t_scaled < -32768.0f) { t_scaled = -32768.0f; }

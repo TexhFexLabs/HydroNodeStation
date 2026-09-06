@@ -14,6 +14,7 @@
 #include "i2c.h"
 #include "sps30.h"
 #include <string.h>
+#include <math.h>
 
 /* Private define ------------------------------------------------------------*/
 #define SPS30_CMD_START_MEASUREMENT     0x0010U
@@ -80,7 +81,7 @@ static int32_t SPS30_BusInit(void)
 
 static void SPS30_BusDeInit(void)
 {
-  (void)HAL_I2C_DeInit(&hi2c2);
+  /* Shared bus remains active for the other sensors. */
 }
 
 static int32_t SPS30_EnsureBusReady(void)
@@ -134,22 +135,15 @@ static int32_t SPS30_WriteCommandWithData(uint16_t command, const uint8_t *data,
 /* Exported functions --------------------------------------------------------*/
 int32_t SPS30_Init(void)
 {
-  if (SPS30_BusInit() != SPS30_STATUS_OK)
-  {
+  if (SPS30_BusInit() != SPS30_STATUS_OK || SPS30_WakeUp() != SPS30_STATUS_OK)
     return SPS30_STATUS_ERROR;
-  }
-
-  /* Wake up first to be able to send commands */
-  (void)SPS30_WakeUp();
-
-  /* Disable auto cleaning interval (set to 0) */
-  (void)SPS30_SetFanAutoCleaningInterval(0U);
-
-  /* Ensure it's in sleep mode for low power */
-  (void)SPS30_Sleep();
-  
+  /* A MCU reset does not reset the sensor. First force measurement -> idle. */
+  if (SPS30_StopMeasurement() != SPS30_STATUS_OK) return SPS30_STATUS_ERROR;
+  int32_t status = SPS30_SetFanAutoCleaningInterval(0U);
+  HAL_Delay(20U);
+  int32_t sleep_status = SPS30_Sleep();
   SPS30_BusDeInit();
-  return SPS30_STATUS_OK;
+  return status == SPS30_STATUS_OK ? sleep_status : status;
 }
 
 int32_t SPS30_AcquireBus(void)
@@ -162,6 +156,7 @@ int32_t SPS30_AcquireBus(void)
     }
   }
 
+  if (sps30_bus_acquire_count == UINT8_MAX) return SPS30_STATUS_ERROR;
   sps30_bus_acquire_count++;
   return SPS30_STATUS_OK;
 }
@@ -185,12 +180,11 @@ int32_t SPS30_WakeUp(void)
 
   /* Two wake-up commands or I2C start-stop */
   /* According to datasheet 6.3.6: send 0x1103 twice to activate interface */
-  (void)SPS30_WriteCommand(SPS30_CMD_WAKE_UP);
-  (void)SPS30_WriteCommand(SPS30_CMD_WAKE_UP);
+  (void)SPS30_WriteCommand(SPS30_CMD_WAKE_UP); /* First command may NACK. */
+  int32_t status = SPS30_WriteCommand(SPS30_CMD_WAKE_UP);
   
   HAL_Delay(SPS30_WAKEUP_DELAY_MS);
-  
-  return SPS30_STATUS_OK;
+  return status;
 }
 
 int32_t SPS30_StartMeasurement(void)
@@ -262,6 +256,7 @@ int32_t SPS30_ReadMeasurement(SPS30_Data_t *data)
     float f;
     memcpy(&f, &raw_val, 4);
 
+    if (!isfinite(f)) return SPS30_STATUS_ERROR;
     float scale = (i < 9) ? 10.0f : 1000.0f;
     float v = f * scale;
     if (v < 0.0f)     { v = 0.0f; }
@@ -279,7 +274,10 @@ int32_t SPS30_StopMeasurement(void)
     return SPS30_STATUS_ERROR;
   }
 
-  return SPS30_WriteCommand(SPS30_CMD_STOP_MEASUREMENT);
+  int32_t status = SPS30_WriteCommand(SPS30_CMD_STOP_MEASUREMENT);
+  /* Datasheet table 8: Sleep is legal only after reaching Idle, up to 20 ms. */
+  HAL_Delay(20U);
+  return status;
 }
 
 int32_t SPS30_SetFanAutoCleaningInterval(uint32_t interval_s)

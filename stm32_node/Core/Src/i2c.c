@@ -26,7 +26,7 @@
 /**
  * @brief  I2C Bus Recovery: Toggles SCL 9 times to free a stuck SDA line.
  */
-void I2C2_RecoverBus(void)
+int32_t I2C2_RecoverBus(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -52,21 +52,24 @@ void I2C2_RecoverBus(void)
   for (int i = 0; i < 9; i++)
   {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
-    HAL_Delay(10);
+    HAL_Delay(1);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-    HAL_Delay(10);
+    HAL_Delay(1);
   }
 
   /* 4. Generate a STOP condition manually */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
-  HAL_Delay(10);
+  HAL_Delay(1);
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-  HAL_Delay(10);
+  HAL_Delay(1);
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
-  HAL_Delay(10);
+  HAL_Delay(1);
 
   /* 5. Re-initialize I2C2 */
+  uint8_t released = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_SET &&
+                     HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_SET;
   MX_I2C2_Init();
+  return released ? 0 : -1;
 }
 /* USER CODE END 0 */
 

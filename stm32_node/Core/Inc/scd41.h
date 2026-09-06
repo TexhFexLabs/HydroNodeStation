@@ -17,6 +17,7 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
+int32_t SCD41_Sleep(void);
 
 /* Exported constants --------------------------------------------------------*/
 #define SCD41_STATUS_OK            0

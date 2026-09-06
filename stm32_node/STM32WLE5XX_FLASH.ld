@@ -11,7 +11,7 @@ ENTRY(Reset_Handler)
 /* Memories definition */
 MEMORY
 {
-  ROM    (rx)    : ORIGIN = 0x08000000, LENGTH = 256K
+  ROM    (rx)    : ORIGIN = 0x08000000, LENGTH = 248K /* last 8 KiB: NVM snapshots + legacy migration */
   RAM1   (xrw)   : ORIGIN = 0x20000000, LENGTH = 32K    /* Non-backup SRAM1 */
   RAM2   (xrw)   : ORIGIN = 0x20008000, LENGTH = 32K    /* Backup SRAM2 */
 }
@@ -19,7 +19,7 @@ MEMORY
 _estack = ORIGIN(RAM1) + LENGTH(RAM1); /* end of "SRAM1" Ram type memory */
 
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
-_Min_Stack_Size = 0x400; /* required amount of stack */
+_Min_Stack_Size = 0x1000; /* required amount of stack */
 
 /* Sections */
 SECTIONS

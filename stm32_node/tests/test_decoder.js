@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const {decodeUplink} = require('../../doc/payload-decoder.js');
+assert.equal(decodeUplink({fPort:2,bytes:[254,12,0,0,0,0,16,104,0,0]}).data.temperature,-5);
+assert.equal(decodeUplink({fPort:2,bytes:[128,0,255,255,0,0,255,255,0,0]}).data.temperature,null);
+assert.equal(decodeUplink({fPort:2,bytes:[128,0,255,255,0,0,255,255,0,0]}).data.battery_mv,null);
+assert.ok(decodeUplink({fPort:2,bytes:[0]}).errors);
+assert.ok(decodeUplink({fPort:6,bytes:[]}).errors);
+assert.ok(decodeUplink({fPort:2,bytes:Array(10).fill(-1)}).errors);
+const full=Array(32).fill(255);full[0]=128;full[1]=0;
+assert.equal(decodeUplink({fPort:4,bytes:full}).data.co2_ppm,null);
+assert.equal(decodeUplink({fPort:4,bytes:full}).data.typ_size_um,null);
+const diagnostics=Array(22).fill(0);diagnostics[0]=1;diagnostics[2]=128;
+assert.equal(decodeUplink({fPort:5,bytes:diagnostics}).data.uptime_s,2147483648);
+console.log('Decoder: negative temperatures, null sentinels, lengths, diagnostic uint32 passed');

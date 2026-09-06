@@ -16,6 +16,7 @@
  */
 
 #include "debug_profile.h"
+#include "runtime_health.h"
 #include "sys_app.h"       /* APP_LOG, VLEVEL_M, TS_ON, TS_OFF */
 #include "sys_sensors.h"   /* sensor_t, EnvSensors_Read, EnvSensors_StartPreMeasurement, SENSOR_FLAG_* */
 #include "stm32wlxx_hal.h" /* HAL_Delay */
@@ -30,8 +31,11 @@
 void DebugProfile_Run(void)
 {
     APP_LOG(TS_OFF, VLEVEL_M, "\r\n=== DEBUG PROFILE (PB4 HIGH) ===\r\n");
-    APP_LOG(TS_OFF, VLEVEL_M, "All sensors, every ~8 s. Reset to exit.\r\n\r\n");
+    APP_LOG(TS_OFF, VLEVEL_M, "All sensors, every ~19 s. Reset to exit.\r\n\r\n");
 
+    Runtime_ExpectProgress(0U);
+    EnvSensors_Init();
+    Runtime_Process();
     for (;;)
     {
         sensor_t d = {0};
@@ -48,6 +52,7 @@ void DebugProfile_Run(void)
                                      ? -(d.temperature % 100)
                                      :  (d.temperature % 100));
 
+        (void)t_int; (void)t_frac;
         APP_LOG(TS_ON, VLEVEL_M,
                 "T=%d.%02u C  RH=%u.%02u %%  P=%u.%01u hPa  VBAT=%u mV\r\n",
                 t_int, t_frac,
@@ -61,6 +66,12 @@ void DebugProfile_Run(void)
 
         /* Wait for SCD41 single-shot, then read CO2 + SPS30 */
         HAL_Delay(DBG_CO2_WAIT_MS);
+        Runtime_Process();
+        (void)EnvSensors_RestartPreMeasurement(SENSOR_FLAG_CO2);
+        HAL_Delay(DBG_CO2_WAIT_MS);
+        Runtime_Process();
+        HAL_Delay(DBG_CO2_WAIT_MS); /* 16.5 s total SPS30 settling */
+        Runtime_Process();
         (void)EnvSensors_Read(&d, SENSOR_FLAG_CO2 | SENSOR_FLAG_SPS30);
 
         APP_LOG(TS_ON, VLEVEL_M, "CO2=%u ppm\r\n", (unsigned)d.co2_ppm);
@@ -78,5 +89,6 @@ void DebugProfile_Run(void)
         APP_LOG(TS_OFF, VLEVEL_M, "---\r\n");
 
         HAL_Delay(DBG_CYCLE_PAUSE_MS);
+        Runtime_Process();
     }
 }

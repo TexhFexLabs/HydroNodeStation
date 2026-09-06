@@ -405,9 +405,20 @@ uint32_t TIMER_IF_GetTime(uint16_t *mSeconds)
 
   /* USER CODE END TIMER_IF_GetTime */
   uint64_t ticks;
-  uint32_t timerValueLsb = GetTimerTicks();
+  /* Read the 64-bit epoch consistently, including an underflow whose IRQ
+   * has not run yet. This also works inside a radio critical section. */
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
   uint32_t timerValueMSB = TIMER_IF_BkUp_Read_MSBticks();
-
+  uint32_t pending = RTC->SR & RTC_SR_SSRUF;
+  uint32_t timerValueLsb = GetTimerTicks();
+  if ((RTC->SR & RTC_SR_SSRUF) != pending)
+  {
+    pending = RTC_SR_SSRUF;
+    timerValueLsb = GetTimerTicks();
+  }
+  if (pending != 0U) { timerValueMSB++; }
+  __set_PRIMASK(primask);
   ticks = (((uint64_t) timerValueMSB) << 32) + timerValueLsb;
 
   seconds = (uint32_t)(ticks >> RTC_N_PREDIV_S);

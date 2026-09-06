@@ -39,3 +39,11 @@ build/
 *.synctex.gz
 *.fdb_latexmk
 *.fls
+
+# Local working memory, credentials and instrumentation captures
+/TODO/
+/doc/analysis/ppk*.csv
+/stm32_node/LoRaWAN/App/se-identity-local.h
+
+# Python host-test cache
+__pycache__/

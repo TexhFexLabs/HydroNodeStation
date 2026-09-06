@@ -220,17 +220,17 @@ lr1mac_states_t lr1mac_core_process( lr1_stack_mac_t* lr1_mac_obj )
 #endif
     {
         if( ( lr1_mac_obj->join_status == JOINING ) &&
-            ( ( int32_t ) ( lr1_mac_obj->next_time_to_join_seconds - (SysTimeToMs(SysTimeGet())/1000)) > 0 ) )
+            ( ( int32_t ) ( lr1_mac_obj->next_time_to_join_seconds - (SysTimeGetMcuTime().Seconds)) > 0 ) )
         {
             SMTC_MODEM_HAL_TRACE_PRINTF( "TOO SOON TO JOIN time is  %d time target is : %d\n",
-            		(SysTimeToMs(SysTimeGet())/1000), lr1_mac_obj->next_time_to_join_seconds );
+                    (SysTimeGetMcuTime().Seconds), lr1_mac_obj->next_time_to_join_seconds );
             lr1_mac_obj->lr1mac_state = LWPSTATE_IDLE;
         }
     }
 #endif
 
     if( ( lr1_mac_obj->lr1mac_state != LWPSTATE_IDLE ) &&
-        ( ( int32_t ) ( (SysTimeToMs(SysTimeGet())/1000) - lr1_mac_obj->timestamp_failsafe - FAILSAFE_DURATION ) > 0 ) )
+        ( ( int32_t ) ( (SysTimeGetMcuTime().Seconds) - lr1_mac_obj->timestamp_failsafe - FAILSAFE_DURATION ) > 0 ) )
     {
         SMTC_MODEM_HAL_PANIC( "FAILSAFE EVENT OCCUR (lr1mac_state:0x%x)\n", lr1_mac_obj->lr1mac_state );
         lr1_mac_obj->lr1mac_state = LWPSTATE_ERROR;
@@ -532,7 +532,7 @@ status_lorawan_t lr1mac_core_join( lr1_stack_mac_t* lr1_mac_obj, uint32_t target
         lr1_mac_obj->join_status = JOINED;
         return OKLORAWAN;
     }
-    uint32_t current_timestamp       = (SysTimeToMs(SysTimeGet())/1000);
+    uint32_t current_timestamp       = (SysTimeGetMcuTime().Seconds);
     lr1_mac_obj->timestamp_failsafe  = current_timestamp;
     lr1_mac_obj->rtc_target_timer_ms = target_time_ms;
     lr1_mac_obj->join_status         = JOINING;
@@ -742,7 +742,7 @@ status_lorawan_t lr1mac_core_payload_send( lr1_stack_mac_t* lr1_mac_obj, uint8_t
         return ERRORLORAWAN;
     }
 
-    lr1_mac_obj->timestamp_failsafe  = (SysTimeToMs(SysTimeGet())/1000);
+    lr1_mac_obj->timestamp_failsafe  = (SysTimeGetMcuTime().Seconds);
     lr1_mac_obj->rtc_target_timer_ms = target_time_ms;
     lr1_mac_obj->tx_fport            = fport;
     lr1_mac_obj->tx_fport_present    = fport_enabled;
@@ -1013,7 +1013,7 @@ uint16_t lr1mac_core_get_current_no_rx_packet_cnt( lr1_stack_mac_t* lr1_mac_obj 
 #if defined (ENDNODE) || defined (ENDNODE_RELAY)
 uint32_t lr1mac_core_get_current_no_rx_packet_cnt_since_s( lr1_stack_mac_t* lr1_mac_obj )
 {
-    return (SysTimeToMs(SysTimeGet())/1000) - lr1_mac_obj->no_rx_packet_since_s;
+    return (SysTimeGetMcuTime().Seconds) - lr1_mac_obj->no_rx_packet_since_s;
 }
 
 
@@ -1098,7 +1098,7 @@ bool lr1mac_core_convert_rtc_to_gps_epoch_time( lr1_stack_mac_t* lr1_mac_obj, ui
 
 bool lr1mac_core_is_time_valid( lr1_stack_mac_t* lr1_mac_obj )
 {
-    uint32_t rtc_s = (SysTimeToMs(SysTimeGet())/1000);
+    uint32_t rtc_s = (SysTimeGetMcuTime().Seconds);
 
     if( ( lr1_mac_obj->timestamp_last_device_time_ans_s != 0 ) &&
         ( ( int32_t ) ( rtc_s - lr1_mac_obj->timestamp_last_device_time_ans_s -
@@ -1116,7 +1116,7 @@ uint32_t lr1mac_core_get_timestamp_last_device_time_ans_s( lr1_stack_mac_t* lr1_
 
 uint32_t lr1mac_core_get_time_left_connection_lost( lr1_stack_mac_t* lr1_mac_obj )
 {
-    uint32_t rtc_s                        = (SysTimeToMs(SysTimeGet())/1000);
+    uint32_t rtc_s                        = (SysTimeGetMcuTime().Seconds);
     uint32_t time_since_last_correction_s = 0;
     uint32_t time_left_connection_lost    = lr1_mac_obj->device_time_invalid_delay_s;
 
@@ -1425,7 +1425,7 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
             		SysTimeToMs(SysTimeGet()) + smtc_modem_hal_get_random_nb_in_range( 1000, 3000 );
             
             // protected by tpm failsafe
-            lr1_mac_obj->timestamp_failsafe  = (SysTimeToMs(SysTimeGet())/1000);
+            lr1_mac_obj->timestamp_failsafe  = (SysTimeGetMcuTime().Seconds);
 #else
             lr1_mac_obj->rtc_target_timer_ms =
             		SysTimeToMs(SysTimeGet()) + smtc_modem_hal_get_random_nb_in_range( 300, 3000 );

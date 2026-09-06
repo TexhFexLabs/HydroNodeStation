@@ -37,6 +37,7 @@ extern "C" {
   */
 typedef struct
 {
+  uint16_t valid;         /*!< SENSOR_VALID_* bitmask */
   uint16_t pressure;      /*!< pressure in 0.1 hPa (hPa*10) */
   int16_t  temperature;   /*!< temperature in 0.01 degC (degC*100) */
   uint16_t humidity;      /*!< humidity in 0.01 % (%*100) */
@@ -82,6 +83,15 @@ int32_t EnvSensors_Init(void);
 
 /* USER CODE BEGIN EFP */
 /* USER CODE BEGIN sensor_flags */
+#define SENSOR_VALID_BATTERY (1U << 0)
+#define SENSOR_VALID_RHT     (1U << 1)
+#define SENSOR_VALID_PRESSURE (1U << 2)
+#define SENSOR_VALID_UV      (1U << 3)
+#define SENSOR_VALID_CO2     (1U << 4)
+#define SENSOR_VALID_PM      (1U << 5)
+#define SENSOR_INVALID_U16  UINT16_MAX
+#define SENSOR_INVALID_T    INT16_MIN
+int32_t EnvSensors_Sleep(void);
 #define SENSOR_FLAG_CO2   (1U << 0)         /*!< Read SCD41 CO2 this cycle */
 #define SENSOR_FLAG_SPS30 (1U << 1)         /*!< Read SPS30 particulates this cycle */
 #define SENSOR_FLAG_ONLY_BATTERY (1U << 2)  /*!< Read only battery voltage */

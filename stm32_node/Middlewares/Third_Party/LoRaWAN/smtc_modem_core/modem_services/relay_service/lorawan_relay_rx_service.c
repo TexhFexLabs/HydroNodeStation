@@ -228,7 +228,7 @@ void lorawan_relay_rx_fwd_uplink( uint8_t stack_id, const uint8_t* data, uint8_t
         .id                = (task_id_t)relay_rx_obj.task_id,
         .stack_id          = stack_id,
         .priority          = TASK_HIGH_PRIORITY,
-        .time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000),
+        .time_to_execute_s = (SysTimeGetMcuTime().Seconds),
     };
 
     SMTC_MODEM_HAL_PANIC_ON_FAILURE( modem_supervisor_add_task( &task_relay ) == TASK_VALID );

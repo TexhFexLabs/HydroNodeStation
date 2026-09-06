@@ -739,7 +739,7 @@ static void store_and_forward_flash_add_task( store_and_forward_flash_t* ctx, ui
     task_dm.id                = (task_id_t)ctx->task_id;
     task_dm.stack_id          = ctx->stack_id;
     task_dm.priority          = TASK_LOW_PRIORITY;
-    task_dm.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000) + delay_to_execute_s;
+    task_dm.time_to_execute_s = (SysTimeGetMcuTime().Seconds) + delay_to_execute_s;
 
     modem_supervisor_add_task( &task_dm );
 }

@@ -187,7 +187,7 @@ void lorawan_send_add_task( uint8_t stack_id, uint8_t f_port, bool send_fport, b
     lorawan_send_management_obj[stack_id].fport_present = send_fport;
     lorawan_send_management_obj[stack_id].packet_type   = confirmed;
 
-    task_send.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000) + delay_s;
+    task_send.time_to_execute_s = (SysTimeGetMcuTime().Seconds) + delay_s;
     task_send.stack_id          = stack_id;
     task_send.id                = (task_id_t)(SEND_TASK + ( NUMBER_OF_TASKS * stack_id ));
 

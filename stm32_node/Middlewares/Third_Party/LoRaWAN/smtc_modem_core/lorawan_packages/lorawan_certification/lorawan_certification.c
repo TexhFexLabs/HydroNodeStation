@@ -259,7 +259,7 @@ void lorawan_certification_services_init( uint8_t* service_id, uint8_t task_id,
         task_certif.id                = (task_id_t)ctx->task_id;
         task_certif.stack_id          = ctx->stack_id;
         task_certif.priority          = TASK_MEDIUM_HIGH_PRIORITY;
-        task_certif.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000);
+        task_certif.time_to_execute_s = (SysTimeGetMcuTime().Seconds);
 
         modem_supervisor_add_task( &task_certif );
     }
@@ -308,7 +308,7 @@ lorawan_certification_ret_t lorawan_certification_set_enabled( uint8_t stack_id,
             task_certif.id                = (task_id_t)ctx->task_id;
             task_certif.stack_id          = ctx->stack_id;
             task_certif.priority          = TASK_MEDIUM_HIGH_PRIORITY;
-            task_certif.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000);
+            task_certif.time_to_execute_s = (SysTimeGetMcuTime().Seconds);
 
             modem_supervisor_add_task( &task_certif );
         }

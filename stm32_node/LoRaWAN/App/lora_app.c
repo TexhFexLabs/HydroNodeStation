@@ -34,7 +34,6 @@
 #include "smtc_modem_relay_api.h"
 #include "adc_if.h"
 #include "sys_sensors.h"
-#include "flash_if.h"
 #include "rng.h"
 #include "lorawan_api.h"
 #include "sps30.h"
@@ -42,6 +41,11 @@
 
 /* USER CODE BEGIN Includes */
 #include "bq25185.h"
+#include "power_policy.h"
+#include "runtime_health.h"
+#include "max17048.h"
+#include "i2c.h"
+#include "nvm_store.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -103,19 +107,10 @@ typedef struct
 /*---------------------------------------------------------------------------*/
 /*                             LoRaWAN NVM configuration                     */
 /*---------------------------------------------------------------------------*/
-/**
-  * @brief LoRaWAN NVM Flash address
-  * @note last 2 sector of a 256kBytes device
-  */
-#define LORAWAN_NVM_BASE_ADDRESS        (0x0803F000UL)
-
-#define SECURE_ELEMENT_CONTEXT_SIZE     0x2A0UL
-#define MODEM_CONTEXT_SIZE              0x10UL
-#define LORAWAN_CONTEXT_SIZE            0x28UL
-
-#define ADDR_FLASH_LORAWAN_CONTEXT              LORAWAN_NVM_BASE_ADDRESS
-#define ADDR_FLASH_MODEM_CONTEXT                (void *)(LORAWAN_NVM_BASE_ADDRESS + LORAWAN_CONTEXT_SIZE)
-#define ADDR_FLASH_SECURE_ELEMENT_CONTEXT       (void *)(LORAWAN_NVM_BASE_ADDRESS + LORAWAN_CONTEXT_SIZE + MODEM_CONTEXT_SIZE)
+/* Legacy context sizes are validated at the NVM adapter boundary. */
+#define SECURE_ELEMENT_CONTEXT_SIZE 0x2A0UL
+#define MODEM_CONTEXT_SIZE          0x10UL
+#define LORAWAN_CONTEXT_SIZE        0x28UL
 
 /* USER CODE BEGIN PD */
 /**
@@ -135,13 +130,7 @@ typedef struct
 #define TX_PORT_ENV_EXTENDED             3U
 #define TX_PORT_ENV_FULL                 4U
 
-/**
-  * @brief Persistent application configuration in flash.
-  * @note  Stored in the last flash page (0x0803F800). The LoRaWAN NVM reserves the
-  *        last two pages of the device but only ever writes the first (0x0803F000),
-  *        so this page is free for application use.
-  */
-#define APP_CONFIG_FLASH_ADDRESS         (0x0803F800UL)
+/* Application config shares the transactional NVM snapshots. */
 #define APP_CONFIG_MAGIC                 (0x484E4331UL)   /* "HNC1" - HydroNode Config v1 */
 
 /**
@@ -219,6 +208,11 @@ typedef struct
   * @brief  LoRa End Node send request
   */
 static void SendTxData(uint8_t port);
+static void ProcessSensorEvents(void);
+static void ServicePower(void);
+static void ServiceJoin(void);
+static void ReadBattery(void);
+static void StopSensorTimers(void);
 static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata);
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
@@ -410,7 +404,7 @@ static UTIL_TIMER_Object_t SleepTimer;
 /**
   * Temp buffer to store a FLASH page in RAM when partial replacement is needed
   */
-static uint8_t FLASH_RAM_buffer[FLASH_IF_BUFFER_SIZE];
+/* NVM snapshots replace the legacy read/erase/rewrite page buffer. */
 
 /**
   * @brief Handler Callbacks
@@ -482,6 +476,22 @@ static UTIL_TIMER_Object_t ChargerSafetyTimer;
   *        flash-stored value at boot and by the downlink SET_TX_INTERVAL command at runtime.
   */
 static uint32_t tx_dutycycle_s = APP_TX_DUTYCYCLE;
+
+enum { EVENT_SCD_START=1U, EVENT_SCD_RESTART=2U, EVENT_SPS_START=4U, EVENT_SPS_STOP=8U };
+static volatile uint32_t sensor_events;
+static power_policy_t power_policy;
+static sensor_t battery_sample;
+static uint32_t battery_checked_at;
+static bool modem_started, credentials_ready, sensors_started, recovery_stopped;
+static uint32_t join_started_at, next_join_at, join_backoff_s = 300U;
+static bool join_attempt_active;
+static uint32_t tx_queued_at;
+static bool tx_pending;
+static uint16_t tx_failures, sensor_failures;
+static uint16_t last_valid_sensors;
+static uint8_t failed_uplinks;
+static bool shutdown_pending;
+static uint32_t next_measurement_at;
 
 /* USER CODE END PV */
 
@@ -558,105 +568,188 @@ void LoRaWAN_Init(void)
 
   /* USER CODE END LoRaWAN_Init_1 */
 
-  if (FLASH_IF_Init(FLASH_RAM_buffer) != FLASH_IF_OK)
+  if (!Nvm_Init())
   {
-    Error_Handler();
+    Runtime_Fault(RUNTIME_FAULT_NVM);
   }
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
   UTIL_TIMER_Create(&SleepTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnSleepTimerEvent, NULL);
 #endif /* (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0) */
-  /* Init the Lora Stack*/
-  /* Init the modem and use EventCallback as event callback, please note that the callback will be */
-  /* called immediately after the first call to smtc_modem_run_engine because of the reset detection */
-  smtc_modem_init(&Callbacks);
-
-  /* Certification mode is disabled by default. It can be enabled setting LORAWAN_CERTIFICATION_MODE to true */
-  smtc_modem_set_certification_mode(STACK_ID, CertMode);
-
-  /* BSP crystal accurrancy could be set to a different value. By default it is 10. */
-  smtc_modem_set_crystal_error_ppm(BSP_CRYSTAL_ERROR);
-
-  /* USER CODE BEGIN LoRaWAN_Init_Last */
-  // UTIL_TIMER_Start(&JoinLedTimer);
-
-  /* Restore the persisted TX duty cycle (FLASH_IF already initialised above) */
   AppConfig_Load();
-
-  EnvSensors_Init();
-
-  HAL_Delay(2000);
-  
-  /* Initial fan clean check if battery is good */
-  sensor_t init_sensor_data;
-  (void)EnvSensors_Read(&init_sensor_data, SENSOR_FLAG_ONLY_BATTERY);
-  uint16_t init_battery_mv = init_sensor_data.battery_voltage;
-  APP_LOG(TS_OFF, VLEVEL_M, "Init Bat (VBat=%u mV)\r\n", (unsigned)init_battery_mv);
-  if (init_battery_mv > 4050)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning (VBat=%u mV)\r\n", (unsigned)init_battery_mv);
-    if ((SPS30_AcquireBus() == SPS30_STATUS_OK) && (SPS30_WakeUp() == SPS30_STATUS_OK))
-    {
-       (void)SPS30_StartMeasurement();
-       HAL_Delay(50);
-       if (SPS30_StartFanCleaning() == SPS30_STATUS_OK)
-       {
-         UTIL_TIMER_Start(&Sps30CleanupTimer);
-       }
-       else
-       {
-         APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 fan cleaning start failed\r\n");
-         (void)SPS30_StopMeasurement();
-         (void)SPS30_Sleep();
-       }
-        last_sps30_clean_timestamp = SysTimeGet().Seconds;
-    }
-    else
-    {
-      APP_LOG(TS_OFF, VLEVEL_M, "Initial SPS30 bus acquire/wakeup failed\r\n");
-    }
-    (void)SPS30_ReleaseBus();
-  }
-
-  APP_LOG(TS_OFF, VLEVEL_M, "Sensors initialized\r\n");
-  /* USER CODE END LoRaWAN_Init_Last */
+  (void)MAX17048_Init();
+  (void)EnvSensors_Read(&battery_sample, SENSOR_FLAG_ONLY_BATTERY);
+  PowerPolicy_Init(&power_policy, battery_sample.battery_voltage,
+                   (battery_sample.valid & SENSOR_VALID_BATTERY) != 0U);
+  battery_checked_at = SysTimeGetMcuTime().Seconds;
 }
 
 void LoRaWAN_Process(void)
 {
-  uint32_t sleep_time_ms = 0;
-  /* Check button */
-  if (user_button_is_press == true)
+  ServicePower();
+  uint32_t sleep_time_ms = RUNTIME_MAX_SLEEP_MS;
+  if (power_policy.mode != POWER_RECOVERY)
   {
-    user_button_is_press = false;
-
-    smtc_modem_status_mask_t status_mask = 0;
-    smtc_modem_get_status(STACK_ID, &status_mask);
-    /* Check if the device has already joined a network */
-    if ((status_mask & SMTC_MODEM_STATUS_JOINED) == SMTC_MODEM_STATUS_JOINED)
+    if (!modem_started)
     {
-      /* Send packet */
-      SendTxData(LORAWAN_USER_APP_PORT);
+      smtc_modem_init(&Callbacks);
+      smtc_modem_set_certification_mode(STACK_ID, CertMode);
+      smtc_modem_set_crystal_error_ppm(BSP_CRYSTAL_ERROR);
+      modem_started = true;
     }
-  }
-
-  /* Modem process launch */
-  sleep_time_ms = smtc_modem_run_engine();
-
-  /* Atomically check sleep conditions (button was not pressed and no modem flags pending) */
-
-  if ((user_button_is_press == false) && (smtc_modem_is_irq_flag_pending() == false))
-  {
-    if (sleep_time_ms > 0)
+    if (!sensors_started)
     {
+      EnvSensors_Init();
+      sensors_started = true;
+      recovery_stopped = false;
+    }
+    sleep_time_ms = smtc_modem_run_engine();
+    ServiceJoin();
+    ProcessSensorEvents();
+    /* Sensor work / joins can enqueue modem tasks: recompute before sleep. */
+    sleep_time_ms = smtc_modem_run_engine();
+    if (tx_pending && (uint32_t)(SysTimeGetMcuTime().Seconds - tx_queued_at) > 900U)
+      Runtime_Fault(RUNTIME_FAULT_MODEM);
+  }
+  else
+  {
+    /* Expected dormancy is progress too; no radio or heavy sensor startup. */
+    Runtime_ExpectProgress(POWER_CHECK_S + 120U);
+  }
+  if (sleep_time_ms > RUNTIME_MAX_SLEEP_MS) sleep_time_ms = RUNTIME_MAX_SLEEP_MS;
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
-      UTIL_TIMER_SetPeriod(&SleepTimer, sleep_time_ms);
-      UTIL_TIMER_Start(&SleepTimer);
-      UTIL_LPM_EnterLowPower();
-#endif
-    }
+  /* Recheck pending work under the same interrupt mask used by STOP2. */
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  if (sleep_time_ms > 0U && sensor_events == 0U &&
+      (power_policy.mode == POWER_RECOVERY || !modem_started || !smtc_modem_is_irq_flag_pending()))
+  {
+    UTIL_TIMER_SetPeriod(&SleepTimer, sleep_time_ms);
+    UTIL_TIMER_Start(&SleepTimer);
+    UTIL_LPM_EnterLowPower();
   }
+  __set_PRIMASK(primask);
+#endif
+}
 
+static void ReadBattery(void)
+{
+  (void)EnvSensors_Read(&battery_sample, SENSOR_FLAG_ONLY_BATTERY);
+  battery_checked_at = SysTimeGetMcuTime().Seconds;
+  PowerPolicy_Update(&power_policy, battery_sample.battery_voltage,
+                     (battery_sample.valid & SENSOR_VALID_BATTERY) != 0U,
+                     battery_checked_at);
+}
+
+static void StopSensorTimers(void)
+{
+  UTIL_TIMER_Stop(&Scd41Timer);
+  UTIL_TIMER_Stop(&Scd41RestartTimer);
+  UTIL_TIMER_Stop(&Sps30Timer);
+  UTIL_TIMER_Stop(&Sps30CleanupTimer);
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  sensor_events = 0U;
+  __set_PRIMASK(primask);
+}
+
+static void ServicePower(void)
+{
+  bool checked = (uint32_t)(SysTimeGetMcuTime().Seconds - battery_checked_at) >= POWER_CHECK_S;
+  if (checked) ReadBattery();
+  if (power_policy.mode == POWER_RECOVERY)
+  {
+    if (!recovery_stopped)
+    {
+      StopSensorTimers();
+      if (modem_started)
+      {
+        (void)smtc_modem_leave_network(STACK_ID);
+        (void)smtc_modem_alarm_clear_timer();
+      }
+      tx_pending = false;
+      join_attempt_active = false;
+      next_join_at = SysTimeGetMcuTime().Seconds;
+      tx_counter = 0U;
+      shutdown_pending = true;
+    }
+    if (!recovery_stopped || (checked && shutdown_pending))
+    {
+      /* Also after a MCU-only reset: sensors may still be measuring. */
+      shutdown_pending = EnvSensors_Sleep() != 0;
+      if (shutdown_pending) (void)I2C2_RecoverBus();
+    }
+    sensors_started = false;
+    recovery_stopped = true;
+  }
+  else recovery_stopped = false;
+}
+
+static void ServiceJoin(void)
+{
+  if (!credentials_ready || power_policy.mode == POWER_RECOVERY) return;
+  uint32_t now = SysTimeGetMcuTime().Seconds;
+  smtc_modem_status_mask_t status = 0;
+  if (smtc_modem_get_status(STACK_ID, &status) != SMTC_MODEM_RC_OK) return;
+  if (status & SMTC_MODEM_STATUS_JOINED)
+  {
+    join_attempt_active = false;
+    join_backoff_s = 300U;
+    return;
+  }
+  if (join_attempt_active)
+  {
+    if ((uint32_t)(now - join_started_at) < 300U) return;
+    (void)smtc_modem_leave_network(STACK_ID);
+    join_attempt_active = false;
+    next_join_at = now + join_backoff_s;
+    Runtime_ExpectProgress(join_backoff_s + 600U);
+    if (join_backoff_s < 3600U) join_backoff_s *= 2U;
+    if (join_backoff_s > 3600U) join_backoff_s = 3600U;
+    return;
+  }
+  if ((int32_t)(now - next_join_at) < 0) return;
+  if (smtc_modem_join_network(STACK_ID) == SMTC_MODEM_RC_OK)
+  {
+    join_attempt_active = true;
+    join_started_at = now;
+    Runtime_ExpectProgress(600U);
+  }
+  else next_join_at = now + 60U;
+}
+
+static void ProcessSensorEvents(void)
+{
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  uint32_t pending = sensor_events;
+  sensor_events = 0U;
+  __set_PRIMASK(primask);
+  if (!pending) return;
+  ReadBattery();
+  ServicePower();
+  if (power_policy.mode == POWER_RECOVERY) return;
+  int32_t result = 0;
+  if (pending & EVENT_SPS_STOP)
+  {
+    result |= SPS30_StopMeasurement();
+    result |= SPS30_Sleep();
+  }
+  /* Do not start a stale premeasurement after its intended uplink. */
+  if ((int32_t)(SysTimeGetMcuTime().Seconds - next_measurement_at) >= 0)
+    pending &= EVENT_SPS_STOP;
+  if (!(battery_sample.valid & SENSOR_VALID_BATTERY)) return;
+  if (SCD41_ENABLED && (pending & EVENT_SCD_START))
+    result |= EnvSensors_StartPreMeasurement(SENSOR_FLAG_CO2);
+  if (SCD41_ENABLED && (pending & EVENT_SCD_RESTART))
+    result |= EnvSensors_RestartPreMeasurement(SENSOR_FLAG_CO2);
+  if (pending & EVENT_SPS_START)
+    result |= EnvSensors_StartPreMeasurement(SENSOR_FLAG_SPS30);
+  if (result != 0)
+  {
+    if (sensor_failures != UINT16_MAX) sensor_failures++;
+    (void)I2C2_RecoverBus();
+  }
 }
 
 static void SystemReset(void)
@@ -695,76 +788,34 @@ static uint32_t GetRandomValue(void)
   return rand_nb;
 }
 
-static void RestoreContext(const modem_context_type_t ctx_type, uint32_t offset, uint8_t *buffer,
-                           const uint32_t size)
+static bool ContextRange(modem_context_type_t type, uint32_t offset, uint32_t size, uint32_t *address)
 {
-  /* Offset is only used for fuota and store and forward purpose and for multistack features. To avoid ram consumption */
-  /* the use of hal_flash_read_modify_write is only done in these cases */
-  /* USER CODE BEGIN RestoreContext_1 */
-
-  /* USER CODE END RestoreContext_1 */
-  FLASH_IF_StatusTypedef ret_status = FLASH_IF_OK;
-  switch (ctx_type)
+  uint32_t base, capacity;
+  switch (type)
   {
-    case CONTEXT_MODEM:
-      ret_status = FLASH_IF_Read(buffer, ADDR_FLASH_MODEM_CONTEXT, MODEM_CONTEXT_SIZE);
-      break;
-    case CONTEXT_LORAWAN_STACK:
-      ret_status = FLASH_IF_Read(buffer, (void *)((uint32_t)(ADDR_FLASH_LORAWAN_CONTEXT + offset)), LORAWAN_CONTEXT_SIZE);
-      break;
-    case CONTEXT_SECURE_ELEMENT:
-      ret_status = FLASH_IF_Read(buffer, ADDR_FLASH_SECURE_ELEMENT_CONTEXT, SECURE_ELEMENT_CONTEXT_SIZE);
-      break;
-    default:
-      break;
+    case CONTEXT_LORAWAN_STACK: base=0; capacity=LORAWAN_CONTEXT_SIZE; break;
+    case CONTEXT_MODEM: base=LORAWAN_CONTEXT_SIZE; capacity=MODEM_CONTEXT_SIZE; break;
+    case CONTEXT_SECURE_ELEMENT: base=LORAWAN_CONTEXT_SIZE+MODEM_CONTEXT_SIZE; capacity=SECURE_ELEMENT_CONTEXT_SIZE; break;
+    default: return false;
   }
-  if (ret_status != 0)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "restore ctx type %d, FLASH_IF return: %d\r\n", ctx_type, ret_status);
-  }
-  /* USER CODE BEGIN RestoreContext_Last */
-
-  /* USER CODE END RestoreContext_Last */
+  if (offset > capacity || size > capacity-offset) return false;
+  *address=base+offset;
+  return true;
 }
 
-static void StoreContext(const modem_context_type_t ctx_type, uint32_t offset, const uint8_t *buffer,
-                         const uint32_t size)
+static void RestoreContext(const modem_context_type_t type, uint32_t offset, uint8_t *buffer, const uint32_t size)
 {
-  /* USER CODE BEGIN StoreContext_1 */
+  uint32_t address;
+  if (!ContextRange(type,offset,size,&address) || !Nvm_Read(address,buffer,size))
+    Runtime_Fault(RUNTIME_FAULT_NVM);
+}
 
-  /* USER CODE END StoreContext_1 */
-  FLASH_IF_StatusTypedef ret_status = FLASH_IF_OK;
-  /* Offset is only used for fuota and store and forward purpose and for multistack features. To avoid ram consumption
-   * the use of hal_flash_read_modify_write is only done in these cases */
-  switch (ctx_type)
-  {
-    case CONTEXT_MODEM:
-    {
-      ret_status = FLASH_IF_Write(ADDR_FLASH_MODEM_CONTEXT, (const void *)buffer, MODEM_CONTEXT_SIZE);
-    }
-
-    break;
-    case CONTEXT_LORAWAN_STACK:
-    {
-      ret_status = FLASH_IF_Write((void *)ADDR_FLASH_LORAWAN_CONTEXT, (const void *)buffer, (uint32_t)LORAWAN_CONTEXT_SIZE);
-    }
-    break;
-    case CONTEXT_SECURE_ELEMENT:
-    {
-      ret_status = FLASH_IF_Write(ADDR_FLASH_SECURE_ELEMENT_CONTEXT, (const void *)buffer, SECURE_ELEMENT_CONTEXT_SIZE);
-    }
-    break;
-
-    default:
-      break;
-  }
-  if (ret_status != 0)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "store ctx type %d, FLASH_IF return: %d\r\n", ctx_type, ret_status);
-  }
-  /* USER CODE BEGIN StoreContext_Last */
-
-  /* USER CODE END StoreContext_Last */
+static void StoreContext(const modem_context_type_t type, uint32_t offset, const uint8_t *buffer, const uint32_t size)
+{
+  uint32_t address;
+  /* Never proceed with a Join after a nonce persistence failure. */
+  if (!ContextRange(type,offset,size,&address) || !Nvm_Write(address,buffer,size))
+    Runtime_Fault(RUNTIME_FAULT_NVM);
 }
 
 static void EventCallback(void)
@@ -778,14 +829,22 @@ static void EventCallback(void)
   do
   {
     /* Read modem event */
-    ASSERT_SMTC_MODEM_RC(smtc_modem_get_event(&current_event, &event_pending_count));
+    smtc_modem_return_code_t event_status = smtc_modem_get_event(&current_event, &event_pending_count);
+    if (event_status == SMTC_MODEM_RC_NO_EVENT) return;
+    if (event_status != SMTC_MODEM_RC_OK) Runtime_Fault(RUNTIME_FAULT_MODEM);
 
     switch (current_event.event_type)
     {
       case SMTC_MODEM_EVENT_RESET:
+      {
         APP_LOG(TS_OFF, VLEVEL_M, "Event received: RESET\r\n");
 
-        GetUniqueId(user_dev_eui);
+        uint8_t eui_bits = 0U;
+        for (uint8_t i=0; i<sizeof user_dev_eui; ++i) eui_bits |= user_dev_eui[i];
+        if (eui_bits == 0U) GetUniqueId(user_dev_eui);
+        APP_LOG(TS_OFF, VLEVEL_M, "DevEUI: %02X%02X%02X%02X%02X%02X%02X%02X\r\n",
+                user_dev_eui[0],user_dev_eui[1],user_dev_eui[2],user_dev_eui[3],
+                user_dev_eui[4],user_dev_eui[5],user_dev_eui[6],user_dev_eui[7]);
 
         /* Set user credentials */
         ASSERT_SMTC_MODEM_RC(smtc_modem_set_deveui(stack_id, user_dev_eui));
@@ -797,16 +856,17 @@ static void EventCallback(void)
         ASSERT_SMTC_MODEM_RC(smtc_modem_set_region(stack_id, ACTIVE_REGION));
 
         /* Print Security material */
-        SecureElementPrintKeys(stack_id);
+        /* Never print secret keys, including in debug builds. */
         CertMode = (smtc_modem_is_certification_port_disabled(STACK_ID)) ? 0 : CertMode;
         if (CertMode == false)
         {
           /* Schedule a Join LoRaWAN network */
-          ASSERT_SMTC_MODEM_RC(smtc_modem_set_join_duty_cycle_backoff_bypass(stack_id, true));
-          ASSERT_SMTC_MODEM_RC(smtc_modem_join_network(stack_id));
+          ASSERT_SMTC_MODEM_RC(smtc_modem_set_join_duty_cycle_backoff_bypass(stack_id, false));
+          credentials_ready = true;
+          next_join_at = SysTimeGetMcuTime().Seconds;
         }
         break;
-
+      }
       case SMTC_MODEM_EVENT_ALARM:
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: ALARM\r\n");
         if (CertMode == true)
@@ -838,6 +898,7 @@ static void EventCallback(void)
         break;
 
       case SMTC_MODEM_EVENT_TXDONE:
+        tx_pending = false;
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: TXDONE\r\n");
         APP_LOG(TS_OFF, VLEVEL_H,  "Transmission done \r\n");
         smtc_modem_get_status(STACK_ID, &status_mask);
@@ -858,7 +919,8 @@ static void EventCallback(void)
         // UTIL_TIMER_Start(&RxLedTimer);
         /* USER CODE END EventCallback_3 */
         /* Get downlink data */
-        ASSERT_SMTC_MODEM_RC(smtc_modem_get_downlink_data(rx_payload, &rx_payload_size, &rx_metadata, &rx_remaining));
+        if (smtc_modem_get_downlink_data(rx_payload, &rx_payload_size, &rx_metadata, &rx_remaining) != SMTC_MODEM_RC_OK)
+          break;
         APP_LOG(TS_OFF, VLEVEL_M, "Data received on port %u\r\n", rx_metadata.fport);
         if (rx_payload_size == 0U)
         {
@@ -963,6 +1025,7 @@ static void EventCallback(void)
       case SMTC_MODEM_EVENT_REGIONAL_DUTY_CYCLE:
       {
         uint8_t duty_cycle_status = current_event.event_data.regional_duty_cycle.status;
+        (void)duty_cycle_status;
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: DUTY_CYCLE b"
                                    "usy %d\r\n", duty_cycle_status);
       }
@@ -1024,6 +1087,15 @@ static void SendTxData(uint8_t port)
 
   (void)port;
 
+  ReadBattery();
+  ServicePower();
+  if (power_policy.mode == POWER_RECOVERY) return;
+  if (!(battery_sample.valid & SENSOR_VALID_BATTERY))
+  {
+    (void)smtc_modem_alarm_start_timer(POWER_CHECK_S);
+    Runtime_ExpectProgress(POWER_CHECK_S + 120U);
+    return;
+  }
   /* Increment tx_counter */
   tx_counter++;
   if (tx_counter > 10U)
@@ -1034,11 +1106,16 @@ static void SendTxData(uint8_t port)
   /* Determine which sensors to read this cycle.
    * Base TX every 180 s. CO2 every 5th TX (15 min), SPS30 every 10th TX (30 min). */
   uint8_t sensor_flags = 0U;
-  if (tx_counter % 5U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
+  if (SCD41_ENABLED && tx_counter % 5U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
   if (tx_counter % 10U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
 
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
+  last_valid_sensors = sensor_data.valid;
+  uint16_t expected = SENSOR_VALID_BATTERY | SENSOR_VALID_RHT | SENSOR_VALID_PRESSURE | SENSOR_VALID_UV;
+  if (sensor_flags & SENSOR_FLAG_CO2) expected |= SENSOR_VALID_CO2;
+  if (sensor_flags & SENSOR_FLAG_SPS30) expected |= SENSOR_VALID_PM;
+  if ((sensor_data.valid & expected) != expected) if (sensor_failures != UINT16_MAX) sensor_failures++;
 
   /* Log raw stored values (scaling noted in unit label). Receiver / human
    * reader converts: T/100 = degC, RH/100 = %, P/10 = hPa. */
@@ -1093,14 +1170,14 @@ static void SendTxData(uint8_t port)
   append_u16_be(AppDataBuffer, &bufferSize, sensor_data.battery_voltage);
   append_u16_be(AppDataBuffer, &bufferSize, sensor_data.uvi_x100);
 
-  if ((sensor_flags & SENSOR_FLAG_CO2) != 0U)
+  if ((sensor_flags & (SENSOR_FLAG_CO2 | SENSOR_FLAG_SPS30)) != 0U)
   {
     append_u16_be(AppDataBuffer, &bufferSize, sensor_data.co2_ppm);
   }
 
   if (sensor_flags & SENSOR_FLAG_SPS30)
   {
-    uint32_t current_time_s = SysTimeGet().Seconds;
+    uint32_t current_time_s = SysTimeGetMcuTime().Seconds;
     bool cleaning_triggered = false;
 
     if (((current_time_s - last_sps30_clean_timestamp) > (SPS30_FAN_CLEAN_INTERVAL_HOURS * 3600U)) &&
@@ -1120,8 +1197,12 @@ static void SendTxData(uint8_t port)
 
     if (!cleaning_triggered)
     {
-      (void)SPS30_StopMeasurement();
-      (void)SPS30_Sleep();
+      if (SPS30_StopMeasurement() != SPS30_STATUS_OK || SPS30_Sleep() != SPS30_STATUS_OK)
+      {
+        if (sensor_failures != UINT16_MAX) sensor_failures++;
+        (void)I2C2_RecoverBus();
+        (void)SPS30_Init();
+      }
     }
     append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm1_0);
     append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm2_5);
@@ -1143,7 +1224,20 @@ static void SendTxData(uint8_t port)
   //   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
   // }
 
-  ASSERT_SMTC_MODEM_RC(smtc_modem_request_uplink(STACK_ID, uplink_port, false, AppDataBuffer, bufferSize));
+  smtc_modem_return_code_t tx_status = smtc_modem_request_uplink(STACK_ID, uplink_port, false, AppDataBuffer, bufferSize);
+  if (tx_status == SMTC_MODEM_RC_OK)
+  {
+    if (!tx_pending) tx_queued_at = SysTimeGetMcuTime().Seconds;
+    tx_pending = true;
+    failed_uplinks = 0U;
+  }
+  else
+  {
+    if (tx_failures != UINT16_MAX) tx_failures++;
+    /* Duty-cycle and scheduling backpressure are expected, not a crash. */
+    if (tx_status != SMTC_MODEM_RC_BUSY && tx_status != SMTC_MODEM_RC_NO_TIME &&
+        ++failed_uplinks >= 5U) Runtime_Fault(RUNTIME_FAULT_MODEM);
+  }
 
   if (EventType == TX_ON_TIMER)
   {
@@ -1151,34 +1245,26 @@ static void SendTxData(uint8_t port)
     smtc_modem_get_status(STACK_ID, &status_mask);
     uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : tx_dutycycle_s;
 
-    if (sensor_data.battery_voltage < LOW_BATTERY_THRESHOLD_MV)
-    {
-      dutycycle = dutycycle * 2U; // Reduce TX frequency when battery is low
-      APP_LOG(TS_ON, VLEVEL_M, "Low battery (%u mV), reducing TX frequency\r\n", (unsigned)sensor_data.battery_voltage);
-    }
-    if (sensor_data.battery_voltage < ULTRA_LOW_BATTERY_THRESHOLD_MV)
-    {
-      dutycycle = dutycycle * 6U;
-      tx_counter = 0U;
-      APP_LOG(TS_ON, VLEVEL_M, "ULTRA low battery (%u mV), reducing TX frequency only basic measurements\r\n", (unsigned)sensor_data.battery_voltage);
-    }
-
-    ASSERT_SMTC_MODEM_RC(smtc_modem_alarm_start_timer(dutycycle));
+    if (power_policy.mode == POWER_SAVE) dutycycle *= 2U;
+    if (smtc_modem_alarm_start_timer(dutycycle) != SMTC_MODEM_RC_OK)
+      Runtime_Fault(RUNTIME_FAULT_MODEM);
+    Runtime_ExpectProgress(dutycycle + 600U);
+    next_measurement_at = SysTimeGetMcuTime().Seconds + dutycycle;
 
     /* Schedule pre-measurement only for the next cycle where data is needed */
     uint8_t next_counter = (tx_counter % 10U) + 1U;
 
-    if (next_counter % 5U == 0U)
+    if (SCD41_ENABLED && next_counter % 5U == 0U)
     {
-      UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U) - SCD41_PRE_MEASUREMENT_TIME_MS);
+      UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U > SCD41_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SCD41_PRE_MEASUREMENT_TIME_MS : 1U);
       UTIL_TIMER_Start(&Scd41Timer);
-      UTIL_TIMER_SetPeriod(&Scd41RestartTimer, (dutycycle * 1000U) - SCD41_RESTART_TIME_MS);
+      UTIL_TIMER_SetPeriod(&Scd41RestartTimer, (dutycycle * 1000U > SCD41_RESTART_TIME_MS) ? dutycycle * 1000U - SCD41_RESTART_TIME_MS : 1U);
       UTIL_TIMER_Start(&Scd41RestartTimer);
     }
 
     if (next_counter % 10U == 0U)
     {
-      UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U) - SPS30_PRE_MEASUREMENT_TIME_MS);
+      UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U > SPS30_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SPS30_PRE_MEASUREMENT_TIME_MS : 1U);
       UTIL_TIMER_Start(&Sps30Timer);
     }
   }
@@ -1215,6 +1301,8 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
   {
     case RX_CMD_TRIGGER_SPS30_CLEANING:
     {
+      ReadBattery();
+      if (power_policy.mode != POWER_NORMAL || !(battery_sample.valid & SENSOR_VALID_BATTERY)) break;
       bool measurement_started = false;
       bool cleaning_started = false;
 
@@ -1247,7 +1335,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       {
         UTIL_TIMER_Start(&Sps30CleanupTimer);
         cleaning_started = true;
-        last_sps30_clean_timestamp = SysTimeGet().Seconds;
+        last_sps30_clean_timestamp = SysTimeGetMcuTime().Seconds;
         APP_LOG(TS_ON, VLEVEL_M, "SPS30 fan cleaning started\r\n");
       }
       else if (measurement_started)
@@ -1282,15 +1370,28 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
         break;
       }
 
-      tx_dutycycle_s = new_interval;
-      if (AppConfig_SaveTxDutycycle(tx_dutycycle_s))
+      if (AppConfig_SaveTxDutycycle(new_interval))
       {
         APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval set to %u s (saved)\r\n", (unsigned)tx_dutycycle_s);
       }
       else
       {
-        APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval set to %u s (flash save FAILED)\r\n", (unsigned)tx_dutycycle_s);
+        APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval unchanged at %u s (flash save FAILED)\r\n", (unsigned)tx_dutycycle_s);
       }
+      break;
+    }
+    case 0x12U:
+    {
+      uint8_t diagnostic[24] = {1U, (uint8_t)power_policy.mode};
+      uint8_t n = 2U;
+      uint32_t words[] = {SysTimeGetMcuTime().Seconds, Runtime_BootCount(), Runtime_ResetFlags()};
+      for (uint8_t i = 0; i < 3U; ++i)
+      { append_u16_be(diagnostic, &n, (uint16_t)(words[i] >> 16)); append_u16_be(diagnostic, &n, (uint16_t)words[i]); }
+      append_u16_be(diagnostic, &n, (uint16_t)Runtime_LastFault());
+      append_u16_be(diagnostic, &n, tx_failures);
+      append_u16_be(diagnostic, &n, sensor_failures);
+      append_u16_be(diagnostic, &n, last_valid_sensors);
+      (void)smtc_modem_request_uplink(STACK_ID, 5U, false, diagnostic, n);
       break;
     }
     case RX_CMD_SOFTWARE_RESET:
@@ -1335,27 +1436,26 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
 
 static void OnScd41TimerEvent(void *context)
 {
-  APP_LOG(TS_ON, VLEVEL_M, "SCD41 pre-measurement started (stabilisation shot)\r\n");
-  EnvSensors_StartPreMeasurement(SENSOR_FLAG_CO2);
+  (void)context;
+  sensor_events |= EVENT_SCD_START;
 }
 
 static void OnScd41RestartTimerEvent(void *context)
 {
-  APP_LOG(TS_ON, VLEVEL_M, "SCD41 stabilisation shot discarded, useful shot started\r\n");
-  EnvSensors_RestartPreMeasurement(SENSOR_FLAG_CO2);
+  (void)context;
+  sensor_events |= EVENT_SCD_RESTART;
 }
 
 static void OnSps30TimerEvent(void *context)
 {
-  APP_LOG(TS_ON, VLEVEL_M, "SPS30 pre-measurement started\r\n");
-  EnvSensors_StartPreMeasurement(SENSOR_FLAG_SPS30);
+  (void)context;
+  sensor_events |= EVENT_SPS_START;
 }
 
 static void OnSps30CleanupTimerEvent(void *context)
 {
-  APP_LOG(TS_ON, VLEVEL_M, "SPS30 cleaning finished, going to sleep\r\n");
-  (void)SPS30_StopMeasurement();
-  (void)SPS30_Sleep();
+  (void)context;
+  sensor_events |= EVENT_SPS_STOP;
 }
 
 static void ChargerSafetyTimerReset(void)
@@ -1378,7 +1478,7 @@ static void AppConfig_Load(void)
 {
   app_config_t cfg = { 0 };
 
-  if (FLASH_IF_Read(&cfg, (const void *)APP_CONFIG_FLASH_ADDRESS, sizeof(cfg)) != FLASH_IF_OK)
+  if (!Nvm_Read(NVM_CONFIG_OFFSET, &cfg, sizeof(cfg)))
   {
     APP_LOG(TS_OFF, VLEVEL_M, "AppConfig: flash read failed, using default TX interval %u s\r\n",
             (unsigned)tx_dutycycle_s);
@@ -1405,7 +1505,7 @@ static bool AppConfig_SaveTxDutycycle(uint32_t dutycycle_s)
   cfg.magic          = APP_CONFIG_MAGIC;
   cfg.tx_dutycycle_s = dutycycle_s;
 
-  return (FLASH_IF_Write((void *)APP_CONFIG_FLASH_ADDRESS, (const void *)&cfg, sizeof(cfg)) == FLASH_IF_OK);
+  return Nvm_Write(NVM_CONFIG_OFFSET, &cfg, sizeof(cfg));
 }
 
 /* USER CODE END PrFD_LedEvents */

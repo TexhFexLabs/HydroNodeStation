@@ -84,6 +84,7 @@ int32_t MAX17048_Read(MAX17048_Data_t *data)
     uint32_t mv = ((uint32_t)raw16 * MAX17048_VCELL_MV_NUM
                    + (MAX17048_VCELL_MV_DEN / 2U)) / MAX17048_VCELL_MV_DEN;
     if (mv > 0xFFFFU) { mv = 0xFFFFU; }
+    if (mv < 1800U || mv > 5000U) return MAX17048_ERR_I2C;
     data->voltage_mv = (uint16_t)mv;
 
     return MAX17048_OK;

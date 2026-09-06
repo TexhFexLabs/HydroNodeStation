@@ -191,7 +191,7 @@ int32_t LTR390_ReadUV(LTR390_Data_t *data)
         return LTR390_ERR_PARAM;
     }
 
-    if (s_initialised == 0U)
+    if ((s_initialised == 0U) && (LTR390_Init() != LTR390_OK))
     {
         return LTR390_ERR_INIT;
     }

@@ -42,7 +42,7 @@ This is not a paper concept. It was designed, built, and field-tested as part of
 | UV index | Lite-On **LTR390** | UVA + ambient light |
 | Battery state-of-charge | Maxim **MAX17048** | Fuel gauge via I2C |
 
-All sensors share an I2C bus and are powered through load switches — the firmware cuts power completely to idle peripherals between transmissions. The platform is open to extension: any I2C-compatible sensor can be added with a firmware adaptation.
+All sensors share an I2C bus. Drivers request sensor sleep/power-down between measurements; physical power isolation depends on the PCB wiring. The platform is open to extension: any I2C-compatible sensor can be added with a firmware adaptation.
 
 ---
 
@@ -122,6 +122,8 @@ flowchart LR
 
 ## Firmware
 
+**Firmware 1.6:** fixes the reproducible 49.71-day uplink alarm overflow and adds watchdog/progress recovery, robust sensor shutdown, battery recovery and transactional NVM. See [reliability and rollout notes](doc/RELIABILITY.md). No percentage energy reduction has been measured for this update.
+
 The firmware runs on the **STM32Cube ecosystem** with the Semtech LoRa Basics Modem (LBM). Every design decision prioritizes ultra-low power:
 
 - **STOP2 deep sleep** between transmissions — all idle peripherals powered down
@@ -162,7 +164,7 @@ ELF/binary output lands in `build/Release/`. Requires `arm-none-eabi-gcc`.
 
 ### Flashing LoRaWAN Keys
 
-The **Device EUI is auto-derived from the STM32's 96-bit UID** — leave it at zero. On boot the firmware prints the derived Device EUI over SW-UART (PA6); register that EUI as an OTAA device (LoRaWAN 1.0.4, EU868) on your network server, then copy the resulting keys into `stm32_node/LoRaWAN/App/se-identity.h`:
+The **Device EUI is auto-derived from the STM32's 96-bit UID** — leave it at zero. On boot the firmware prints the derived Device EUI over SW-UART (PA6); register that EUI as an OTAA device (LoRaWAN 1.0.4, EU868) on your network server, then put the resulting key macros in the Git-ignored `stm32_node/LoRaWAN/App/se-identity-local.h`:
 
 ```c
 #define LORAWAN_DEVICE_EUI   00,00,00,00,00,00,00,00   // leave 00 — derived from chip UID
@@ -173,7 +175,7 @@ The **Device EUI is auto-derived from the STM32's 96-bit UID** — leave it at z
 
 Supported network servers: **Helium IoT**, **ChirpStack v4**, **The Things Network**.
 
-> `se-identity.h` is intentionally shipped with all-zero placeholder keys and is excluded from any sensitive commit.
+> `se-identity.h` contains tracked defaults; production keys belong only in the ignored `se-identity-local.h`. No skip-worktree flag is needed.
 
 ### Downlink Commands
 
@@ -183,13 +185,14 @@ The node accepts LoRaWAN downlinks (fPort matching the command port) for remote 
 |---|---|
 | `0x10 HH LL` | Set TX interval to `HHLL` seconds (2-byte big-endian, range 30–3600 s, persisted to flash). E.g. `10 00 B4` = 180 s. Handy for testing without re-flashing. |
 | `0x11` | Trigger SPS30 fan cleaning |
+| `0x12` | Request boot/reset/sensor diagnostics on fPort 5 |
 | `0xFF` | Software reset |
 
 The SPS30 also runs an automatic fan-cleaning cycle every 120 h (when battery > 4120 mV).
 
 ### Debug Profile Mode
 
-Pull `DEBUG_SW_Pin` (PB4) HIGH before boot → the node reads all sensors in a tight loop and logs via software UART on PA6 (bit-banged, no LoRaWAN). Attach a USB-UART to PA6 to see live sensor values. Useful for sensor bring-up without waiting for TX windows.
+With `APP_LOG_ENABLED=1`, pull `DEBUG_SW_Pin` (PB4) HIGH before boot → the node reads all sensors in a tight loop and logs via software UART on PA6 (bit-banged, no LoRaWAN). Attach a USB-UART to PA6 to see live sensor values. Useful for sensor bring-up without waiting for TX windows.
 
 ---
 

@@ -111,7 +111,7 @@ void PWR_EnterStopMode(void)
 void PWR_ExitStopMode(void)
 {
   /* USER CODE BEGIN ExitStopMode_1 */
-  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET); /* Activity LED off in production. */
 
   /* USER CODE END ExitStopMode_1 */
   /* Resume sysTick : work around for debugger problem in dual core */

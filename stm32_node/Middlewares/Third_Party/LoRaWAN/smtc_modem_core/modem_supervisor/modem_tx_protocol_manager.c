@@ -341,7 +341,7 @@ uint32_t tx_protocol_manager_is_busy( void )
     )
     {
         time_to_sleep = SLEEP_UNTIL_RADIO_INTERRUPT_MS;
-        if( ( ( int32_t ) ( (SysTimeToMs(SysTimeGet())/1000) - current_tpm_failsafe_time_init - FAILSAFE_TPM_S ) > 0 ) )
+        if( ( ( int32_t ) ( (SysTimeGetMcuTime().Seconds) - current_tpm_failsafe_time_init - FAILSAFE_TPM_S ) > 0 ) )
         {
             tpm_abort( );
             time_to_sleep = 0;
@@ -405,7 +405,7 @@ status_lorawan_t tx_protocol_manager_request( tx_protocol_manager_tx_type_t requ
         next_tpm_pending_request++;
         return OKLORAWAN;
     }
-    current_tpm_failsafe_time_init          = (SysTimeToMs(SysTimeGet())/1000);
+    current_tpm_failsafe_time_init          = (SysTimeGetMcuTime().Seconds);
     current_tpm_transaction_is_a_retransmit = false;
     current_tpm_transmit_is_aborted         = false;
     current_tpm_cpt_relay_max_trial         = 0;
@@ -470,7 +470,7 @@ void tx_protocol_manager_lr1mac_stand_alone_tx( void )
     current_tpm_transaction_is_a_retransmit = true;
     current_tpm_cpt_relay_max_trial         = 0;
     current_tpm_cpt_lbt_max_trial           = 0;
-    current_tpm_failsafe_time_init          = (SysTimeToMs(SysTimeGet())/1000);
+    current_tpm_failsafe_time_init          = (SysTimeGetMcuTime().Seconds);
     current_tpm_target_time_ms              = lorawan_api_get_time_of_nwk_ans( current_tpm_stack_id );
     current_tpm_add_delay_ms                = 0;
     current_tpm_request_type                = TX_PROTOCOL_TRANSMIT_LORA;
@@ -537,7 +537,7 @@ static status_lorawan_t modem_tx_protocol_manager_engine( void )
     {
         tpm_debug_print( );
     }
-    if( ( ( int32_t ) ( (SysTimeToMs(SysTimeGet())/1000) - current_tpm_failsafe_time_init - FAILSAFE_TPM_S ) > 0 ) )
+    if( ( ( int32_t ) ( (SysTimeGetMcuTime().Seconds) - current_tpm_failsafe_time_init - FAILSAFE_TPM_S ) > 0 ) )
     {
         tpm_abort( );
     }

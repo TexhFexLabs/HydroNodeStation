@@ -161,7 +161,7 @@ void lorawan_dwn_ack_remove_task( uint8_t stack_id )
 
 static void lorawan_dwn_ack_management_on_launch( void* context )
 {
-    if( ( (SysTimeToMs(SysTimeGet())/1000) <= ( CURRENT_TASK_TIME + 2 ) ) &&
+    if( ( (SysTimeGetMcuTime().Seconds) <= ( CURRENT_TASK_TIME + 2 ) ) &&
         ( lorawan_api_tx_ack_bit_get( STACK_ID_CURRENT_TASK ) ) )
     {
         lorawan_send_add_task( STACK_ID_CURRENT_TASK, 1, false, false, NULL, 0, false, 0 );
@@ -188,7 +188,7 @@ static uint8_t lorawan_dwn_ack_management_downlink_handler( lr1_stack_mac_down_d
         // time to execute is set to 0 secondes to answer before 8 secondes as required in lorawan and because
         // tx randomness could be up to 6s (+ TOA)
 
-        lorawan_dwn_ack_add_task( rx_down_data->stack_id, (SysTimeToMs(SysTimeGet())/1000));
+        lorawan_dwn_ack_add_task( rx_down_data->stack_id, (SysTimeGetMcuTime().Seconds));
     }
     return MODEM_DOWNLINK_UNCONSUMED;
 }
@@ -202,7 +202,7 @@ static uint8_t lorawan_dwn_ack_management_downlink_handler( lr1_stack_mac_down_d
     {
         // time to execute is set to 5 secondes to answer before 8 secondes as required in lorawan but also let a
         // chance to a user tx to start before
-        lorawan_dwn_ack_add_task( rx_down_data->stack_id, (SysTimeToMs(SysTimeGet())/1000) + 5 );
+        lorawan_dwn_ack_add_task( rx_down_data->stack_id, (SysTimeGetMcuTime().Seconds) + 5 );
     }
     return MODEM_DOWNLINK_UNCONSUMED;
 }

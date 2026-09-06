@@ -227,7 +227,7 @@ void lorawan_class_b_management_add_task( uint8_t stack_id, uint8_t delay )
     task_class_b.id                = CLASS_B_MANAGEMENT_TASK + ( NUMBER_OF_TASKS * stack_id );
     task_class_b.stack_id          = stack_id;
     task_class_b.priority          = TASK_MEDIUM_HIGH_PRIORITY;
-    task_class_b.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000) + delay;
+    task_class_b.time_to_execute_s = (SysTimeGetMcuTime().Seconds) + delay;
     modem_supervisor_add_task( &task_class_b );
 }
 

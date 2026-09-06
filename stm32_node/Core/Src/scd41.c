@@ -90,7 +90,7 @@ static int32_t SCD41_BusInit(void)
 
 static void SCD41_BusDeInit(void)
 {
-  (void)HAL_I2C_DeInit(&hi2c2);
+  /* The application owns the shared bus; leave other sensors connected. */
 }
 
 static int32_t SCD41_WriteCommand(uint16_t command)
@@ -159,28 +159,11 @@ static int32_t SCD41_GetDataReadyStatus(uint16_t *status_word)
 
 static int32_t SCD41_WaitDataReady(uint32_t timeout_ms)
 {
-  uint32_t waited_ms = 0U;
+  (void)timeout_ms;
   uint16_t status_word = 0U;
-  int32_t status;
-
-  while (waited_ms < timeout_ms)
-  {
-    status = SCD41_GetDataReadyStatus(&status_word);
-    if (status != SCD41_STATUS_OK)
-    {
-      return status;
-    }
-
-    if ((status_word & SCD41_DATA_READY_MASK) != 0U)
-    {
-      return SCD41_STATUS_OK;
-    }
-
-    HAL_Delay(SCD41_DATA_READY_POLL_MS);
-    waited_ms += SCD41_DATA_READY_POLL_MS;
-  }
-
-  return SCD41_STATUS_ERROR;
+  int32_t status = SCD41_GetDataReadyStatus(&status_word);
+  if (status != SCD41_STATUS_OK) { return status; }
+  return (status_word & SCD41_DATA_READY_MASK) ? SCD41_STATUS_OK : SCD41_STATUS_ERROR;
 }
 
 static int32_t SCD41_ReadMeasurementWords(uint16_t *co2_raw, uint16_t *temperature_raw, uint16_t *humidity_raw)
@@ -364,6 +347,7 @@ int32_t SCD41_StartCo2SingleShot(void)
   }
 
   status = SCD41_WriteCommand(SCD41_CMD_MEASURE_SINGLE_SHOT);
+  if (status != SCD41_STATUS_OK) { (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN); }
   SCD41_BusDeInit();
 
   return status;
@@ -396,6 +380,7 @@ int32_t SCD41_DiscardAndRestartCo2SingleShot(void)
   }
 
   status = SCD41_WriteCommand(SCD41_CMD_MEASURE_SINGLE_SHOT);
+  if (status != SCD41_STATUS_OK) { (void)SCD41_WriteCommand(SCD41_CMD_POWER_DOWN); }
   SCD41_BusDeInit();
 
   return status;
@@ -453,4 +438,10 @@ int32_t SCD41_ReadCo2SingleShot(uint16_t *co2_ppm, int16_t *temperature, uint16_
   }
 
   return SCD41_STATUS_OK;
+}
+
+int32_t SCD41_Sleep(void)
+{
+  if (SCD41_BusInit() != SCD41_STATUS_OK) { return SCD41_STATUS_ERROR; }
+  return SCD41_WriteCommand(SCD41_CMD_POWER_DOWN);
 }

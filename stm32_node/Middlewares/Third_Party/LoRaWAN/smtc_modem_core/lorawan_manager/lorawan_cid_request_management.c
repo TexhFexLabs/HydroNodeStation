@@ -155,7 +155,7 @@ lorawan_management_rc_t lorawan_cid_request_add_task( uint8_t stack_id, uint8_t 
     task_cid.stack_id          = stack_id;
     task_cid.priority          = TASK_MEDIUM_HIGH_PRIORITY;
     task_cid.task_context      = context->modem_task[task_cid.id].task_context | cid_request_mask;
-    task_cid.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000) + delay_s;
+    task_cid.time_to_execute_s = (SysTimeGetMcuTime().Seconds) + delay_s;
     SMTC_MODEM_HAL_TRACE_PRINTF( "cid_request_mask:0x%x\n", cid_request_mask );
     modem_supervisor_add_task( &task_cid );
 

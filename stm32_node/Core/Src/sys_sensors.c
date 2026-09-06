@@ -75,29 +75,31 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     return -1;
   }
 
-  /* Default values */
-  sensor_data->humidity         = 0U;
-  sensor_data->temperature      = 0;
-  sensor_data->pressure         = 0U;
-  sensor_data->battery_voltage  = 0U;
-  sensor_data->uvi_x100         = 0U;
-  sensor_data->co2_ppm          = 0U;
-  sensor_data->pm1_0            = 0U;
-  sensor_data->pm2_5            = 0U;
-  sensor_data->pm4_0            = 0U;
-  sensor_data->pm10_0           = 0U;
-  sensor_data->nc_0_5           = 0U;
-  sensor_data->nc_1_0           = 0U;
-  sensor_data->nc_2_5           = 0U;
-  sensor_data->nc_4_0           = 0U;
-  sensor_data->nc_10_0          = 0U;
-  sensor_data->typ_size         = 0U;
+  sensor_data->valid = 0U;
+  /* Invalid sentinels are distinct from legitimate zero readings. */
+  sensor_data->humidity         = SENSOR_INVALID_U16;
+  sensor_data->temperature      = SENSOR_INVALID_T;
+  sensor_data->pressure         = SENSOR_INVALID_U16;
+  sensor_data->battery_voltage  = SENSOR_INVALID_U16;
+  sensor_data->uvi_x100         = SENSOR_INVALID_U16;
+  sensor_data->co2_ppm          = SENSOR_INVALID_U16;
+  sensor_data->pm1_0            = SENSOR_INVALID_U16;
+  sensor_data->pm2_5            = SENSOR_INVALID_U16;
+  sensor_data->pm4_0            = SENSOR_INVALID_U16;
+  sensor_data->pm10_0           = SENSOR_INVALID_U16;
+  sensor_data->nc_0_5           = SENSOR_INVALID_U16;
+  sensor_data->nc_1_0           = SENSOR_INVALID_U16;
+  sensor_data->nc_2_5           = SENSOR_INVALID_U16;
+  sensor_data->nc_4_0           = SENSOR_INVALID_U16;
+  sensor_data->nc_10_0          = SENSOR_INVALID_U16;
+  sensor_data->typ_size         = SENSOR_INVALID_U16;
 
   /* 1. Read MAX17048 */
   MAX17048_Data_t max17048;
   if (MAX17048_Read(&max17048) == MAX17048_OK)
   {
     sensor_data->battery_voltage = max17048.voltage_mv;
+    sensor_data->valid |= SENSOR_VALID_BATTERY;
   }
   else
   {
@@ -106,6 +108,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     if ((MAX17048_Init() == MAX17048_OK) && (MAX17048_Read(&max17048) == MAX17048_OK))
     {
       sensor_data->battery_voltage = max17048.voltage_mv;
+      sensor_data->valid |= SENSOR_VALID_BATTERY;
     }
   }
 
@@ -118,6 +121,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   SHT45_Data_t sht45;
   if (SHT45_Read(&sht45) == SHT45_OK)
   {
+    sensor_data->valid |= SENSOR_VALID_RHT;
     sensor_data->temperature = sht45.temperature;   /* 0.01 degC */
     sensor_data->humidity    = sht45.humidity;      /* 0.01 %RH  */
   }
@@ -130,6 +134,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   BMP390_Data_t bmp390;
   if (BMP390_Read(&bmp390) == BMP390_OK)
   {
+    sensor_data->valid |= SENSOR_VALID_PRESSURE;
     sensor_data->pressure = bmp390.pressure_hPa;  /* 0.1 hPa */
   }
   else
@@ -141,15 +146,17 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   LTR390_Data_t ltr390;
   if (LTR390_ReadUV(&ltr390) == LTR390_OK)
   {
+    sensor_data->valid |= SENSOR_VALID_UV;
     sensor_data->uvi_x100 = ltr390.uvi_x100;
   }
 
   /* 5. Read SCD41 */
-  if (sensor_flags & SENSOR_FLAG_CO2)
+  if (SCD41_ENABLED && (sensor_flags & SENSOR_FLAG_CO2))
   {
     uint16_t scd41_co2_ppm = 0U;
     if (SCD41_ReadCo2SingleShot(&scd41_co2_ppm, NULL, NULL) == SCD41_STATUS_OK)
     {
+      sensor_data->valid |= SENSOR_VALID_CO2;
       sensor_data->co2_ppm = scd41_co2_ppm;
     }
   }
@@ -160,6 +167,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     SPS30_Data_t sps30_data;
     if (SPS30_ReadMeasurement(&sps30_data) == SPS30_STATUS_OK)
     {
+      sensor_data->valid |= SENSOR_VALID_PM;
       sensor_data->pm1_0    = sps30_data.mc_1_0;   /* 0.1 ug/m3 */
       sensor_data->pm2_5    = sps30_data.mc_2_5;
       sensor_data->pm4_0    = sps30_data.mc_4_0;
@@ -200,7 +208,7 @@ int32_t EnvSensors_Init(void)
     APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 not found\r\n");
   }
 
-  if (SCD41_Init() != SCD41_STATUS_OK)
+  if (SCD41_ENABLED && (SCD41_Init() != SCD41_STATUS_OK))
   {
     APP_LOG(TS_OFF, VLEVEL_M, "SCD41 not found\r\n");
   }
@@ -217,7 +225,7 @@ int32_t EnvSensors_Init(void)
 /* USER CODE BEGIN EF */
 int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags)
 {
-  if(sensor_flags & SENSOR_FLAG_CO2)
+  if(SCD41_ENABLED && (sensor_flags & SENSOR_FLAG_CO2))
   {
     return SCD41_StartCo2SingleShot();
   }
@@ -234,7 +242,7 @@ int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags)
 
 int32_t EnvSensors_RestartPreMeasurement(uint8_t sensor_flags)
 {
-  if(sensor_flags & SENSOR_FLAG_CO2)
+  if(SCD41_ENABLED && (sensor_flags & SENSOR_FLAG_CO2))
   {
     return SCD41_DiscardAndRestartCo2SingleShot();
   }
@@ -247,3 +255,11 @@ int32_t EnvSensors_RestartPreMeasurement(uint8_t sensor_flags)
 
 /* USER CODE END PrFD */
 
+
+int32_t EnvSensors_Sleep(void)
+{
+  int32_t status = SPS30_StopMeasurement();
+  if (SPS30_Sleep() != SPS30_STATUS_OK) status = -1;
+  if (SCD41_ENABLED && SCD41_Sleep() != SCD41_STATUS_OK) status = -1;
+  return status;
+}

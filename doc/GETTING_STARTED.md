@@ -47,7 +47,7 @@ Output: `build/Release/LoRaWAN_End_Node_LBM.elf` (and `.bin`, `.hex`).
 
 ## 3. Configure LoRaWAN Keys
 
-Open `stm32_node/LoRaWAN/App/se-identity.h` and fill in your credentials from your LoRaWAN network server:
+Create the Git-ignored `stm32_node/LoRaWAN/App/se-identity-local.h` and fill in your credentials from your LoRaWAN network server:
 
 ```c
 // Device EUI — unique per device (big-endian, byte-by-byte)
@@ -61,7 +61,7 @@ Open `stm32_node/LoRaWAN/App/se-identity.h` and fill in your credentials from yo
 #define LORAWAN_GEN_APP_KEY   AA,BB,CC,DD,EE,FF,00,11,22,33,44,55,66,77,88,99
 ```
 
-> **Do not commit real keys.** Add `se-identity.h` to your local `.git/info/exclude` to keep credentials out of version control.
+> **Do not commit real keys.** The local header is ignored automatically. Keep the tracked default header unchanged.
 
 If `LORAWAN_DEVICE_EUI` is set to all zeros, the firmware automatically reads the unique hardware ID burned into the STM32WLE5 silicon — recommended for the custom PCB.
 
@@ -93,26 +93,9 @@ Supported network servers: **Helium IoT**, **ChirpStack**, **The Things Network 
 
 ---
 
-## 6. Connect to HydroNode via AWS SNS
+## 6. Connect to HydroNode via HTTP webhook
 
-The HydroNode backend receives data through an AWS SNS webhook. Set this up once on your network server.
-
-### Step 1 — Add AWS SNS integration on Helium IoT
-
-In the Helium IoT console, go to your device or application and add an **AWS SNS integration**:
-
-1. Enter your AWS credentials and region.
-2. Set the SNS topic that will forward messages to HydroNode.
-
-### Step 2 — Configure the SNS subscription
-
-In the AWS SNS console, create an **HTTPS subscription** on your topic:
-
-- **Protocol:** HTTPS
-- **Endpoint:** `https://hydronode.texhfexlabs.de/api/webhook/lorawan/sns`
-- **Raw message delivery:** **disabled** ← important, must be off
-
-The HydroNode server automatically confirms the subscription and accepts all incoming uplinks from that point on. No further backend configuration is needed.
+Use the HTTP webhook URL supplied by the station's LoRaWAN binding settings in HydroNode. Configure that URL on the network server. Before deploying firmware 1.6, ensure its decoder treats the new missing-value sentinels as absent readings; see [payload-decoder.js](payload-decoder.js) and [reliability notes](RELIABILITY.md).
 
 ---
 
@@ -139,7 +122,7 @@ After flashing, the node blinks its LED for 10 seconds, then starts the LoRaWAN 
 
 ### Debug Profile Mode
 
-Pull `DEBUG_SW_Pin` (PB4) **HIGH** before power-on. The node skips LoRaWAN and reads all sensors in a loop, printing values over SW-UART.
+Set `APP_LOG_ENABLED=1`, then pull `DEBUG_SW_Pin` (PB4) **HIGH** before power-on. The node skips LoRaWAN and reads all sensors in a loop, printing values over SW-UART.
 
 Connect a USB-UART adapter to **PA6** at 115200 baud. Readings appear every few seconds.
 
@@ -147,16 +130,6 @@ To enable SW-UART logs in normal LoRaWAN mode, set `APP_LOG_ENABLED 1` in `Core/
 
 ---
 
-## 9. Wio-E5 Mini Dev Board (Debug Target)
+## 9. Debug build and hardware validation
 
-No custom PCB? Develop with a **Seeed Wio-E5 mini** (STM32WL55xx):
-
-```bash
-cmake -B build/Debug \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
-
-cmake --build build/Debug
-```
-
-The Debug target uses the WL55 pin mapping (PA4/PA5 RF switch, UFBGA73) with `-O0 -g3`. All sensor and LoRaWAN logic is identical to the Release target.
+The current Debug and Release CMake targets both compile for STM32WLE5. Legacy prototype pin mappings are not a separate supported target in these presets. See [RELIABILITY.md](RELIABILITY.md) for flash migration, watchdog debugging and required hardware tests. A normal upgrade must preserve the last 8 KiB of flash; avoid mass erase.

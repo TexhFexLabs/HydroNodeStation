@@ -727,7 +727,7 @@ void relay_get_stats( relay_stats_t* stat )
 void relay_print_stats( void )
 {
     MW_LOG( TS_ON, VLEVEL_M, "------------------------\nRelay stat at %d s\n------------------------\r\n",
-    		(SysTimeToMs(SysTimeGet())/1000) );
+            (SysTimeGetMcuTime().Seconds) );
     MW_LOG( TS_ON, VLEVEL_M, " - Cad1       %d \r\n", relay_stat.nb_cad1 );
     MW_LOG( TS_ON, VLEVEL_M, " - Cad2       %d \r\n", relay_stat.nb_cad2 );
     MW_LOG( TS_ON, VLEVEL_M, " - Cad2 OK    %d \r\n", relay_stat.nb_cad2_ok );

@@ -608,7 +608,7 @@ static void lfu_add_task( lfu_ctx_t* ctx, uint32_t delay_in_s )
     lfu_task.id                = (task_id_t)ctx->task_id;
     lfu_task.stack_id          = ctx->stack_id;
     lfu_task.priority          = TASK_MEDIUM_HIGH_PRIORITY;
-    lfu_task.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000) + delay_in_s;
+    lfu_task.time_to_execute_s = (SysTimeGetMcuTime().Seconds) + delay_in_s;
 
     modem_supervisor_add_task( &lfu_task );
 }

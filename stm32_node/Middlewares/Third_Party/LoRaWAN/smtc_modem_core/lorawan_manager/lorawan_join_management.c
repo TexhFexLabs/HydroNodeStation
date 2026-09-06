@@ -160,7 +160,7 @@ void lorawan_join_add_task( uint8_t stack_id )
     {
         return;
     }
-    lorawan_join_internal_add_task( stack_id, (SysTimeToMs(SysTimeGet())/1000));
+    lorawan_join_internal_add_task( stack_id, (SysTimeGetMcuTime().Seconds));
 }
 
 void lorawan_join_remove_task( uint8_t stack_id )
@@ -219,11 +219,11 @@ static void lorawan_join_management_service_on_update( void* context )
         {
             if( task_manager->modem_task[CURRENT_TASK_ID].task_context == SUCCESS_TO_LAUNCH_JOIN )
             {
-                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, (SysTimeToMs(SysTimeGet())/1000));
+                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, (SysTimeGetMcuTime().Seconds));
             }
             else
             {
-                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, (SysTimeToMs(SysTimeGet())/1000) + 120 );
+                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, (SysTimeGetMcuTime().Seconds) + 120 );
             }
             
             increment_asynchronous_msgnumber( SMTC_MODEM_EVENT_JOINFAIL, 0, STACK_ID_CURRENT_TASK );

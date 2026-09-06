@@ -300,7 +300,7 @@ store_and_forward_rc_t store_and_forward_add_data( uint8_t fport, const uint8_t*
     metadata.fport                        = fport;
     metadata.confirmed                    = confirmed;
     metadata.lifetime_s                   = lifetime_s;
-    metadata.timestamp_s                  = (SysTimeToMs(SysTimeGet())/1000);
+    metadata.timestamp_s                  = (SysTimeGetMcuTime().Seconds);
 
     uint16_t fifo_free_space = fifo_ctrl_get_free_space( &ctx->fifo_ctrl_obj );
     if( ( data_len + sizeof( store_and_forward_metadata_t ) + 3 ) > fifo_free_space )  // +3 needed by internal fifo
@@ -513,7 +513,7 @@ static void store_and_forward_add_task( store_and_forward_t* ctx, uint32_t delay
     task_dm.id                = (task_id_t)ctx->task_id;
     task_dm.stack_id          = ctx->stack_id;
     task_dm.priority          = TASK_LOW_PRIORITY;
-    task_dm.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000) + delay_to_execute_s;
+    task_dm.time_to_execute_s = (SysTimeGetMcuTime().Seconds) + delay_to_execute_s;
 
     modem_supervisor_add_task( &task_dm );
 }

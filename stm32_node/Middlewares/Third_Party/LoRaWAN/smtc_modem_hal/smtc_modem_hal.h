@@ -62,6 +62,7 @@ extern "C" {
 #include "radio_driver.h"
 #include "smtc_modem_utilities.h"
 #include "ral.h"
+#include "runtime_health.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -72,32 +73,9 @@ extern "C" {
  * @brief Panic macro for modem issues
 */
 
-#define SMTC_MODEM_HAL_PANIC( ... )                                                \
-    	MW_LOG( TS_ON, VLEVEL_M,  "In %s (line %d): ERROR\r\n", ( uint8_t* ) __func__, __LINE__ )
-
-/*
-#define SMTC_MODEM_HAL_PANIC( ... )                                                \
-    do                                                                             \
-    {                                                                              \
-    	MW_LOG( TS_ON, VLEVEL_M,  "In %s (line %d): %s\r\n", ( uint8_t* ) __func__, __LINE__, ""__VA_ARGS__ );					   \
-    } while( 0 );
-*/
-
-/**
- * @brief  The SMTC_MODEM_HAL_PANIC_ON_FAILURE macro is used for function's parameters check.
- * @param  expr If expr is false, it calls smtc_modem_hal_on_panic function
- *         which reports the name of the source function and the source
- *         line number of the call that failed.
- *         If expr is true, it returns no value.
- * @retval None
-*/
-
-#define SMTC_MODEM_HAL_PANIC_ON_FAILURE( expr )   	   											\
-			if((expr) == (0))                        													\
-			{                                                               				    \
-				MW_LOG( TS_ON, VLEVEL_L,  "In %s status %d\r\n", ( uint8_t* ) __func__, expr ); \
-			}
-
+#define SMTC_MODEM_HAL_PANIC(...) Runtime_Fault(RUNTIME_FAULT_MODEM)
+#define SMTC_MODEM_HAL_PANIC_ON_FAILURE(expr) \
+    do { if (!(expr)) { Runtime_Fault(RUNTIME_FAULT_MODEM); } } while (0)
 
 /*
  * -----------------------------------------------------------------------------
@@ -133,6 +111,7 @@ extern "C" {
  */
 static inline void smtc_modem_hal_reload_wdog( void )
 {
+    /* Runtime_Process owns feeding from thread mode after progress checks. */
 }
 
 

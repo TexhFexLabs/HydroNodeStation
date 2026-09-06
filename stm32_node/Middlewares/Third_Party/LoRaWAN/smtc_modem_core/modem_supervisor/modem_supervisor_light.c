@@ -297,7 +297,7 @@ uint32_t modem_supervisor_engine( void )
 
     if( task_manager.modem_task[task_manager.next_task_id].updated_locked == true )
     {
-        if( ( int32_t ) ( (SysTimeToMs(SysTimeGet())/1000) -
+        if( ( int32_t ) ( (SysTimeGetMcuTime().Seconds) -
                           task_manager.modem_task[task_manager.next_task_id].launched_timestamp -
                           SUPERVISOR_PERIOD_FAILSAFE_S ) > 0 )
         {
@@ -317,7 +317,7 @@ uint32_t modem_supervisor_engine( void )
 
     if( sleep_time == 0 )  // launch task
     {
-        task_manager.modem_task[task_manager.next_task_id].launched_timestamp = (SysTimeToMs(SysTimeGet())/1000);
+        task_manager.modem_task[task_manager.next_task_id].launched_timestamp = (SysTimeGetMcuTime().Seconds);
         supervisor_on_launch_func[CURRENT_TASK_ID]( supervisor_context_callback[CURRENT_TASK_ID] );
         task_manager.modem_task[task_manager.next_task_id].priority = TASK_FINISH;
     }
@@ -325,7 +325,7 @@ uint32_t modem_supervisor_engine( void )
     int32_t user_alarm_in_seconds = MODEM_MAX_ALARM_S;
     if( alarm != 0 )
     {
-        user_alarm_in_seconds = ( int32_t ) ( alarm - (SysTimeToMs(SysTimeGet())/1000));
+        user_alarm_in_seconds = ( int32_t ) ( alarm - (SysTimeGetMcuTime().Seconds));
         if( user_alarm_in_seconds <= 0 )
         {
             user_alarm_in_seconds = 0;
@@ -370,7 +370,7 @@ static uint32_t supervisor_check_user_alarm( void )
     // manage the user alarm
     if( alarm != 0 )
     {
-        user_alarm_in_seconds = ( int32_t ) ( alarm - (SysTimeToMs(SysTimeGet())/1000));
+        user_alarm_in_seconds = ( int32_t ) ( alarm - (SysTimeGetMcuTime().Seconds));
 
         if( user_alarm_in_seconds <= 0 )
         {
@@ -457,7 +457,7 @@ static uint32_t supervisor_find_next_task( void )
                 ( task_manager.modem_is_suspended[stack_id] == false ) )
             {
                 int32_t next_task_time_tmp =
-                    ( int32_t ) ( task_manager.modem_task[i].time_to_execute_s - (SysTimeToMs(SysTimeGet())/1000));
+                    ( int32_t ) ( task_manager.modem_task[i].time_to_execute_s - (SysTimeGetMcuTime().Seconds));
 
                 if( ( next_task_time_tmp <= 0 ) && ( task_manager.modem_task[i].priority <= next_task_priority ) &&
                     ( next_task_time_tmp <= next_task_time ) &&
@@ -487,7 +487,7 @@ static uint32_t supervisor_find_next_task( void )
                     ( task_manager.modem_is_suspended[stack_id] == false ) )
                 {
                     int32_t next_task_time_tmp =
-                        ( int32_t ) ( task_manager.modem_task[i].time_to_execute_s - (SysTimeToMs(SysTimeGet())/1000));
+                        ( int32_t ) ( task_manager.modem_task[i].time_to_execute_s - (SysTimeGetMcuTime().Seconds));
                     if( ( next_task_time_tmp < next_task_time ) &&
                         ( ( available_stack[stack_id] == 1 ) ||
                           ( ( available_stack[stack_id] == 0 ) &&

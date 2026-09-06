@@ -190,7 +190,7 @@ void lorawan_beacon_tx_example_add_task( uint8_t stack_id )
     task.id                = (task_id_t)lorawan_beacon_tx_example_obj.task_id;
     task.stack_id          = lorawan_beacon_tx_example_obj.stack_id;
     task.priority          = TASK_MEDIUM_HIGH_PRIORITY;
-    task.time_to_execute_s = (SysTimeToMs(SysTimeGet())/1000) + 10;
+    task.time_to_execute_s = (SysTimeGetMcuTime().Seconds) + 10;
     modem_supervisor_add_task( &task );
     lorawan_beacon_tx_example_obj.enabled = true;
 }

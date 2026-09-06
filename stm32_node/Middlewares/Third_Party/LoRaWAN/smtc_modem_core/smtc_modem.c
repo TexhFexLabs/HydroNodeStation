@@ -1168,7 +1168,7 @@ smtc_modem_return_code_t smtc_modem_alarm_start_timer( uint32_t alarm_s )
     {
         return SMTC_MODEM_RC_INVALID;
     }
-    modem_set_user_alarm( ( alarm_s > 0 ) ? ( (SysTimeToMs(SysTimeGet())/1000) + alarm_s ) : 0 );
+    modem_set_user_alarm( ( alarm_s > 0 ) ? ( (SysTimeGetMcuTime().Seconds) + alarm_s ) : 0 );
     return SMTC_MODEM_RC_OK;
 }
 
@@ -1200,7 +1200,7 @@ smtc_modem_return_code_t smtc_modem_alarm_get_remaining_time( uint32_t* remainin
     }
     else
     {
-        int32_t abs_remaining_time = ( int32_t ) ( modem_get_user_alarm( ) - (SysTimeToMs(SysTimeGet())/1000));
+        int32_t abs_remaining_time = ( int32_t ) ( modem_get_user_alarm( ) - (SysTimeGetMcuTime().Seconds));
 
         *remaining_time_in_s = ( abs_remaining_time > 0 ) ? ( abs_remaining_time ) : 0;
         return SMTC_MODEM_RC_OK;

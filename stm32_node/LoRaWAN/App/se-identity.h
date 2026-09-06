@@ -42,6 +42,11 @@
 extern "C" {
 #endif
 
+/* Optional build-local credentials. Never store production keys in this file. */
+#if __has_include("se-identity-local.h")
+#include "se-identity-local.h"
+#endif
+
 /* Exported Includes --------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -89,12 +94,16 @@ extern "C" {
  * End-device IEEE EUI (big endian)
  * When set to 00,00,00,00,00,00,00,00 DevEui is automatically set with a value provided by MCU platform
  */
+#ifndef LORAWAN_DEVICE_EUI
 #define LORAWAN_DEVICE_EUI                                 00,00,00,00,00,00,00,00
+#endif
 
 /*!
  * App/Join server IEEE EUI (big endian)
  */
+#ifndef LORAWAN_JOIN_EUI
 #define LORAWAN_JOIN_EUI                                   00,00,00,00,00,00,00,00
+#endif
 
 /*!
  * Device address on the network (big endian)
@@ -105,12 +114,16 @@ extern "C" {
 /*!
  * Application root key
  */
+#ifndef LORAWAN_GEN_APP_KEY
 #define LORAWAN_GEN_APP_KEY                                00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+#endif
 
 /*!
  * Network root key
  */
+#ifndef LORAWAN_APP_KEY
 #define LORAWAN_APP_KEY                                    00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+#endif
 
 /*!
  * Forwarding Network session key
