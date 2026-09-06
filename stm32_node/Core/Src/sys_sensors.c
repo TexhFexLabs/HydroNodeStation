@@ -231,11 +231,12 @@ int32_t EnvSensors_StartPreMeasurement(uint8_t sensor_flags)
   }
   if(sensor_flags & SENSOR_FLAG_SPS30)
   {
-    if (SPS30_WakeUp() == SPS30_STATUS_OK)
-    {
-      return SPS30_StartMeasurement();
-    }
-    return SPS30_STATUS_ERROR;
+    /* The wake-up handshake is unreliable by design, so it must not gate the
+     * measurement: skipping the start leaves the sensor idle, and reading an
+     * idle SPS30 yields CRC-valid zeroes that pass as a measurement. The start
+     * command is a real command and is the verdict on sensor health. */
+    (void)SPS30_WakeUp();
+    return SPS30_StartMeasurement();
   }
   return -1;
 }

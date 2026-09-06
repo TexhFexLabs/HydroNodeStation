@@ -178,11 +178,14 @@ int32_t SPS30_WakeUp(void)
     return SPS30_STATUS_ERROR;
   }
 
-  /* Two wake-up commands or I2C start-stop */
-  /* According to datasheet 6.3.6: send 0x1103 twice to activate interface */
-  (void)SPS30_WriteCommand(SPS30_CMD_WAKE_UP); /* First command may NACK. */
+  /* Datasheet 6.3.6: Sleep-Mode disables the I2C interface. The first command
+   * only wakes it and is not acknowledged, and the interface needs its wake-up
+   * time before it can answer - so the delay belongs between the two commands,
+   * not after them. Only the second attempt carries a verdict; sending both
+   * back to back made a healthy sensor report failure. */
+  (void)SPS30_WriteCommand(SPS30_CMD_WAKE_UP);
+  HAL_Delay(SPS30_WAKEUP_DELAY_MS);
   int32_t status = SPS30_WriteCommand(SPS30_CMD_WAKE_UP);
-  
   HAL_Delay(SPS30_WAKEUP_DELAY_MS);
   return status;
 }
