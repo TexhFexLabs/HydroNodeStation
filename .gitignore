@@ -47,3 +47,6 @@ build/
 
 # Python host-test cache
 __pycache__/
+
+# Private correspondence — never publish
+/doc/open-source-documentation/email-*.md
