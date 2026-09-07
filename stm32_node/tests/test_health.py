@@ -15,8 +15,6 @@ extern struct IWDG_Model iwdg;
 #define LED_DIAG_Pin 8U
 #define GPIO_PIN_RESET 0
 #define GPIO_PIN_SET 1
-#define UINT8_MAX 255
-#define UINT16_MAX 65535
 void __disable_irq(void);
 void NVIC_SystemReset(void);
 void HAL_GPIO_WritePin(int,unsigned,int);
