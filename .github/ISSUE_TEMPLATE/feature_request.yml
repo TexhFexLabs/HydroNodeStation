@@ -1,0 +1,28 @@
+name: Feature or improvement
+description: Propose a change to the firmware, hardware or documentation
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: Describe the situation, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on power budget, BOM cost or reproducibility
+      description: |
+        This project optimises for low power and cheap reproduction. A change that
+        costs energy or parts needs to earn it.
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to work on this myself

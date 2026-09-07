@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Hardware design (EasyEDA Pro / OSHWLab)
+    url: https://oshwlab.com/knollfelix004/project_fegzdygg
+    about: Fork the schematic and PCB, or comment on the hardware design directly.
+  - name: Live sensor data
+    url: https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658
+    about: See what a deployed station is currently reporting.
+  - name: Security vulnerability
+    url: https://github.com/TexhFexLabs/HydroNodeStation/security/advisories/new
+    about: Report privately. Please do not open a public issue for security problems.

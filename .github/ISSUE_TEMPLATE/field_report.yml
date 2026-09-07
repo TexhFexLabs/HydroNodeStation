@@ -1,0 +1,43 @@
+name: Field report
+description: Report a real deployment — the most valuable contribution to this project
+labels: ["field-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for building one. Partial answers are fine — anything is better than nothing.
+  - type: input
+    id: location
+    attributes:
+      label: Rough location
+      description: City or region is enough. No exact address, please.
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: LoRaWAN network
+      options: [Helium, The Things Network, ChirpStack, Private gateway, Other]
+  - type: input
+    id: link
+    attributes:
+      label: Gateway distance, RSSI / SNR, settled spreading factor
+      placeholder: "1.8 km, no line of sight, RSSI -112 dBm, SNR -3 dB, SF9"
+  - type: textarea
+    id: build
+    attributes:
+      label: Your build
+      placeholder: |
+        Sensors populated:
+        Board revision:
+        Enclosure: printed as designed / modified, filament:
+        Solar panel: size, orientation:
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Behaviour over time
+      placeholder: |
+        Uptime:
+        Unexpected resets:
+        Battery voltage over sunny vs overcast days:
+        Readings that look implausible:

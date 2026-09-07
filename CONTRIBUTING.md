@@ -96,6 +96,6 @@ CC BY-SA 4.0 for documentation, MIT for own firmware code. See
 
 ## Code of conduct
 
-Be decent. Assume good faith, critique the work and not the person, and accept
-that maintainer time is limited and unpaid. Harassment of any kind means you are
-out.
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). In short:
+assume good faith, critique the work and not the person, and accept that
+maintainer time is limited and unpaid. Harassment of any kind means you are out.

@@ -282,6 +282,8 @@ Contributions are welcome — this design only gets better with more deployments
 3. Host-side tests live in `stm32_node/tests/` — add one where it makes sense.
 4. By contributing you agree your contribution is licensed under the terms in [LICENSING.md](LICENSING.md) for the part of the tree you touched.
 
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
+
 Issues labelled [`good first issue`](../../issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) and [`help wanted`](../../issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) are the easiest way in.
 
 ---
