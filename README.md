@@ -4,6 +4,7 @@
   <p><strong>Solar-powered, open-source LoRaWAN environmental monitoring node</strong></p>
   <p>Powered by <strong>HydroNode</strong></p>
 
+  [![Build](https://github.com/TexhFexLabs/HydroNodeStation/actions/workflows/build.yml/badge.svg)](https://github.com/TexhFexLabs/HydroNodeStation/actions/workflows/build.yml)
   [![Hardware: CERN-OHL-S-2.0](https://img.shields.io/badge/Hardware-CERN--OHL--S--2.0-blue)](LICENSE)
   [![Firmware: MIT](https://img.shields.io/badge/Firmware-MIT-green)](LICENSES/MIT.txt)
   [![Docs: CC BY-SA 4.0](https://img.shields.io/badge/Docs-CC%20BY--SA%204.0-lightgrey)](LICENSES/CC-BY-SA-4.0.txt)
