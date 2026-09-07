@@ -4,10 +4,9 @@
 > screen and solar panel visible, daylight. *This image must be set as the project
 > cover.*
 
-**A fully solar-autonomous, six-channel environmental sensor node built around a
-bare STM32WLE5 die (MCU + LoRa radio on one chip). Designed from scratch in
-EasyEDA Pro, deployed outdoors, streaming live data right now — no login
-required:**
+**A solar-powered, six-channel environmental sensor node built around a bare
+STM32WLE5 die (MCU + LoRa radio on one chip). Designed from scratch in EasyEDA
+Pro, deployed outdoors, streaming live data right now — no login required:**
 
 ### ▶ **[Live public dashboard](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)**
 
@@ -19,7 +18,7 @@ required:**
 | **Radio** | LoRaWAN Class A, EU868, Helium network, LoRa Basics Modem |
 | **Measurement cycle** | 3 min, remotely adjustable over LoRaWAN downlink (30–3600 s) |
 | **Battery life (measured)** | **~24 days** on a 1200 mAh LiPo with **zero** solar input |
-| **Reproduction cost** | **~$30** minimal build · **~$120–150** fully populated |
+| **Sensor BOM** | **< $30** minimal set · **$120–150** all six channels |
 | **Licenses** | Hardware **CERN-OHL-S v2** · Docs **CC BY-SA 4.0** · Firmware **MIT** |
 
 > **[VIDEO]** ▶ **Demo video:** `<YOUTUBE-LINK-HIER-EINFÜGEN>`
@@ -361,17 +360,22 @@ EasyEDA runs in the browser.
 4. **Assemble.** JLCPCB SMT handles the fine-pitch parts; the rest is basic
    hand-soldering.
 5. **Print the enclosure** — both `.3mf` files attached. **ASA**, not PLA.
-6. **Flash the firmware**, set your LoRaWAN `DevEUI` / `JoinEUI` / `AppKey`.
+6. **Flash the firmware.** The `DevEUI` is derived automatically from the
+   STM32's 96-bit unique ID and printed over the debug UART on boot — you only
+   register that EUI and set your own `JoinEUI` and `AppKey`.
 7. **Join a LoRaWAN network** (Helium, TTN, or your own gateway) and point the
    integration at your backend — or at the open HydroNode backend.
 
 ### Cost — scales with what you actually need
 
-| Build | Sensors populated | Approx. parts cost |
+| Build | Sensors populated | Approx. **sensor** cost |
 |---|---|---|
 | **Minimal** | Temperature + humidity + pressure (SHT30 substitute) | **< $30** |
 | **Air quality** | + LTR390 UV, + SCD41 CO₂ | **~$70** |
 | **Full research node** | All six channels incl. SPS30 particulate | **$120–150** |
+
+*Sensors only. The bare board — MCU, RF section, power stage, passives — and the
+PCB fabrication come on top; both scale down sharply in quantity.*
 
 The board is designed so **unpopulated sensor positions cost nothing and break
 nothing.** One design serves a single hobbyist node and a research-grade
@@ -418,8 +422,9 @@ reason the architecture looks the way it does.
 | **Documentation & media** | **[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)** |
 | **Firmware** (own code) | **[MIT](https://opensource.org/license/mit)** |
 
-*STMicroelectronics HAL / STM32CubeWL components retain their original ST
-licence terms.*
+*Vendored third-party components keep their upstream terms: STMicroelectronics
+HAL and utilities (BSD-3-Clause), Arm CMSIS (Apache-2.0), and the Semtech LoRa
+Basics Modem (BSD-3-Clause).*
 
 **Why these licences:** CERN-OHL-S is the OSHWA- and OSI-aligned standard for
 open hardware — anyone may build, sell, and modify the board, but improvements to
@@ -429,14 +434,19 @@ integration into other projects.
 
 **Attached to this project:**
 
-- ✅ Full **EasyEDA Pro** schematic + 4-layer PCB — forkable in one click
+- ✅ Full **EasyEDA Pro** schematic + 4-layer PCB — forkable in one click,
+  Gerbers and pick-and-place generated straight from the editor
 - ✅ **BOM** with LCSC part numbers, orderable directly
-- ✅ **Gerber / pick-and-place** exports
 - ✅ **`.3mf` Stevenson screen** — 3D-printable sensor head
 - ✅ **`.3mf` PCB enclosure**
-- ✅ **Firmware source** — build instructions, LoRaWAN payload codec, decoder
-- ✅ **Payload decoder** for the network-server side
 - ✅ This documentation
+
+**In the GitHub repository:**
+
+- ✅ **Full firmware source** with CMake build for both board targets
+- ✅ **Payload decoder** for the network-server side
+- ✅ **Host-side regression tests** — runnable without any hardware
+- ✅ Build, configuration and reliability guides
 
 > 📦 **Firmware, tests, documentation and payload decoder — full repository:**
 > **https://github.com/TexhFexLabs/HydroNodeStation**
