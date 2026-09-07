@@ -15,18 +15,18 @@ development LoRaWAN key material and personal data (see [SECURITY.md](../SECURIT
 |---|---|---|---|---|
 | 1 | update project structure | documentation | 2026-03-31 | 2026-04-05 |
 | 2 | update README.md | documentation | 2026-03-31 | 2026-08-05 |
-| 3 | add RX actions | — | 2026-03-31 | 2026-04-27 |
-| 4 | Test LoRaWAN environmental strength at OTH | — | 2026-03-31 | open |
-| 5 | Monitor problems/power consumption with poor to no reception | — | 2026-03-31 | 2026-08-05 |
-| 6 | Implement deep sleep mode with reduced transmission frequency when battery level is low | — | 2026-03-31 | 2026-05-27 |
-| 7 | implement scd41 | — | 2026-03-31 | 2026-04-16 |
-| 8 | implement sps30 | — | 2026-03-31 | 2026-04-16 |
-| 9 | implement MAX17048 | — | 2026-03-31 | 2026-04-14 |
-| 10 | implement bme390 | — | 2026-04-01 | 2026-04-14 |
-| 11 | implement sht45 bmp390 ltr390 and max17048 | — | 2026-04-01 | 2026-04-14 |
-| 12 | implement LTR390 | — | 2026-04-01 | 2026-04-14 |
+| 3 | add RX actions | none | 2026-03-31 | 2026-04-27 |
+| 4 | Test LoRaWAN environmental strength at OTH | none | 2026-03-31 | open |
+| 5 | Monitor problems/power consumption with poor to no reception | none | 2026-03-31 | 2026-08-05 |
+| 6 | Implement deep sleep mode with reduced transmission frequency when battery level is low | none | 2026-03-31 | 2026-05-27 |
+| 7 | implement scd41 | none | 2026-03-31 | 2026-04-16 |
+| 8 | implement sps30 | none | 2026-03-31 | 2026-04-16 |
+| 9 | implement MAX17048 | none | 2026-03-31 | 2026-04-14 |
+| 10 | implement bme390 | none | 2026-04-01 | 2026-04-14 |
+| 11 | implement sht45 bmp390 ltr390 and max17048 | none | 2026-04-01 | 2026-04-14 |
+| 12 | implement LTR390 | none | 2026-04-01 | 2026-04-14 |
 | 13 | implement debug interface | enhancement | 2026-04-01 | 2026-06-13 |
-| 14 | design pcb | — | 2026-04-01 | 2026-04-24 |
+| 14 | design pcb | none | 2026-04-01 | 2026-04-24 |
 | 16 | add gh actions | enhancement | 2026-04-05 | 2026-04-05 |
 | 21 | update ioc to match | bug | 2026-04-05 | 2026-04-05 |
 | 24 | update to clion and new stack | enhancement | 2026-04-09 | 2026-04-13 |
@@ -35,8 +35,8 @@ development LoRaWAN key material and personal data (see [SECURITY.md](../SECURIT
 | 36 | document project | documentation | 2026-04-21 | 2026-04-21 |
 | 38 | Fan cleaning not working at init | bug | 2026-04-21 | 2026-04-23 |
 | 43 | Refactor the SendTxData function to make it suitable for the HydroNode network | enhancement | 2026-04-27 | 2026-04-27 |
-| 45 | test pcb | — | 2026-05-08 | 2026-05-30 |
-| 46 | implement on chip uv index calc | — | 2026-05-27 | 2026-06-13 |
+| 45 | test pcb | none | 2026-05-08 | 2026-05-30 |
+| 46 | implement on chip uv index calc | none | 2026-05-27 | 2026-06-13 |
 | 50 | project cleanup | documentation | 2026-06-13 | 2026-06-19 |
 
 ## Pull requests (31)
@@ -56,7 +56,7 @@ development LoRaWAN key material and personal data (see [SECURITY.md](../SECURIT
 | 29 | implement scd41 with new prewake logic | `7-implement-scd41-sensor` | 2026-04-15 | 2026-04-16 |
 | 31 | implement sps30 and fix cayennelpp co2 sending | `8-implement-sps30` | 2026-04-16 | 2026-04-16 |
 | 32 | 8 implement sps30 | `8-implement-sps30` | 2026-04-16 | 2026-04-18 |
-| 33 | 2 update readmemd | `2-update-readmemd` | 2026-04-18 | — |
+| 33 | 2 update readmemd | `2-update-readmemd` | 2026-04-18 | none |
 | 34 | 2 update readmemd | `2-update-readmemd` | 2026-04-18 | 2026-04-18 |
 | 35 | finalize schem and pcb | `2-update-readmemd` | 2026-04-20 | 2026-04-20 |
 | 37 | Add professional LaTeX documentation scaffold under `doc/study-documentation` | `copilot/add-documentation-structure` | 2026-04-21 | 2026-04-21 |

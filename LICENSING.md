@@ -2,14 +2,14 @@
 
 HydroNodeStation is a mixed hardware/software project, so different parts of
 this repository carry different licences. All of them are OSI- or OSHWA-aligned
-open-source licences — there is no non-commercial restriction anywhere.
+open-source licences. There is no non-commercial restriction anywhere.
 
 | Part of the project | Paths | Licence | SPDX |
 |---|---|---|---|
-| **Hardware design** — schematic, PCB, CAD enclosure models, BOM | `hardware/` | CERN Open Hardware Licence Version 2 – Strongly Reciprocal | `CERN-OHL-S-2.0` |
-| **Documentation & media** — docs, reports, images, renders | `doc/`, `README.md` | Creative Commons Attribution-ShareAlike 4.0 International | `CC-BY-SA-4.0` |
-| **Firmware — own code** | see list below | MIT | `MIT` |
-| **Firmware — third party** | `stm32_node/Drivers/`, `stm32_node/Middlewares/`, `stm32_node/Utilities/` | unchanged upstream terms | see below |
+| **Hardware design**: schematic, PCB, CAD enclosure models | `hardware/` | CERN Open Hardware Licence Version 2, Strongly Reciprocal | `CERN-OHL-S-2.0` |
+| **Documentation and media**: docs, reports, images, renders | `doc/`, `README.md` | Creative Commons Attribution-ShareAlike 4.0 International | `CC-BY-SA-4.0` |
+| **Firmware**, own code | see list below | MIT | `MIT` |
+| **Firmware**, third party | `stm32_node/Drivers/`, `stm32_node/Middlewares/`, `stm32_node/Utilities/` | unchanged upstream terms | see below |
 
 Copyright © 2026 Felix Knoll (TexhFexLabs), unless stated otherwise.
 
@@ -65,7 +65,7 @@ author under MIT. The generated scaffolding around it stays under ST's terms.
 
 ## Firmware: third-party components
 
-Vendored and left untouched — their original licences apply in full:
+Vendored and left untouched. Their original licences apply in full:
 
 | Component | Origin | Licence |
 |---|---|---|

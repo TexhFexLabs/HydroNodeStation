@@ -1,11 +1,11 @@
 name: Field report
-description: Report a real deployment — the most valuable contribution to this project
+description: Report a real deployment. The most valuable contribution to this project.
 labels: ["field-report"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for building one. Partial answers are fine — anything is better than nothing.
+        Thanks for building one. Partial answers are fine, anything is better than nothing.
   - type: input
     id: location
     attributes:

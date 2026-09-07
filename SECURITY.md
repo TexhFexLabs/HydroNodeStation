@@ -4,15 +4,15 @@
 
 | Version | Supported |
 |---|---|
-| Firmware 1.6.x | ✅ |
-| Firmware < 1.6 | ❌ — contains the 49.71-day uplink alarm overflow, please upgrade |
+| Firmware 1.6.x | Yes |
+| Firmware older than 1.6 | No. Contains the 49.71-day uplink alarm overflow, please upgrade |
 
 ## Reporting a vulnerability
 
 Please **do not** open a public issue for a security problem.
 
-1. Preferred: use GitHub's private vulnerability reporting —
-   **Security → Report a vulnerability** on this repository.
+1. Preferred: use GitHub's private vulnerability reporting, under
+   **Security, Report a vulnerability** on this repository.
 2. Alternatively: email `email@knollfelix.de` with `[HydroNode Security]` in the
    subject.
 
@@ -29,12 +29,12 @@ In scope:
 
 Out of scope:
 
-- The HydroNode backend and iOS app — separate projects, not in this repository
+- The HydroNode backend and iOS app. Separate projects, not in this repository
 - Vendored third-party components (ST HAL, Arm CMSIS, Semtech LoRa Basics
-  Modem) — report those upstream
+  Modem). Report those upstream
 - Physical attacks requiring disassembly of a deployed node
 
-## Key material — how this repository handles it
+## How this repository handles key material
 
 **No real LoRaWAN credentials are stored in this repository.**
 
@@ -64,7 +64,7 @@ The second command must show zeros only.
 ## Threat model notes for operators
 
 - **OTAA only.** ABP is not used; session keys are negotiated per join.
-- **Downlink commands** (`0x10`–`0xFF`, see the README) are accepted from the
+- **Downlink commands** (`0x10` to `0xFF`, see the README) are accepted from the
   network server without an additional application-layer signature. An attacker
   who controls your network-server integration can change the TX interval or
   reset the node. Restrict access to your network server accordingly.

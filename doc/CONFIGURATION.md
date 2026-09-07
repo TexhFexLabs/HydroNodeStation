@@ -2,8 +2,6 @@
 
 For fault recovery, migration and hardware test requirements see [RELIABILITY.md](RELIABILITY.md).
 
-Deutsche Backend-Übergabe einschließlich Fehlerwerte, TTN-Webhooks, Testvektoren und Kalibrierung: [BACKEND_UMBAU_UND_KALIBRIERUNG.md](BACKEND_UMBAU_UND_KALIBRIERUNG.md).
-
 ## Credentials
 
 Put production credentials in `stm32_node/LoRaWAN/App/se-identity-local.h`, which is ignored by Git. Use the same four `LORAWAN_DEVICE_EUI`, `LORAWAN_JOIN_EUI`, `LORAWAN_APP_KEY`, and `LORAWAN_GEN_APP_KEY` macro names as in `se-identity.h`. Do not edit the tracked default header or use skip-worktree to hide production keys. Byte lists use comma-separated hexadecimal tokens without `0x`, as in the default header. An all-zero DevEUI selects the silicon-derived ID; a nonzero one is respected.
@@ -16,7 +14,7 @@ Put production credentials in `stm32_node/LoRaWAN/App/se-identity-local.h`, whic
 
 | Setting | Default | Location |
 |---|---|---|
-| Uplink interval | 180 seconds; downlink-configurable 30–3600 | `LoRaWAN/App/lora_app.h` |
+| Uplink interval | 180 seconds; downlink-configurable 30 to 3600 | `LoRaWAN/App/lora_app.h` |
 | CO2 cadence | Every fifth uplink | `lora_app.c` |
 | PM cadence | Every tenth uplink | `lora_app.c` |
 | SCD41 first/useful shot | 12 / 6 seconds before uplink | `lora_app.h` |
@@ -33,7 +31,7 @@ Battery thresholds require validation against the installed cell. RECOVERY cance
 
 | Payload | Action |
 |---|---|
-| `10 HH LL` | Set interval in seconds, 30–3600; apply after successful persistence, effective next scheduling cycle |
+| `10 HH LL` | Set interval in seconds, 30 to 3600. apply after successful persistence, effective next scheduling cycle |
 | `11` | SPS30 cleaning when battery state is NORMAL |
 | `12` | Request diagnostic response on fPort 5 |
 | `FF` | Software reset |

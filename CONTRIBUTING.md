@@ -13,13 +13,13 @@ You do not need to write firmware to help.
 2. **The 1.1 mA leakage hunt.** Measured day-average baseline draw is ~1.1 mA
    against a ~5.7 µA datasheet floor. Suspects: SCD41 IR leakage, BQ25185
    quiescent current, PCB leakage paths. This is the highest-impact open problem
-   on the project — see the README power budget section.
+   on the project. See the README power budget section.
 3. **A UV-transparent window under €50.** The LTR390 needs UV through the
    enclosure; glass and PETG block it. Cheap alternatives that actually pass
    UV-A/UV-B are wanted.
-4. **Sensor drivers** for additional I2C devices — soil moisture, VOC, noise,
+4. **Sensor drivers** for additional I2C devices: soil moisture, VOC, noise,
    water level. The bus architecture is deliberately open-ended.
-5. **Enclosure improvements** — sealing, print reliability, alternative mounts.
+5. **Enclosure improvements.** Sealing, print reliability, alternative mounts.
 
 ## Before you start
 
@@ -38,11 +38,11 @@ Both build targets must compile:
 ```bash
 cd stm32_node
 
-# Release — custom PCB, STM32WLE5CCU6
+# Release target, custom PCB, STM32WLE5CCU6
 cmake -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
 cmake --build build/Release
 
-# Debug — Wio-E5 mini prototyping board
+# Debug target, Wio-E5 mini prototyping board
 cmake -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
 cmake --build build/Debug
 ```
@@ -58,7 +58,7 @@ GitHub Actions checks both targets on every push.
   no blocking waits longer than necessary, explicit error returns, no direct
   HAL calls outside the driver.
 - Host-side regression tests are in `stm32_node/tests/`. Add one for anything
-  with non-trivial arithmetic — the timebase overflow bug that firmware 1.6
+  with non-trivial arithmetic. The timebase overflow bug that firmware 1.6
   fixes was found by exactly such a test.
 - **Never** commit real LoRaWAN keys. See [SECURITY.md](SECURITY.md).
 
@@ -70,14 +70,14 @@ make your change, and link your forked project in the issue or PR. Export the
 updated schematic/PCB PDFs into `hardware/` so the change is reviewable without
 an EasyEDA account.
 
-Hardware modifications you distribute must be released under CERN-OHL-S v2 —
-see [LICENSING.md](LICENSING.md).
+Hardware modifications you distribute must be released under CERN-OHL-S v2.
+See [LICENSING.md](LICENSING.md).
 
 ## Documentation changes
 
 Documentation is CC BY-SA 4.0. English is preferred for anything new; the
 existing German university reports in `doc/study-documentation/` and
-`doc/zwischenbericht/` stay as they are — they are historical records, not
+`doc/zwischenbericht/` stay as they are. They are historical records, not
 living documentation.
 
 ## Commits and pull requests
@@ -90,7 +90,7 @@ living documentation.
 ## Licensing of contributions
 
 By submitting a contribution you agree that it is licensed under the terms that
-already apply to the part of the tree you touched — CERN-OHL-S v2 for hardware,
+already apply to the part of the tree you touched: CERN-OHL-S v2 for hardware,
 CC BY-SA 4.0 for documentation, MIT for own firmware code. See
 [LICENSING.md](LICENSING.md).
 
