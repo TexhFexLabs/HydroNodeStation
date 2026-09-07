@@ -277,10 +277,22 @@ STOP2 sleep ─► pre-wake SPS30 (T−16.5 s) ─► SCD41 stabilisation shot (
   this design before that fix would have silently stopped transmitting after
   seven weeks.
 
-**Backend:** Helium Console → **Amazon SNS** → HydroNode backend → public
-dashboard + iOS app. **Automated anomaly detection** runs on the incoming stream
-and flags implausible readings. Users can register their own stations, name them,
-and browse historical charts per channel.
+**Backend:** the network server posts every uplink straight to the HydroNode
+backend over an **HTTPS webhook** — no message-broker service in between, which
+keeps the whole pipeline reproducible by anyone running their own server:
+
+```
+Network server ──HTTPS webhook──► HydroNode API ──► Kafka pipeline ──► PostgreSQL
+(Helium / ChirpStack v4 / TTN)                      (validation)          │
+                                                                          ▼
+                                                        public dashboard + iOS app
+```
+
+**Automated anomaly detection** runs on the incoming stream and flags
+implausible readings. Users can register their own stations, name them, and
+browse historical charts per channel. Because the decoder is published and the
+integration is a plain webhook, you can point a station at your own backend
+instead — nothing here is locked to my infrastructure.
 
 ---
 

@@ -1,0 +1,141 @@
+\documentclass[11pt,a4paper]{scrartcl}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+
+\definecolor{accent}{HTML}{0B4F6C}
+\definecolor{rowgray}{HTML}{F5F5F5}
+
+\setstretch{1.05}
+\setkomafont{disposition}{\color{accent}\bfseries}
+\emergencystretch=3em
+\setlist{nosep,leftmargin=1.3em}
+
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+\pagestyle{plain}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE\bfseries\color{accent} Umweltmessstation HydroNodeStation01\par}
+  \vspace{0.4em}
+  {\large Kurzübersicht\par}
+  \vspace{0.6em}
+  {\normalsize Felix Knoll \quad$\cdot$\quad OTH Regensburg \quad$\cdot$\quad \today\par}
+\end{center}
+\vspace{1em}
+
+\section*{Kurzfassung}
+
+Die HydroNodeStation01 ist eine solarbetriebene Umweltmessstation für den autonomen Außeneinsatz. Sie misst Temperatur, Luftfeuchte, Luftdruck, UV\hspace{0pt}-Index, CO$_2$ und Feinstaub und überträgt die Werte per LoRaWAN an ein öffentliches Dashboard. Sie benötigt weder einen Stromanschluss noch einen Netzwerkanschluss und läuft seit Ende Mai 2026 im Freien.
+
+Die Station entstand als Projektarbeit im Studiengang Technische Informatik. Platine, Gehäuse, Firmware und Backend wurden vollständig neu entwickelt, weil für den verwendeten Funkchip kein geeignetes offenes Design verfügbar war.
+
+\begin{table}[h]
+  \centering
+  \rowcolors{2}{rowgray}{white}
+  \begin{tabularx}{\textwidth}{lL}
+    \toprule
+    \textbf{Punkt} & \textbf{Angabe} \\
+    \midrule
+    Messintervall     & 3 Minuten. CO$_2$ alle 15 Minuten, Feinstaub alle 30 Minuten \\
+    Energieversorgung & Solarpanel mit Pufferakku \\
+    Übertragung       & LoRaWAN über das Helium\hspace{0pt}-Netz \\
+    Reichweite        & Im Feldtest über 10 Kilometer nachgewiesen \\
+    Materialkosten    & rund 250 Euro je Station \\
+    Entwicklungsaufwand & 170 Stunden \\
+    Lizenz            & Hardware CC BY\hspace{0pt}-NC\hspace{0pt}-SA 4.0, Firmware BSD\hspace{0pt}-3\hspace{0pt}-Clause \\
+    Stand             & Im Feldtest seit Ende Mai 2026 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section*{Messgrößen}
+
+\begin{table}[h]
+  \centering
+  \rowcolors{2}{rowgray}{white}
+  \begin{tabularx}{\textwidth}{lLl}
+    \toprule
+    \textbf{Sensor} & \textbf{Messgröße} & \textbf{Genauigkeit} \\
+    \midrule
+    SHT45    & Temperatur, Luftfeuchte                          & $\pm0{,}1\,^\circ$C, $\pm1{,}0\,\%$ \\
+    BMP390   & Luftdruck                                        & $\pm0{,}5$\,hPa \\
+    LTR390   & UV\hspace{0pt}-Index                             & \\
+    SCD41    & CO$_2$                                           & $\pm40$\,ppm \\
+    SPS30    & Feinstaub PM1.0, PM2.5, PM4.0, PM10              & \\
+    MAX17048 & Akkuspannung der Station                         & \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Die Sensoren sitzen in einem selbst konstruierten Lamellengehäuse nach dem Prinzip der Wetterhütte, gedruckt aus weißem ASA. Das Material ist UV\hspace{0pt}-beständig und witterungsfest. Das Gehäuse hält Direktsonne und Regen von den Sensoren fern und lässt gleichzeitig Luft zirkulieren.
+
+\section*{Betrieb}
+
+Gemessen wurde ein mittlerer Stromverbrauch von rund 2,12 Milliampere, entsprechend etwa 50,9 Milliamperestunden pro Tag. Mit einem Akku von 1200 Milliamperestunden ergibt das eine Reserve von rund 24 Tagen ohne Sonneneinstrahlung.
+
+Fällt die Akkuspannung unter 3300 Millivolt, schaltet die Station Funk und Sensoren ab und prüft nur noch minütlich die Versorgung. Sie nimmt den Messbetrieb selbsttätig wieder auf, sobald die Spannung 3600 Millivolt erreicht und diese Schwelle eine Minute lang hält. Zwischen 3500 und 3650 Millivolt sendet sie im doppelten Intervall. Eine Station, die zeitweise schweigt, ist deshalb nicht zwingend defekt.
+
+Die Firmware überwacht sich selbst und startet im Störungsfall neu. Sie meldet sich anschließend ohne Eingriff von außen wieder am Funknetz an.
+
+Zum Aufstellen wird ein Platz im Freien mit ausreichender Sonneneinstrahlung für das Solarpanel benötigt. Weitere Infrastruktur ist nicht erforderlich.
+
+\section*{Kosten und Aufwand}
+
+\begin{table}[h]
+  \centering
+  \rowcolors{2}{rowgray}{white}
+  \begin{tabularx}{\textwidth}{Lr}
+    \toprule
+    \textbf{Position} & \textbf{Betrag} \\
+    \midrule
+    Elektronik mit allen sechs Sensoren                  & 150 bis 200 Euro \\
+    ASA\hspace{0pt}-Filament für das Gehäuse            & rund 30 Euro \\
+    3D\hspace{0pt}-Druck, Solarpanel, Akku und Kleinteile & übrige Kosten \\
+    \midrule
+    \textbf{Gesamt je Station}                          & \textbf{rund 250 Euro} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Angegeben sind Materialkosten ohne Arbeitszeit. Die Platinen mussten im Fünferpack bestellt werden, weil der Fertiger keine kleineren Mengen anbietet. Fünf Stück kosteten inklusive Versand rund 200 Euro. Beschränkt man die Bestückung auf Temperatur, Feuchte, Druck und UV und verzichtet auf CO$_2$ und Feinstaub, sinken die Kosten der Elektronik auf unter 30 Euro.
+
+Der Entwicklungsaufwand lag bei 170 Stunden gegenüber 160 geplanten. Der größte Mehraufwand entfiel auf den Platinenentwurf mit rund 50 statt der geplanten 9 Stunden sowie auf das Gehäuse mit rund 12 Stunden, das ursprünglich nicht eingeplant war.
+
+\section*{Daten und Veröffentlichung}
+
+Die Messwerte laufen über das Funknetz in HydroNode, eine selbst entwickelte Plattform aus Backend, Weboberfläche und iOS\hspace{0pt}-App. Eine automatische Anomalieerkennung prüft die Messreihen und meldet auffällige Sprünge oder Ausfälle. Die Plattform ist über diese eine Station hinaus einsetzbar.
+
+Die Live\hspace{0pt}-Werte der Station sind öffentlich und ohne Benutzerkonto einsehbar:
+
+\begin{center}
+\url{https://hydronode.tech/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658}
+\end{center}
+
+Geplant ist, mehrere Stationen dieser Bauart an verschiedenen Standorten aufzustellen, damit möglichst viele Menschen Messwerte aus ihrer unmittelbaren Umgebung einsehen können.
+
+Das Projekt ist quelloffen veröffentlicht. Schaltplan, Platinenentwurf, Gehäusedaten, Stückliste, Firmware und Inbetriebnahmeanleitung liegen unter \url{https://github.com/TexhFexLabs/hydroNodeStation01}. Hardware und Gehäuse stehen unter CC BY\hspace{0pt}-NC\hspace{0pt}-SA 4.0, die Firmware unter BSD\hspace{0pt}-3\hspace{0pt}-Clause.
+
+\section*{Stand und offene Punkte}
+
+Alle sechs Sensoren, der LoRaWAN\hspace{0pt}-Betrieb und die Übertragung ins Backend sind verifiziert. Die Station steht seit Ende Mai 2026 im Außentest.
+
+Zwei Punkte sind noch offen. Die Solarautarkie unter verschiedenen Lichtbedingungen ist nicht abschließend verifiziert, und die Langzeitmessung der tatsächlichen Batterielaufzeit läuft noch.
+
+Die ausführliche technische Dokumentation liegt als Projektdokumentation zur HydroNodeStation01 bei.
+
+\end{document}

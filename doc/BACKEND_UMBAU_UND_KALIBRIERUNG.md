@@ -1,6 +1,6 @@
 # HydroNodeStation: Backend-Übergabe und Kalibrierungsstatus
 
-Stand: 06.09.2026. Protokollbeschreibung für Firmware 1.6 auf `feature/long-term-reliability`, ausgehend von Commit `952df1f`. Die Firmware-Änderungen liegen auf dem Branch `feature/long-term-reliability`. Diese Übergabe beschreibt den vorhandenen Sender und die noch nötige Backend-Arbeit. Das produktive HydroNode-Backend wurde hier nicht geändert; die Station wurde nicht geflasht.
+Stand: 06.09.2026. Protokollbeschreibung für Firmware 1.6 auf `feature/long-term-reliability`, ausgehend von Commit `206c4fd` („docs: record final firmware build sizes“). Die Firmware-Änderungen liegen auf dem Branch `feature/long-term-reliability`. Diese Übergabe beschreibt den vorhandenen Sender und die noch nötige Backend-Arbeit. Das produktive HydroNode-Backend wurde hier nicht geändert; die Station wurde nicht geflasht.
 
 ## 1. Was bei funktionierenden Sensoren gleich bleibt
 

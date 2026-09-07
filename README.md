@@ -34,6 +34,11 @@ This is not a paper concept. It was designed, built, and field-tested as part of
 
 **Project status:** hardware revision 2 pending fabrication, firmware 1.6 deployed, one station live in the field. Long-term solar autonomy verification is ongoing — see [Power Budget](#power-budget-measured) for measured numbers rather than estimates.
 
+<div align="center">
+  <img src="doc/assets/station_outdoor.jpg" width="420" alt="HydroNodeStation deployed outdoors, Stevenson screen mounted on a railing post" />
+  <br><em>The deployed station. This one has been reporting continuously.</em>
+</div>
+
 ---
 
 ## Quick Links
@@ -92,7 +97,9 @@ Special attention was paid to RF layout: controlled-impedance traces, solid grou
 ### Stevenson Screen Enclosure
 
 <div align="center">
-  <img src="doc/assets/stevenson_screen.png" width="360" alt="3D-printed Stevenson screen middle section" />
+  <img src="doc/assets/stevenson_screen.png" width="340" alt="3D-printed Stevenson screen middle section" />
+  <img src="doc/assets/stevenson_render.png" width="340" alt="CAD render of the Stevenson screen with the PCB mounting plate" />
+  <br><em>Printed part and the CAD model it comes from. The mounting plate on top carries the PCB.</em>
 </div>
 
 The electronics live in a 3D-printed **Stevenson screen** in UV-resistant white **ASA** filament. Stacked louvers block direct sunlight and rain while allowing free air circulation — essential for accurate outdoor temperature and humidity readings. The design files (`.3mf`) are in [`hardware/CAD/`](hardware/CAD/) and print on any consumer FDM printer.
@@ -164,7 +171,24 @@ Day-average baseline draw is **~1.1 mA**. The datasheet floor from component sle
 
 `183,408 mC / 3600 = ~50.9 mAh/day`
 
+<div align="center">
+  <img src="doc/analysis/powerTestsWithPrototypingBoards.png" width="720" alt="PPK2 current trace showing an SPS30 measurement event against the sleep baseline" />
+  <br><em>PPK2 capture of a single SPS30 measurement event — 28 s, 1.69 C, peaking at 279 mA
+  against the sleep baseline. Taken during the prototyping-board stage; the numbers in the
+  table above are from the custom PCB.</em>
+</div>
+
 > Closing the 1.1 mA → 5.7 µA gap is the single highest-impact open task on this project. If you have experience hunting leakage on STM32WL designs, [issues are open](../../issues).
+
+### Where the data ends up
+
+<div align="center">
+  <img src="doc/assets/ios_app_preview.png" width="260" alt="iOS app showing a 24 hour temperature chart for station WS01" />
+  <br><em>The iOS app. Every channel gets its own history view; the same data is on the
+  public dashboard without a login.</em>
+</div>
+
+The network server posts each uplink straight to the HydroNode backend over an HTTPS webhook — no message broker in between — where a Kafka pipeline validates it into PostgreSQL. The [payload decoder](doc/payload-decoder.js) is published, so you can point a station at your own backend instead.
 
 ### Build
 

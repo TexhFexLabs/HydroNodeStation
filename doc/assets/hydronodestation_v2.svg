@@ -1,4 +1,7 @@
 <svg width="100%" viewBox="0 0 680 860" xmlns="http://www.w3.org/2000/svg">
+<!-- Opaque canvas: the diagram uses light text on dark fills, so it needs its own
+     background to stay readable on light backgrounds and in light-theme viewers. -->
+<rect x="0" y="0" width="680" height="860" fill="#191919"/>
 <defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
     <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>

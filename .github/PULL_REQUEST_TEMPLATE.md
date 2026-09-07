@@ -23,4 +23,4 @@ Closes #
 
 ## Licensing
 
-- [ ] I agree my contribution is licensed under the terms in [LICENSING.md](../blob/main/LICENSING.md) for the parts of the tree I touched
+- [ ] I agree my contribution is licensed under the terms in [LICENSING.md](https://github.com/TexhFexLabs/HydroNodeStation/blob/main/LICENSING.md) for the parts of the tree I touched
