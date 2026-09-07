@@ -1,4 +1,4 @@
-# HydroNodeStation01 — Solar-Autonomous Open-Source Environmental Monitoring Node (STM32WLE5 + LoRaWAN)
+# HydroNodeStation — Solar-Autonomous Open-Source Environmental Monitoring Node (STM32WLE5 + LoRaWAN)
 
 > **[IMAGE 1 — COVER]** Finished station mounted outdoors on the pole, Stevenson
 > screen and solar panel visible, daylight. *This image must be set as the project
@@ -39,7 +39,7 @@ The blocker has never been sensors. It is **power and connectivity**. A station
 that needs mains power or Wi-Fi can only go where infrastructure already exists —
 which is exactly where the data gaps are not.
 
-**HydroNodeStation01 removes that blocker.** It is a monitoring node that needs
+**HydroNodeStation removes that blocker.** It is a monitoring node that needs
 no mains, no Wi-Fi, no cellular contract, and no maintenance visits. Put it on a
 pole, a rooftop, a balcony railing, or a fence in the middle of a field. It runs
 unattended and reports every three minutes over a kilometres-long LoRaWAN
@@ -439,7 +439,7 @@ integration into other projects.
 - ✅ This documentation
 
 > 📦 **Firmware, tests, documentation and payload decoder — full repository:**
-> **https://github.com/TexhFexLabs/hydroNodeStation01**
+> **https://github.com/TexhFexLabs/HydroNodeStation**
 >
 > Includes a `CONTRIBUTING.md` with the open problems, a `SECURITY.md`, and
 > host-side regression tests you can run without any hardware.

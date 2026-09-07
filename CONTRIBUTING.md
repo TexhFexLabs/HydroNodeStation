@@ -1,4 +1,4 @@
-# Contributing to HydroNodeStation01
+# Contributing to HydroNodeStation
 
 Thanks for looking. This is an open-source environmental monitoring node, and it
 gets better with every station that actually goes outside and reports back.

@@ -52,7 +52,7 @@
   \vspace{2.5cm}
   {\Huge\bfseries Projektdokumentation\par}
   \vspace{0.6cm}
-  {\LARGE HydroNodeStation01\par}
+  {\LARGE HydroNodeStation\par}
   \vspace{1.5cm}
   {\large Fach: Ausgewählte Projekte der IT\par}
   \vspace{0.3cm}
@@ -69,7 +69,7 @@
 
 \section{Einleitung und Projektbeschreibung}
 
-\textit{HydroNodeStation01} ist eine energieeffiziente, solar-betriebene Umweltmessstation für den autonomen Außeneinsatz ohne externe Infrastruktur. Sie überträgt meteorologische und luftqualitätsrelevante Messdaten über LoRaWAN an das Helium-Netzwerk und von dort in Echtzeit ins HydroNode-Backend sowie an ein öffentliches Web-Dashboard. Kernziele sind Langzeitautonomie (Monate ohne Wartung), Reproduzierbarkeit zu niedrigen Kosten und vollständige Open-Source-Verfügbarkeit.
+\textit{HydroNodeStation} ist eine energieeffiziente, solar-betriebene Umweltmessstation für den autonomen Außeneinsatz ohne externe Infrastruktur. Sie überträgt meteorologische und luftqualitätsrelevante Messdaten über LoRaWAN an das Helium-Netzwerk und von dort in Echtzeit ins HydroNode-Backend sowie an ein öffentliches Web-Dashboard. Kernziele sind Langzeitautonomie (Monate ohne Wartung), Reproduzierbarkeit zu niedrigen Kosten und vollständige Open-Source-Verfügbarkeit.
 
 \paragraph{Sensoren (I2C-Bus):}
 \begin{itemize}
@@ -140,7 +140,7 @@ Ein selbst in Fusion\,360 entworfenes, mehrlagiges Lamellen-Gehäuse aus weißem
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.55\linewidth]{../assets/station_outdoor}
-  \caption{Montierte HydroNodeStation01 im Außeneinsatz}
+  \caption{Montierte HydroNodeStation im Außeneinsatz}
 \end{figure}
 
 \clearpage
@@ -246,8 +246,8 @@ Für das Wio-E5 Mini werden zusätzlich benötigt: Breakout-Boards für SHT45, B
 \subsection*{Schritt 3: Repository klonen und Firmware initial bauen}
 
 \begin{verbatim}
-git clone https://github.com/TexhFexLabs/hydroNodeStation01.git
-cd hydroNodeStation01/stm32_node
+git clone https://github.com/TexhFexLabs/HydroNodeStation.git
+cd hydroNodeStation/stm32_node
 \end{verbatim}
 
 \textbf{Custom PCB (Release):}
@@ -403,7 +403,7 @@ Live-Dashboard: \url{https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5
 \begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{../assets/dashboard_preview}
-  \caption{Live-Dashboard der HydroNodeStation01}
+  \caption{Live-Dashboard der HydroNodeStation}
 \end{figure}
 
 \textbf{Noch ausstehend:} Solar-Autarkie-Verifikation (BQ25185) unter verschiedenen Lichtbedingungen; Langzeit-Batterie-Laufzeitmessung.
@@ -426,7 +426,7 @@ Das HydroNodeNetzwerk verbindet Sensorstationen mit Backend und iOS-App. Es unte
       layerlabel/.style={font=\footnotesize\itshape, text=gray!65!black, anchor=west}
   ]
     \node[sensor]    (https) at (-2.6,  0.0) {HTTPS-Station\\Arduino / ESP32};
-    \node[sensor]    (lora)  at ( 2.6,  0.0) {LoRaWAN-Station\\HydroNodeStation01};
+    \node[sensor]    (lora)  at ( 2.6,  0.0) {LoRaWAN-Station\\HydroNodeStation};
     \node[transport] (inet)  at (-2.6, -2.2) {HTTPS\\TLS\,1.2+ / HMAC};
     \node[transport] (hel)   at ( 2.6, -2.2) {LoRaWAN\\HTTPS Webhook};
     \node[backend, minimum width=84mm] (back) at (0, -4.4)
@@ -461,7 +461,7 @@ Das HydroNodeNetzwerk verbindet Sensorstationen mit Backend und iOS-App. Es unte
 
 \textbf{Lizenzen:} Hardware (Schaltplan, PCB, CAD-Gehäuse) unter \textbf{CC BY-NC-SA 4.0}; Firmware (\texttt{stm32\_node}) unter \textbf{BSD-3-Clause}.
 
-\textbf{Veröffentlichung:} \url{https://github.com/TexhFexLabs/hydroNodeStation01} (Schaltplan-PDF, PCB-Renders, BOM, vollständige CMake-Firmware, Inbetriebnahme-Anleitung und 3MF-Dateien des Gehäuses).
+\textbf{Veröffentlichung:} \url{https://github.com/TexhFexLabs/HydroNodeStation} (Schaltplan-PDF, PCB-Renders, BOM, vollständige CMake-Firmware, Inbetriebnahme-Anleitung und 3MF-Dateien des Gehäuses).
 
 \textbf{OSHWLab Start 2026 Contest:} Projekt angemeldet – ein Wettbewerb, bei dem Open-Hardware-Erfindungen und Prototyp-PCBs eingereicht und ausgezeichnet werden.
 

@@ -1,6 +1,6 @@
 <div align="center">
   <img src="doc/assets/icon-512.png" width="100" alt="HydroNode logo" />
-  <h1>HydroNodeStation01</h1>
+  <h1>HydroNodeStation</h1>
   <p><strong>Solar-powered, open-source LoRaWAN environmental monitoring node</strong></p>
   <p>Powered by <strong>HydroNode</strong></p>
 
@@ -18,7 +18,7 @@
 > [view live dashboard](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)
 
 <div align="center">
-  <img src="doc/assets/dashboard_preview.png" width="720" alt="HydroNode live dashboard showing HydroNodeStation01 sensor data" />
+  <img src="doc/assets/dashboard_preview.png" width="720" alt="HydroNode live dashboard showing HydroNodeStation sensor data" />
 </div>
 
 ---
@@ -27,7 +27,7 @@
 
 Detailed, hyperlocal environmental data is surprisingly scarce. Most weather and air quality stations are expensive, power-hungry, and installed only at a handful of official sites per city — leaving entire neighborhoods without meaningful data about what they breathe every day.
 
-HydroNodeStation01 is a self-sufficient, unattended monitoring node that **anyone can reproduce** and deploy. It transmits CO₂, particulate matter, temperature, humidity, barometric pressure, and UV data over **LoRaWAN** using a small solar panel and a single LiPo cell.
+HydroNodeStation is a self-sufficient, unattended monitoring node that **anyone can reproduce** and deploy. It transmits CO₂, particulate matter, temperature, humidity, barometric pressure, and UV data over **LoRaWAN** using a small solar panel and a single LiPo cell.
 
 This is not a paper concept. It was designed, built, and field-tested as part of a university engineering project, with the goal of open, democratic, decentralized environmental monitoring.
 
@@ -45,6 +45,7 @@ This is not a paper concept. It was designed, built, and field-tested as part of
 | ⚙️ **Configuration reference** | [doc/CONFIGURATION.md](doc/CONFIGURATION.md) |
 | 🛡️ **Reliability & rollout notes** | [doc/RELIABILITY.md](doc/RELIABILITY.md) |
 | ⚖️ **Licensing** | [LICENSING.md](LICENSING.md) |
+| 📜 **Development history** | [doc/DEVELOPMENT_HISTORY.md](doc/DEVELOPMENT_HISTORY.md) |
 
 ---
 
@@ -68,7 +69,7 @@ All sensors share an I2C bus. Drivers request sensor sleep/power-down between me
 ### Custom 4-Layer PCB
 
 <div align="center">
-  <img src="doc/assets/pcb_top_layer.png" width="480" alt="HydroNodeStation01 PCB top layer" />
+  <img src="doc/assets/pcb_top_layer.png" width="480" alt="HydroNodeStation PCB top layer" />
 </div>
 
 The PCB was designed from scratch in **EasyEDA Pro**, fabricated at JLCPCB, and hand-assembled. It integrates:
@@ -102,8 +103,8 @@ The electronics live in a 3D-printed **Stevenson screen** in UV-resistant white 
 ```mermaid
 flowchart LR
     subgraph Field ["Field Deployment"]
-        Node1(("HydroNode\nStation01"))
-        Node2(("HydroNode\nStation02"))
+        Node1(("HydroNode\nStation #1"))
+        Node2(("HydroNode\nStation #2"))
     end
 
     subgraph Network ["LoRaWAN Network Server"]
@@ -233,7 +234,7 @@ The design is modular — not every sensor needs to be populated:
 ## Repository Structure
 
 ```
-hydroNodeStation01/
+hydroNodeStation/
 ├── stm32_node/          # Firmware (STM32WLE5, CMake, LoRa Basics Modem)
 │   ├── Core/Src/        # Own sensor drivers (SHT45, BMP390, LTR390, SCD41, SPS30, MAX17048, BQ25185)
 │   ├── LoRaWAN/App/     # Application logic (lora_app.c), key template (se-identity.h)
@@ -250,6 +251,7 @@ hydroNodeStation01/
 │   ├── CONFIGURATION.md            # Configuration reference
 │   ├── RELIABILITY.md              # Firmware 1.6 reliability + rollout notes
 │   ├── payload-decoder.js          # LoRaWAN payload decoder
+│   ├── DEVELOPMENT_HISTORY.md      # Issue/PR record from the private development phase
 │   ├── open-source-documentation/  # OSHWLab project description
 │   ├── study-documentation/        # Full project report (German)
 │   ├── zwischenbericht/            # Interim report (German)

@@ -1,6 +1,6 @@
 # Licensing
 
-HydroNodeStation01 is a mixed hardware/software project, so different parts of
+HydroNodeStation is a mixed hardware/software project, so different parts of
 this repository carry different licences. All of them are OSI- or OSHWA-aligned
 open-source licences — there is no non-commercial restriction anywhere.
 
@@ -71,7 +71,7 @@ Vendored and left untouched — their original licences apply in full:
 |---|---|---|
 | STM32WLxx HAL / LL drivers | STMicroelectronics | BSD-3-Clause |
 | CMSIS Core | Arm Limited | Apache-2.0 |
-| LoRaWAN stack (LoRaMac-node) | Semtech / STMicroelectronics | BSD-3-Clause (Revised) |
+| LoRa Basics Modem (`smtc_modem_*`) | Semtech / STMicroelectronics | BSD-3-Clause (Revised) |
 | Sequencer, timer server, low-power manager | STMicroelectronics | BSD-3-Clause |
 
 Nothing in this repository relicenses those components.
@@ -105,7 +105,7 @@ with the product, and to keep the licence notices intact.
 ## Trademarks
 
 "HydroNode" and "TexhFexLabs" are not licensed under any of the above. You may
-state that your device is based on HydroNodeStation01; do not present it as an
+state that your device is based on HydroNodeStation; do not present it as an
 official HydroNode product.
 
 ## Datasheets

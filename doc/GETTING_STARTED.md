@@ -29,8 +29,8 @@ sudo apt install gcc-arm-none-eabi cmake ninja-build
 ## 2. Clone & Build
 
 ```bash
-git clone https://github.com/TexhFexLabs/hydroNodeStation01.git
-cd hydroNodeStation01/stm32_node
+git clone https://github.com/TexhFexLabs/HydroNodeStation.git
+cd hydroNodeStation/stm32_node
 
 # Configure (once)
 cmake -B build/Release \

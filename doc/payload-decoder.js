@@ -1,4 +1,4 @@
-/* HydroNodeStation01 decoder: environmental ports preserve their fixed layout. */
+/* HydroNodeStation decoder: environmental ports preserve their fixed layout. */
 function decodeUplink(input) {
   const bytes = input.bytes;
   const port = input.fPort;
