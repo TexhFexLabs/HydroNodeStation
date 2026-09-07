@@ -10,13 +10,13 @@
   [![Docs: CC BY-SA 4.0](https://img.shields.io/badge/Docs-CC%20BY--SA%204.0-lightgrey)](LICENSES/CC-BY-SA-4.0.txt)
   [![MCU](https://img.shields.io/badge/MCU-STM32WLE5-blue)](https://www.st.com/en/microcontrollers-microprocessors/stm32wle5cc.html)
   [![Network](https://img.shields.io/badge/Network-LoRaWAN%20868%20MHz-orange)](https://lora-alliance.org/)
-  [![Live Data](https://img.shields.io/badge/Live%20Data-Online-brightgreen)](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)
+  [![Live Data](https://img.shields.io/badge/Live%20Data-Online-brightgreen)](https://hydronode.tech/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)
 </div>
 
 ---
 
 > **Live now:** A station is deployed outdoors and streaming real sensor data —
-> [view live dashboard](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)
+> [view live dashboard](https://hydronode.tech/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)
 
 <div align="center">
   <img src="doc/assets/dashboard_preview.png" width="720" alt="HydroNode live dashboard showing HydroNodeStation sensor data" />
@@ -40,7 +40,7 @@ This is not a paper concept. It was designed, built, and field-tested as part of
 
 | | |
 |---|---|
-| 🌐 **Live dashboard** | [hydronode.texhfexlabs.de](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658) |
+| 🌐 **Live dashboard** | [hydronode.tech](https://hydronode.tech/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658) |
 | 🔧 **Hardware design (EasyEDA Pro / OSHWLab)** | [oshwlab.com/knollfelix004/project_fegzdygg](https://oshwlab.com/knollfelix004/project_fegzdygg) |
 | 🚀 **Build & flash** | [doc/GETTING_STARTED.md](doc/GETTING_STARTED.md) |
 | ⚙️ **Configuration reference** | [doc/CONFIGURATION.md](doc/CONFIGURATION.md) |
@@ -318,5 +318,5 @@ Designed in **[EasyEDA Pro](https://easyeda.com/)**, fabricated at **[JLCPCB](ht
 
 <div align="center">
   <strong>Build it. Deploy it. Fork it. Join the network.</strong><br>
-  Live data at <a href="https://hydronode.texhfexlabs.de">hydronode.texhfexlabs.de</a>
+  Live data at <a href="https://hydronode.tech">hydronode.tech</a>
 </div>

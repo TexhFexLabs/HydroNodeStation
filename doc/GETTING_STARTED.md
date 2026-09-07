@@ -101,7 +101,7 @@ Use the HTTP webhook URL supplied by the station's LoRaWAN binding settings in H
 
 ## 7. Link the Device in HydroNode
 
-1. Open the HydroNode app or web dashboard at [hydronode.texhfexlabs.de](https://hydronode.texhfexlabs.de).
+1. Open the HydroNode app or web dashboard at [hydronode.tech](https://hydronode.tech).
 2. Your first sensor slot is included automatically upon registration at no charge.
 3. Go to the sensor's **Settings → LoRaWAN Binding**.
 4. Enter your device's **DevEUI**.

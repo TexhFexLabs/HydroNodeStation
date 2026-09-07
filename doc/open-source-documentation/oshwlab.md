@@ -8,7 +8,7 @@
 STM32WLE5 die (MCU + LoRa radio on one chip). Designed from scratch in EasyEDA
 Pro, deployed outdoors, streaming live data right now — no login required:**
 
-### ▶ **[Live public dashboard](https://hydronode.texhfexlabs.de/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)**
+### ▶ **[Live public dashboard](https://hydronode.tech/stations/public/004dd7e7-5c27-4de0-bff5-24116f721658)**
 
 | | |
 |---|---|
@@ -491,4 +491,4 @@ accessible to students and hobbyists.
 ---
 
 **Build it. Deploy it. Fork it. Join the network.**
-**Live data is already flowing at [hydronode.texhfexlabs.de](https://hydronode.texhfexlabs.de).**
+**Live data is already flowing at [hydronode.tech](https://hydronode.tech).**
