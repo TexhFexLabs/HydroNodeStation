@@ -161,7 +161,7 @@ real measurements. The sentinels are documented in
 
 Further sensors are available for a small cost contribution covering hardware
 and running infrastructure. For academic or research use, write to
-[contact@texhfexlabs.de](mailto:contact@texhfexlabs.de). Complimentary slots are
+[contact@hydronode.tech](mailto:contact@hydronode.tech). Complimentary slots are
 available for student and university projects.
 
 ---
