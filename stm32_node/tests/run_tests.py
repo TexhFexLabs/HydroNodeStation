@@ -36,6 +36,7 @@ with tempfile.TemporaryDirectory(prefix='hydronode-tests-') as temp:
     compile_run(tmp, 'solar', [ROOT/'tests/test_solar.c', ROOT/'Core/Src/solar.c'])
     compile_run(tmp, 'pulse', [ROOT/'tests/test_pulse_counter.c', ROOT/'Core/Src/pulse_counter.c'])
     compile_run(tmp, 'payload', [ROOT/'tests/test_payload.c', ROOT/'Core/Src/payload.c'])
+    compile_run(tmp, 'faults', [ROOT/'tests/test_fault_report.c', ROOT/'Core/Src/fault_report.c'])
     compile_run(tmp, 'linkcheck', [ROOT/'tests/test_link_check.c', ROOT/'Core/Src/link_check.c'])
     gauge = function('Core/Src/max17048.c', 'static uint16_t max17048_soc_x100(uint16_t raw)') + '\n' + \
             function('Core/Src/max17048.c', 'static int16_t max17048_crate_x100(uint16_t raw)')
