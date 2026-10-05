@@ -18,6 +18,14 @@ extern struct IWDG_Model iwdg;
 void __disable_irq(void);
 void NVIC_SystemReset(void);
 void HAL_GPIO_WritePin(int,unsigned,int);
+typedef struct {unsigned Pin,Mode,Pull,Speed;} GPIO_InitTypeDef;
+#define GPIO_MODE_OUTPUT_PP 1U
+#define GPIO_NOPULL 0U
+#define GPIO_SPEED_FREQ_LOW 0U
+void HAL_GPIO_Init(int,GPIO_InitTypeDef *);
+void HAL_PWR_EnableBkUpAccess(void);
+#define __HAL_RCC_RTCAPB_CLK_ENABLE() ((void)0)
+#define __HAL_RCC_GPIOB_CLK_ENABLE() ((void)0)
 ''')
     (stub/'rtc.h').write_text('''#include <stdint.h>
 extern int hrtc;
@@ -50,6 +58,9 @@ void HAL_GPIO_WritePin(int port,unsigned pin,int state)
  led=(unsigned)state;
 }
 void __disable_irq(void) {}
+static unsigned gpio_inits;
+void HAL_GPIO_Init(int port,GPIO_InitTypeDef *g) {assert(port==LED_DIAG_GPIO_Port && g->Pin==LED_DIAG_Pin);gpio_inits++;}
+void HAL_PWR_EnableBkUpAccess(void) {}
 void NVIC_SystemReset(void) {longjmp(reset,1);}
 uint32_t HAL_RTCEx_BKUPRead(int *h,unsigned r) {(void)h;return backup[r];}
 void HAL_RTCEx_BKUPWrite(int *h,unsigned r,uint32_t v) {(void)h;backup[r]=v;}
@@ -76,7 +87,17 @@ int main(void)
  /* Reason group then detail group, both blinked out. */
  assert(blinks==RUNTIME_FAULT_MODEM+7 && led==GPIO_PIN_SET);
  Runtime_Init();assert(Runtime_LastFault()==RUNTIME_FAULT_MODEM && Runtime_LastFaultDetail()==7);
- puts("Actual health module: progress deadline, reset diagnostics, fault blink code, seconds wrap and deliberate dormancy passed");
+ /* Clock-setup fault before Runtime_Init: reason stored, LED set up and the
+  * code repeated until the hold time is over, then a reset. */
+ blinks=0;backup[7]=9;
+ if(!setjmp(reset)) {Runtime_EarlyFault(RUNTIME_FAULT_LSE,0);assert(0);}
+ assert(backup[6]==RUNTIME_FAULT_LSE && backup[7]==0 && gpio_inits==1);
+ assert(blinks==RUNTIME_FAULT_LSE && led==GPIO_PIN_SET);
+ blinks=0;
+ if(!setjmp(reset)) {Runtime_EarlyFault(RUNTIME_FAULT_LSE,9);assert(0);}
+ assert(blinks==3*RUNTIME_FAULT_LSE);  /* 9 s = 36 units, 18 units per group */
+ Runtime_Init();assert(Runtime_LastFault()==RUNTIME_FAULT_LSE);
+ puts("Actual health module: progress deadline, reset diagnostics, fault blink code, seconds wrap, deliberate dormancy and early LSE fault passed");
 }
 ''')
     exe=tmp/'health'

@@ -53,7 +53,9 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+/* 1 when the LSE started at MEDIUMHIGH drive (or was already running),
+ * 2 when it needed the HIGH-drive retry. */
+uint8_t SystemClock_LseAttempts(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

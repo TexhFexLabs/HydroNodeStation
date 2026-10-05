@@ -121,6 +121,38 @@ void Runtime_Fault(uint32_t reason)
     NVIC_SystemReset();
     for (;;) { }
 }
+void Runtime_EarlyFault(uint32_t reason, uint32_t hold_s)
+{
+    GPIO_InitTypeDef gpio = {0};
+
+    /* Backup registers live in TAMP: they need the RTC APB clock and backup
+     * domain access, not a running RTC. Runtime_Init reads them next boot. */
+    __HAL_RCC_RTCAPB_CLK_ENABLE();
+    HAL_PWR_EnableBkUpAccess();
+    HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR6, reason);
+    HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR7, 0U);
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    HAL_GPIO_WritePin(LED_DIAG_GPIO_Port, LED_DIAG_Pin, GPIO_PIN_SET);
+    gpio.Pin = LED_DIAG_Pin;
+    gpio.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio.Pull = GPIO_NOPULL;
+    gpio.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(LED_DIAG_GPIO_Port, &gpio);
+
+    /* One group is 2 * reason + 6 units of 250 ms; the watchdog is fed per
+     * group, well inside its 32 s. */
+    uint32_t groups = (hold_s * 4U) / (2U * reason + 6U) + 1U;
+    while (groups-- != 0U)
+    {
+        fault_blink(reason);
+        fault_wait(6U);
+        IWDG->KR = 0xAAAAU;
+    }
+    NVIC_SystemReset();
+    for (;;) { }
+}
+
 uint32_t Runtime_BootCount(void) { return boot_count; }
 uint32_t Runtime_ResetFlags(void) { return reset_flags; }
 uint32_t Runtime_LastFault(void) { return last_fault; }

@@ -28,6 +28,7 @@
 #include "debug_profile.h"
 #include "runtime_health.h"
 #include "power_rail.h"
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,6 +38,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+/* Per attempt. The LSE crystal U14 sits 12 mm from PC14/PC15 with vias on
+ * Inner2 (PCB 1.1 finding P2), so its start is given a second chance. */
+#define LSE_START_TIMEOUT_MS 2000U
+/* Without the LSE the RTC cannot time the RX windows: show the code, then
+ * retry from a reset; a later cold start may succeed. */
+#define LSE_FAULT_HOLD_S     60U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,13 +54,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+static uint8_t lse_attempts;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+static void LSE_Start(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -139,10 +146,9 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** Configure LSE Drive Capability
+  /** Backup domain access for the LSE, started below in LSE_Start()
   */
   HAL_PWR_EnableBkUpAccess();
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
 
   /** Configure the main internal regulator output voltage
   */
@@ -150,8 +156,7 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE|RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_11;
@@ -176,10 +181,54 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN SystemClock_Config_LSE */
+  LSE_Start();
+  /* USER CODE END SystemClock_Config_LSE */
 }
 
 /* USER CODE BEGIN 4 */
+static bool LSE_Try(uint32_t drive)
+{
+  RCC_OscInitTypeDef osc = {0};
 
+  /* The LSE lives in the backup domain and survives a system reset; keep it
+   * running then (its drive cannot be raised while it is on anyway). */
+  if (!LL_RCC_LSE_IsReady())
+  {
+    LL_RCC_LSE_Disable();
+    LL_RCC_LSE_SetDriveCapability(drive);
+    LL_RCC_LSE_Enable();
+    uint32_t start = HAL_GetTick();
+    while (!LL_RCC_LSE_IsReady())
+    {
+      if ((HAL_GetTick() - start) > LSE_START_TIMEOUT_MS)
+      {
+        LL_RCC_LSE_Disable();
+        return false;
+      }
+    }
+  }
+  /* Ready now: the HAL only adds LSESYSEN and returns at once. */
+  osc.OscillatorType = RCC_OSCILLATORTYPE_LSE;
+  osc.LSEState = RCC_LSE_ON;
+  return HAL_RCC_OscConfig(&osc) == HAL_OK;
+}
+
+/* MEDIUMHIGH drive is sufficient by calculation (F18); HIGH is the fallback.
+ * No LSI fallback: the LSI is too inaccurate for the RX windows. */
+static void LSE_Start(void)
+{
+  lse_attempts = 1U;
+  if (LSE_Try(RCC_LSEDRIVE_MEDIUMHIGH)) return;
+  lse_attempts = 2U;
+  if (LSE_Try(RCC_LSEDRIVE_HIGH)) return;
+  Runtime_EarlyFault(RUNTIME_FAULT_LSE, LSE_FAULT_HOLD_S);
+}
+
+uint8_t SystemClock_LseAttempts(void)
+{
+  return lse_attempts;
+}
 /* USER CODE END 4 */
 
 /**
