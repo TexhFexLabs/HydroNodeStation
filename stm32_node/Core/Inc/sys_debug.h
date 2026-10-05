@@ -40,49 +40,8 @@ extern "C" {
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
-/* Pin defines */
-
-/**  Definition for Probe Line 1   **/
-/**
-  * @brief Pin of Probe Line 1
-  */
-#define PROBE_LINE1_PIN                           GPIO_PIN_12
-
-/**
-  * @brief Port of Probe Line 1
-  */
-#define PROBE_LINE1_PORT                          GPIOB
-
-/**
-  * @brief Enable GPIOs clock of Probe Line 1
-  */
-#define PROBE_LINE1_CLK_ENABLE()                  __HAL_RCC_GPIOB_CLK_ENABLE()
-
-/**
-  * @brief Disable GPIOs clock of Probe Line 1
-  */
-#define PROBE_LINE1_CLK_DISABLE()                 __HAL_RCC_GPIOB_CLK_DISABLE()
-
-/**  Definition for Probe Line 2   **/
-/**
-  * @brief Pin of Probe Line 2
-  */
-#define PROBE_LINE2_PIN                           GPIO_PIN_13
-
-/**
-  * @brief Port of Probe Line 2
-  */
-#define PROBE_LINE2_PORT                          GPIOB
-
-/**
-  * @brief Enable GPIOs clock of Probe Line 2
-  */
-#define PROBE_LINE2_CLK_ENABLE()                  __HAL_RCC_GPIOB_CLK_ENABLE()
-
-/**
-  * @brief Disable GPIOs clock of Probe Line 2
-  */
-#define PROBE_LINE2_CLK_DISABLE()                 __HAL_RCC_GPIOB_CLK_DISABLE()
+/* PCB 1.1 has no debug probe lines: PB12 supplies the RF switch, PB13 is
+ * not bonded out in the UFQFPN48. */
 
 /* USER CODE BEGIN EC */
 
@@ -94,41 +53,6 @@ extern "C" {
 /* USER CODE END EV */
 
 /* Exported macro ------------------------------------------------------------*/
-#if !defined (DISABLE_PROBE_GPIO)
-
-/**
-  * @brief Set pin to x value
-  */
-#define PROBE_GPIO_WRITE( gpio, n, x )     HAL_GPIO_WritePin( gpio, n, (GPIO_PinState)(x) )
-
-/**
-  * @brief Set pin to high level
-  */
-#define PROBE_GPIO_SET_LINE( gpio, n )     LL_GPIO_SetOutputPin( gpio, n )
-
-/**
-  * @brief Set pin to low level
-  */
-#define PROBE_GPIO_RST_LINE( gpio, n )     LL_GPIO_ResetOutputPin( gpio, n )
-
-#else  /* DISABLE_PROBE_GPIO */
-
-/**
-  * @brief not usable
-  */
-#define PROBE_GPIO_WRITE( gpio, n, x )
-
-/**
-  * @brief not usable
-  */
-#define PROBE_GPIO_SET_LINE( gpio, n )
-
-/**
-  * @brief not usable
-  */
-#define PROBE_GPIO_RST_LINE( gpio, n )
-
-#endif /* DISABLE_PROBE_GPIO */
 
 /* USER CODE BEGIN EM */
 

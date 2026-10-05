@@ -20,18 +20,14 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usart_if.h"
+#include <stdbool.h>
 
 /* USER CODE BEGIN Includes */
-#include "sw_uart.h"
+#include "usart.h"
 
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
-/**
-  * @brief DMA handle
-  */
-extern DMA_HandleTypeDef hdma_usart1_tx;
-
 /**
   * @brief UART handle
   */
@@ -88,7 +84,10 @@ static void (*TxCpltCallback)(void *);
 static void (*RxCpltCallback)(uint8_t *rxChar, uint16_t size, uint8_t error);
 
 /* USER CODE BEGIN PV */
-
+/**
+  * @brief USART1 is clocked and its pins are in AF mode
+  */
+static bool debug_uart_on;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -106,7 +105,7 @@ UTIL_ADV_TRACE_Status_t vcom_Init(void (*cb)(void *))
   /* USER CODE END vcom_Init_1 */
   TxCpltCallback = cb;
 #if APP_LOG_ENABLED
-  SW_UART_Init();
+  DebugUart_Start();
 #endif
   return UTIL_ADV_TRACE_OK;
   /* USER CODE BEGIN vcom_Init_2 */
@@ -142,12 +141,7 @@ void vcom_Trace(uint8_t *p_data, uint16_t size)
   /* USER CODE BEGIN vcom_Trace_1 */
 
   /* USER CODE END vcom_Trace_1 */
-  uint16_t i;
-
-  for (i = 0U; i < size; i++)
-  {
-    SW_UART_WriteByte(p_data[i]);
-  }
+  DebugUart_WriteBytes(p_data, size);
   /* USER CODE BEGIN vcom_Trace_2 */
 
   /* USER CODE END vcom_Trace_2 */
@@ -187,9 +181,12 @@ void vcom_Resume(void)
   /* USER CODE BEGIN vcom_Resume_1 */
 
   /* USER CODE END vcom_Resume_1 */
-#if APP_LOG_ENABLED
-  SW_UART_Init();
-#endif
+  /* USART1 loses its configuration in STOP2: restart it if it was running. */
+  if (debug_uart_on)
+  {
+    debug_uart_on = false;
+    DebugUart_Start();
+  }
   /* USER CODE BEGIN vcom_Resume_2 */
 
   /* USER CODE END vcom_Resume_2 */
@@ -230,9 +227,42 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 /* USER CODE BEGIN EF */
 
+/* USART1 on H1 (PB6 TX, PB7 RX), 115200 8N1. Started only while something
+ * is printed (Debug build trace or the DIP 3 debug profile); otherwise the
+ * peripheral stays unclocked and PB6/PB7 stay analog. Present in every
+ * build, unlike APP_LOG. */
+void DebugUart_Start(void)
+{
+  if (debug_uart_on) return;
+  MX_USART1_UART_Init();
+  debug_uart_on = true;
+}
+
+void DebugUart_Stop(void)
+{
+  if (!debug_uart_on) return;
+  (void)HAL_UART_DeInit(&huart1);
+  debug_uart_on = false;
+}
+
+void DebugUart_WriteBytes(const uint8_t *data, uint16_t size)
+{
+  if (!debug_uart_on || size == 0U) return;
+  /* About 87 us per byte at 115200 Bd; allow twice that plus a margin. */
+  (void)HAL_UART_Transmit(&huart1, data, size, 10U + (uint32_t)size / 5U);
+}
+
+void DebugUart_Write(const char *s)
+{
+  uint16_t n = 0U;
+  while (s[n] != '\0' && n < UINT16_MAX) n++;
+  DebugUart_WriteBytes((const uint8_t *)s, n);
+}
+
 int __io_putchar(int ch)
 {
-  SW_UART_WriteByte((uint8_t)ch);
+  uint8_t c = (uint8_t)ch;
+  DebugUart_WriteBytes(&c, 1U);
   return ch;
 }
 

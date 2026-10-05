@@ -105,15 +105,10 @@ extern "C" {
 
 /* USER CODE BEGIN EC */
 
-/**
-  * @brief Set RX pin to high or low level
-  */
-#define DBG_GPIO_RADIO_RX(set_rst) PROBE_GPIO_##set_rst##_LINE(PROBE_LINE1_PORT, PROBE_LINE1_PIN);
-
-/**
-  * @brief Set TX pin to high or low level
-  */
-#define DBG_GPIO_RADIO_TX(set_rst) PROBE_GPIO_##set_rst##_LINE(PROBE_LINE2_PORT, PROBE_LINE2_PIN);
+/* No radio probe lines on PCB 1.1: PB12 supplies the RF switch and PB13 is
+ * not bonded out in the UFQFPN48. Both hooks are deliberately empty. */
+#define DBG_GPIO_RADIO_RX(set_rst)
+#define DBG_GPIO_RADIO_TX(set_rst)
 
 /* USER CODE END EC */
 

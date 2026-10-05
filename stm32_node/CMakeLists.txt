@@ -32,6 +32,9 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 enable_language(C ASM)
 
 # Create an executable object type
+# Debug builds trace to USART1 on H1; Release keeps APP_LOG off.
+add_compile_definitions($<$<CONFIG:Debug>:APP_LOG_ENABLED=1>)
+
 add_executable(${CMAKE_PROJECT_NAME})
 
 # Add STM32CubeMX generated sources

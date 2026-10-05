@@ -38,7 +38,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+/* RF monitor outputs that would land on pins PCB 1.1 uses. */
+#if (DEBUG_RF_NRESET_ENABLED == 1) || (DEBUG_RF_BUSY_ENABLED == 1)
+#error "PA11/PA12 are I2C2 on PCB 1.1; RF NRESET/BUSY monitoring is not available"
+#endif
+#if (DEBUG_SUBGHZSPI_MONITORING_ENABLED == 1) || (DEBUG_RF_SMPSRDY_ENABLED == 1) || \
+    (DEBUG_RF_LDORDY_ENABLED == 1) || (DEBUG_RF_DTB1_ENABLED == 1)
+#error "PA4..PA7, PB2, PB3 and PB4 are board signals on PCB 1.1; RF monitoring there is not available"
+#endif
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -83,25 +90,11 @@ void DBG_Init(void)
 #error "DEBUGGER_ENABLED not defined or out of range <0,1>"
 #endif /* DEBUGGER_OFF */
 
+  /* No SW probe pins on PCB 1.1. This function never touches PA11/PA12
+   * (I2C2) or PB12 (RF switch supply), with or without DEBUGGER_ENABLED. */
   GPIO_InitTypeDef  GPIO_InitStruct = {0};
+  (void)GPIO_InitStruct;
 
-  /* Configure the GPIO pin */
-  GPIO_InitStruct.Mode   = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull   = GPIO_NOPULL;
-  GPIO_InitStruct.Speed  = GPIO_SPEED_FREQ_VERY_HIGH;
-
-  /* Enable the GPIO Clock */
-  PROBE_LINE1_CLK_ENABLE();
-  PROBE_LINE2_CLK_ENABLE();
-
-  GPIO_InitStruct.Pin    = PROBE_LINE1_PIN;
-  HAL_GPIO_Init(PROBE_LINE1_PORT, &GPIO_InitStruct);
-  GPIO_InitStruct.Pin    = PROBE_LINE2_PIN;
-  HAL_GPIO_Init(PROBE_LINE2_PORT, &GPIO_InitStruct);
-
-  /* Reset probe Pins */
-  HAL_GPIO_WritePin(PROBE_LINE1_PORT, PROBE_LINE1_PIN, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(PROBE_LINE2_PORT, PROBE_LINE2_PIN, GPIO_PIN_RESET);
   /* USER CODE BEGIN DBG_Init_2 */
 
   /* USER CODE END DBG_Init_2 */
@@ -119,15 +112,6 @@ void DBG_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 #endif /* DEBUG_SUBGHZSPI_MONITORING_ENABLED */
 
-#if (DEBUG_RF_NRESET_ENABLED == 1)
-  GPIO_InitStruct.Pin = GPIO_PIN_11;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF13_DEBUG_RF;
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-#endif /* DEBUG_RF_NRESET_ENABLED */
 
 #if (DEBUG_RF_HSE32RDY_ENABLED == 1)
   GPIO_InitStruct.Pin = GPIO_PIN_10;
@@ -169,16 +153,6 @@ void DBG_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 #endif /* DEBUG_RF_DTB1_ENABLED */
 
-#if (DEBUG_RF_BUSY_ENABLED == 1)
-  /* Busy */
-  GPIO_InitStruct.Pin    = (GPIO_PIN_12);
-  GPIO_InitStruct.Mode   = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull   = GPIO_NOPULL;
-  GPIO_InitStruct.Speed  = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate  = GPIO_AF6_RF_BUSY;
-  __HAL_RCC_GPIOA_CLK_ENABLE() ;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-#endif /* DEBUG_RF_BUSY_ENABLED */
 
   /* USER CODE BEGIN DBG_Init_3 */
 

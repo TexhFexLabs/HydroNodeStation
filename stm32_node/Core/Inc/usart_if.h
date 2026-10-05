@@ -107,7 +107,13 @@ void vcom_DMA_TX_IRQHandler(void);
 void vcom_Resume(void);
 
 /* USER CODE BEGIN EFP */
-
+/**
+  * @brief  Debug output on USART1 (H1), available in Release builds as well
+  */
+void DebugUart_Start(void);
+void DebugUart_Stop(void);
+void DebugUart_WriteBytes(const uint8_t *data, uint16_t size);
+void DebugUart_Write(const char *s);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus

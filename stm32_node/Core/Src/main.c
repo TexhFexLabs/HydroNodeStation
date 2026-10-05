@@ -25,7 +25,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "sw_uart.h"
 #include "debug_profile.h"
 #include "runtime_health.h"
 #include "power_rail.h"
@@ -97,7 +96,7 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C2_Init();
   MX_LoRaWAN_Init();
-  /* MX_USART1_UART_Init() removed: trace uses SW-UART (PA6), HW USART1 is unused */
+  /* USART1 (H1) is started by the trace driver or the DIP 3 profile only. */
   /* USER CODE BEGIN 2 */
   /* Debug profile: switch on PB4 → read all sensors forever, skip LoRaWAN.
    * MX_LoRaWAN_Init() above already called SystemApp_Init() (trace up) and

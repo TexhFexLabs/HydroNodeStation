@@ -94,7 +94,6 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sys_sensors.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/timer_if.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/usart_if.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sw_uart.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/bq25185.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/power_rail.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/debug_profile.c
