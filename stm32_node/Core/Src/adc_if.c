@@ -92,6 +92,19 @@ static uint16_t adc_panel_mv(uint32_t pin_raw, uint32_t vdda_mv)
   return (mv > 0xFFFEU) ? 0xFFFEU : (uint16_t)mv;
 }
 
+/* Internal sensor in 0.01 degC from TS_CAL1 (30 degC) and TS_CAL2 (130 degC),
+ * both taken at VDDA = 3.3 V; the reading is rescaled to that VDDA first. */
+static int16_t adc_temperature_x100(uint32_t ts_raw, uint32_t vdda_mv, uint32_t cal1, uint32_t cal2)
+{
+  int32_t scaled = (int32_t)((ts_raw * vdda_mv + TEMPSENSOR_CAL_VREFANALOG / 2U) / TEMPSENSOR_CAL_VREFANALOG);
+  int32_t span = (int32_t)cal2 - (int32_t)cal1;
+  int32_t t = (TEMPSENSOR_CAL2_TEMP - TEMPSENSOR_CAL1_TEMP) * 100 * (scaled - (int32_t)cal1) / span
+              + TEMPSENSOR_CAL1_TEMP * 100;
+  if (t > 32767) t = 32767;
+  if (t < -32767) t = -32767;
+  return (int16_t)t;
+}
+
 /* One ADC session: calibrate, convert VREFINT and one channel ADC_SAMPLES
  * times each with the longest sampling time (160.5 cycles at 12 MHz, the
  * divider has about 60 kOhm source impedance plus C28), then switch the ADC
@@ -163,6 +176,14 @@ bool SYS_ReadSolarMv(uint16_t *panel_mv)
   return true;
 }
 
+bool SYS_ReadBoardTemperature(int16_t *temperature_x100)
+{
+  uint32_t vref, ts;
+  uint32_t cal1 = *TEMPSENSOR_CAL1_ADDR, cal2 = *TEMPSENSOR_CAL2_ADDR;
+  if (temperature_x100 == NULL || cal2 <= cal1 || !adc_session(ADC_CHANNEL_TEMPSENSOR, &vref, &ts)) return false;
+  *temperature_x100 = adc_temperature_x100(ts, adc_vdda_mv(vref, *VREFINT_CAL_ADDR), cal1, cal2);
+  return true;
+}
 /* USER CODE END EF */
 
 void SYS_InitMeasurement(void)

@@ -95,6 +95,12 @@ uint16_t SYS_GetBatteryLevel(void);
   */
 bool SYS_ReadSolarMv(uint16_t *panel_mv);
 
+/**
+  * @brief  Internal temperature sensor in 0.01 degC, factory-calibrated
+  * @param  temperature_x100 board temperature in 0.01 degC
+  * @return false on an ADC error or missing calibration (nothing written)
+  */
+bool SYS_ReadBoardTemperature(int16_t *temperature_x100);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus

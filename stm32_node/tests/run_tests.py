@@ -122,12 +122,16 @@ int main(void)
     compile_run(tmp, 'rfsw', [tmp/'rfsw.c'])
     adc = '\n'.join(function('Core/Src/adc_if.c', s) for s in [
         'static uint32_t adc_vdda_mv(uint32_t vref_raw, uint32_t vref_cal)',
-        'static uint16_t adc_panel_mv(uint32_t pin_raw, uint32_t vdda_mv)'])
+        'static uint16_t adc_panel_mv(uint32_t pin_raw, uint32_t vdda_mv)',
+        'static int16_t adc_temperature_x100(uint32_t ts_raw, uint32_t vdda_mv, uint32_t cal1, uint32_t cal2)'])
     (tmp/'adc.c').write_text(r'''
 #include <stdint.h>
 #include <assert.h>
 #include <stdio.h>
 #define VREFINT_CAL_VREF 3300UL
+#define TEMPSENSOR_CAL_VREFANALOG 3300UL
+#define TEMPSENSOR_CAL1_TEMP ((int32_t)30)
+#define TEMPSENSOR_CAL2_TEMP ((int32_t)130)
 #define SOLAR_DIVIDER_NUM 5U
 #define SOLAR_DIVIDER_DEN 2U
 #define ADC_FULL_SCALE 4095U
@@ -138,7 +142,14 @@ int main(void) {
     /* Panel Voc max 6.91 V -> 2.764 V at PB2 -> 3430 counts at 3.3 V. */
     assert(adc_panel_mv(3430, 3300) == 6910U);
     assert(adc_panel_mv(0, 3300) == 0U && adc_panel_mv(4095, 3300) == 8250U);
-    puts("ADC: VREFINT-scaled VDDA and solar divider 2.5:1 passed");
+    /* Temperature: TS_CAL1 at 30 degC, TS_CAL2 at 130 degC (both at 3.3 V). */
+    assert(adc_temperature_x100(1000, 3300, 1000, 1300) == 3000);
+    assert(adc_temperature_x100(1300, 3300, 1000, 1300) == 13000);
+    assert(adc_temperature_x100(1075, 3300, 1000, 1300) == 5500);
+    /* Same die temperature at VDDA 3.0 V reads proportionally higher counts. */
+    assert(adc_temperature_x100(1100, 3000, 1000, 1300) == 3000);
+    assert(adc_temperature_x100(925, 3300, 1000, 1300) == 500);
+    puts("ADC: VREFINT-scaled VDDA, solar divider 2.5:1 and calibrated board temperature passed");
 }
 ''')
     compile_run(tmp, 'adc', [tmp/'adc.c'])
