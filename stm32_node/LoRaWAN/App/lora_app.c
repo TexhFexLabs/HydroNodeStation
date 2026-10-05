@@ -380,11 +380,6 @@ static uint8_t                  tx_counter    = 0U;
 static uint32_t                 last_sps30_clean_timestamp = 0U;
 
 /**
-  * @brief  Flag for button status
-  */
-static volatile bool user_button_is_press = false;
-
-/**
   * @brief LoRaWAN Certification Mode
   */
 static bool CertMode = LORAWAN_CERTIFICATION_MODE;
@@ -1045,30 +1040,6 @@ static void EventCallback(void)
 }
 
 /* USER CODE BEGIN PB_Callbacks */
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  switch (GPIO_Pin)
-  {
-    case  BUT1_Pin:
-      /* Note: when "EventType == TX_ON_TIMER" this GPIO is not initialized */
-      if (EventType == TX_ON_EVENT)
-      {
-        static uint32_t last_press_timestamp_ms = 0;
-
-        /* Debounce the button press, avoid multiple triggers */
-        if ((int32_t)(SysTimeToMs(SysTimeGet()) - last_press_timestamp_ms) > 500)
-        {
-          last_press_timestamp_ms = SysTimeToMs(SysTimeGet());
-          user_button_is_press    = true;
-        }
-      }
-      break;
-    default:
-      break;
-  }
-}
-
 
 /* USER CODE END PB_Callbacks */
 

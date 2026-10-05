@@ -98,7 +98,7 @@ int main(void)
   /* Debug profile: switch on PB4 → read all sensors forever, skip LoRaWAN.
    * MX_LoRaWAN_Init() above already called SystemApp_Init() (trace up) and
    * LoRaWAN_Init() (sensors init'd), so APP_LOG and EnvSensors_Read are ready. */
-  if (HAL_GPIO_ReadPin(DEBUG_SW_GPIO_Port, DEBUG_SW_Pin) == GPIO_PIN_SET)
+  if (HAL_GPIO_ReadPin(DIP3_DEBUG_GPIO_Port, DIP3_DEBUG_Pin) == GPIO_PIN_SET)
   {
     DebugProfile_Run(); /* never returns */
   }
