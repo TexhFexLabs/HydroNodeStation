@@ -47,6 +47,8 @@
 #include "i2c.h"
 #include "nvm_store.h"
 #include "link_check.h"
+#include "ina226.h"
+#include "solar.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -310,6 +312,17 @@ static void OnSps30TimerEvent(void *context);
 static void OnSps30CleanupTimerEvent(void *context);
 
 /**
+  * @brief  Solar sampling timer callback (every SOLAR_SAMPLE_S)
+  * @param  context ptr
+  */
+static void OnSolarTimerEvent(void *context);
+
+/**
+  * @brief  One solar sample: INA226 (and later the PB2 ADC) into the block statistics
+  */
+static void SampleSolar(void);
+
+/**
   * @brief  Charger CE timer callback: re-enables charging after the CE pulse
   * @param  context ptr
   */
@@ -468,12 +481,17 @@ static UTIL_TIMER_Object_t ChargerCeTimer;
 static UTIL_TIMER_Object_t ChargerSafetyTimer;
 
 /**
+  * @brief Periodic solar sampling timer; posts EVENT_SOLAR only
+  */
+static UTIL_TIMER_Object_t SolarTimer;
+
+/**
   * @brief Active TX duty cycle in seconds. Defaults to APP_TX_DUTYCYCLE, overridden by a
   *        flash-stored value at boot and by the downlink SET_TX_INTERVAL command at runtime.
   */
 static uint32_t tx_dutycycle_s = APP_TX_DUTYCYCLE;
 
-enum { EVENT_SCD_START=1U, EVENT_SCD_RESTART=2U, EVENT_SPS_START=4U, EVENT_SPS_STOP=8U };
+enum { EVENT_SCD_START=1U, EVENT_SCD_RESTART=2U, EVENT_SPS_START=4U, EVENT_SPS_STOP=8U, EVENT_SOLAR=16U };
 static volatile uint32_t sensor_events;
 static power_policy_t power_policy;
 static sensor_t battery_sample;
@@ -492,6 +510,9 @@ static link_check_t link_check;
 static bool rejoin_requested;
 /* Unanswered link-check days behind the last rejoin, for fPort 99 (0x0430). */
 static uint8_t rejoin_report_days;
+/* Solar statistics since the last block the modem accepted. */
+static solar_acc_t solar_acc;
+static uint8_t solar_ina_failures;
 
 /* USER CODE END PV */
 
@@ -566,6 +587,11 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Create(&ChargerSafetyTimer, BQ25185_SAFETY_RESET_INTERVAL_MS, UTIL_TIMER_PERIODIC, OnChargerSafetyTimerEvent, NULL);
   UTIL_TIMER_Start(&ChargerSafetyTimer);
 
+  /* Solar input: 30 s samples in NORMAL and SAVE (TD_2_0_10). */
+  UTIL_TIMER_Create(&SolarTimer, SOLAR_SAMPLE_S * 1000U, UTIL_TIMER_PERIODIC, OnSolarTimerEvent, NULL);
+  UTIL_TIMER_Start(&SolarTimer);
+  Solar_Reset(&solar_acc);
+
   /* USER CODE END LoRaWAN_Init_1 */
 
   /* Both snapshots unreadable on a migrated device is a condition stored in
@@ -615,7 +641,12 @@ void LoRaWAN_Process(void)
   }
   else
   {
-    /* Expected dormancy is progress too; no radio or heavy sensor startup. */
+    /* Expected dormancy is progress too; no radio or heavy sensor startup.
+     * No solar sampling either; the INA226 stays powered down. */
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    sensor_events &= ~(uint32_t)EVENT_SOLAR;
+    __set_PRIMASK(primask);
     Runtime_ExpectProgress(POWER_CHECK_S + 120U);
   }
   if (sleep_time_ms > RUNTIME_MAX_SLEEP_MS) sleep_time_ms = RUNTIME_MAX_SLEEP_MS;
@@ -740,6 +771,11 @@ static void ProcessSensorEvents(void)
   uint32_t pending = sensor_events;
   sensor_events = 0U;
   __set_PRIMASK(primask);
+  if (pending & EVENT_SOLAR)
+  {
+    pending &= ~(uint32_t)EVENT_SOLAR;
+    if (power_policy.mode != POWER_RECOVERY) SampleSolar();
+  }
   if (!pending) return;
   ReadBattery();
   ServicePower();
@@ -1472,6 +1508,34 @@ static void OnSps30CleanupTimerEvent(void *context)
 {
   (void)context;
   sensor_events |= EVENT_SPS_STOP;
+}
+
+static void OnSolarTimerEvent(void *context)
+{
+  (void)context;
+  sensor_events |= EVENT_SOLAR;
+}
+
+static void SampleSolar(void)
+{
+  solar_sample_t sample = { 0 };
+  INA226_Data_t ina;
+
+  if (INA226_Measure(&ina) == INA226_OK)
+  {
+    sample.ina_valid = true;
+    sample.bus_mv = ina.bus_mv;
+    sample.current_01ma = ina.current_01ma;
+    solar_ina_failures = 0U;
+  }
+  else
+  {
+    if (solar_ina_failures != UINT8_MAX) solar_ina_failures++;
+    /* A part missing at boot is retried here, cheaply, every sample; the
+     * bus is recovered once, when a read error becomes persistent. */
+    if (INA226_Init() != INA226_OK && solar_ina_failures == 3U) (void)I2C2_RecoverBus();
+  }
+  Solar_Add(&solar_acc, &sample);
 }
 
 static void ChargerSafetyTimerReset(void)

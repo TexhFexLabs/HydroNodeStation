@@ -81,6 +81,8 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../LoRaWAN/App/lora_app.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/power_policy.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/link_check.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/solar.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/ina226.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/nvm_store.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/nvm_port.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/runtime_health.c

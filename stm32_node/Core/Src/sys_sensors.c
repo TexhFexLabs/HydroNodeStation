@@ -34,6 +34,7 @@
 #include "i2c.h"
 #include "sys_app.h"
 #include "adc_if.h"
+#include "ina226.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -216,6 +217,11 @@ int32_t EnvSensors_Init(void)
   if (SPS30_Init() != SPS30_STATUS_OK)
   {
     APP_LOG(TS_OFF, VLEVEL_M, "SPS30 not found\r\n");
+  }
+
+  if (INA226_Init() != INA226_OK)
+  {
+    APP_LOG(TS_OFF, VLEVEL_M, "INA226 not found\r\n");
   }
 
   return 0;

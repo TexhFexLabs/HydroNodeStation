@@ -33,6 +33,7 @@ with tempfile.TemporaryDirectory(prefix='hydronode-tests-') as temp:
     test_scd41.run(ROOT, tmp)
     compile_run(tmp, 'power', [ROOT/'tests/test_power.c', ROOT/'Core/Src/power_policy.c'])
     compile_run(tmp, 'nvm', [ROOT/'tests/test_nvm.c', ROOT/'Core/Src/nvm_store.c'])
+    compile_run(tmp, 'solar', [ROOT/'tests/test_solar.c', ROOT/'Core/Src/solar.c'])
     compile_run(tmp, 'linkcheck', [ROOT/'tests/test_link_check.c', ROOT/'Core/Src/link_check.c'])
     gauge = function('Core/Src/max17048.c', 'static uint16_t max17048_soc_x100(uint16_t raw)') + '\n' + \
             function('Core/Src/max17048.c', 'static int16_t max17048_crate_x100(uint16_t raw)')
@@ -201,8 +202,8 @@ int main(void) {
         if path.suffix in ('.c', '.h'):
             assert not re.search(pattern,path.read_text()), path
     app=(ROOT/'LoRaWAN/App/lora_app.c').read_text()
-    for name in ['OnScd41TimerEvent','OnScd41RestartTimerEvent','OnSps30TimerEvent','OnSps30CleanupTimerEvent']:
+    for name in ['OnScd41TimerEvent','OnScd41RestartTimerEvent','OnSps30TimerEvent','OnSps30CleanupTimerEvent','OnSolarTimerEvent']:
         body=function('LoRaWAN/App/lora_app.c', f'static void {name}(void *context)')
-        assert not re.search(r'EnvSensors_|SPS30_|HAL_Delay|HAL_I2C', body), name
+        assert not re.search(r'EnvSensors_|SPS30_|INA226_|SampleSolar|HAL_Delay|HAL_I2C', body), name
     print('Port audit: no truncated seconds clocks; sensor timer IRQs contain no I/O')
 print('All host tests passed. Hardware fault injection and power measurements remain required.')
