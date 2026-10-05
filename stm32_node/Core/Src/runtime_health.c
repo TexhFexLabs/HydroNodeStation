@@ -153,6 +153,18 @@ void Runtime_EarlyFault(uint32_t reason, uint32_t hold_s)
     for (;;) { }
 }
 
+void Runtime_Restart(uint32_t reason)
+{
+    __disable_irq();
+    if (ready)
+    {
+        HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR6, reason);
+        HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR7, 0U);
+    }
+    NVIC_SystemReset();
+    for (;;) { }
+}
+
 uint32_t Runtime_BootCount(void) { return boot_count; }
 uint32_t Runtime_ResetFlags(void) { return reset_flags; }
 uint32_t Runtime_LastFault(void) { return last_fault; }

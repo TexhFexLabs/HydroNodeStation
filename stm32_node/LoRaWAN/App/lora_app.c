@@ -216,6 +216,7 @@ typedef struct
   * @brief  LoRa End Node send request
   */
 static void SendTxData(uint8_t port);
+static void ScheduleNextRound(void);
 static void BuildBlock(payload_block_t *block);
 static void CommitBlock(const payload_block_t *block);
 static void ProcessSensorEvents(void);
@@ -1357,36 +1358,43 @@ static void SendTxData(uint8_t port)
         ++failed_uplinks >= 5U) Runtime_Fault(RUNTIME_FAULT_MODEM);
   }
 
-  if (EventType == TX_ON_TIMER)
-  {
-    smtc_modem_status_mask_t status_mask = 0;
-    smtc_modem_get_status(STACK_ID, &status_mask);
-    uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : tx_dutycycle_s;
-
-    if (power_policy.mode == POWER_SAVE) dutycycle *= 2U;
-    if (smtc_modem_alarm_start_timer(dutycycle) != SMTC_MODEM_RC_OK)
-      Runtime_Fault(RUNTIME_FAULT_MODEM);
-    Runtime_ExpectProgress(dutycycle + 600U);
-    next_measurement_at = SysTimeGetMcuTime().Seconds + dutycycle;
-
-    /* Schedule pre-measurement only for the next cycle where data is needed */
-    uint8_t next_counter = (tx_counter % 10U) + 1U;
-
-    if (SCD41_ENABLED && next_counter % 5U == 0U)
-    {
-      UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U > SCD41_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SCD41_PRE_MEASUREMENT_TIME_MS : 1U);
-      UTIL_TIMER_Start(&Scd41Timer);
-      UTIL_TIMER_SetPeriod(&Scd41RestartTimer, (dutycycle * 1000U > SCD41_RESTART_TIME_MS) ? dutycycle * 1000U - SCD41_RESTART_TIME_MS : 1U);
-      UTIL_TIMER_Start(&Scd41RestartTimer);
-    }
-
-    if (next_counter % 10U == 0U)
-    {
-      UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U > SPS30_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SPS30_PRE_MEASUREMENT_TIME_MS : 1U);
-      UTIL_TIMER_Start(&Sps30Timer);
-    }
-  }
+  if (EventType == TX_ON_TIMER) ScheduleNextRound();
   /* USER CODE END SendTxData_1 */
+}
+
+/* Alarm for the next round, from now, plus the pre-measurements it needs.
+ * Also used when a downlink changes the interval, so it applies at once. */
+static void ScheduleNextRound(void)
+{
+  smtc_modem_status_mask_t status_mask = 0;
+  smtc_modem_get_status(STACK_ID, &status_mask);
+  uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : tx_dutycycle_s;
+
+  if (power_policy.mode == POWER_SAVE) dutycycle *= 2U;
+  if (smtc_modem_alarm_start_timer(dutycycle) != SMTC_MODEM_RC_OK)
+    Runtime_Fault(RUNTIME_FAULT_MODEM);
+  Runtime_ExpectProgress(dutycycle + 600U);
+  next_measurement_at = SysTimeGetMcuTime().Seconds + dutycycle;
+
+  /* Schedule pre-measurement only for the next cycle where data is needed */
+  uint8_t next_counter = (tx_counter % 10U) + 1U;
+  UTIL_TIMER_Stop(&Scd41Timer);
+  UTIL_TIMER_Stop(&Scd41RestartTimer);
+  UTIL_TIMER_Stop(&Sps30Timer);
+
+  if (SCD41_ENABLED && next_counter % 5U == 0U)
+  {
+    UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U > SCD41_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SCD41_PRE_MEASUREMENT_TIME_MS : 1U);
+    UTIL_TIMER_Start(&Scd41Timer);
+    UTIL_TIMER_SetPeriod(&Scd41RestartTimer, (dutycycle * 1000U > SCD41_RESTART_TIME_MS) ? dutycycle * 1000U - SCD41_RESTART_TIME_MS : 1U);
+    UTIL_TIMER_Start(&Scd41RestartTimer);
+  }
+
+  if (next_counter % 10U == 0U)
+  {
+    UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U > SPS30_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SPS30_PRE_MEASUREMENT_TIME_MS : 1U);
+    UTIL_TIMER_Start(&Sps30Timer);
+  }
 }
 
 static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata)
@@ -1410,6 +1418,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
   }
 
   const uint8_t command = payload[0];
+  uint16_t result = FAULT_CMD_OK;
   APP_LOG(TS_ON, VLEVEL_M, "Received command 0x%02X (size=%u, port=%u)\r\n",
           (unsigned)command,
           (unsigned)size,
@@ -1420,7 +1429,11 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
     case RX_CMD_TRIGGER_SPS30_CLEANING:
     {
       ReadBattery();
-      if (power_policy.mode != POWER_NORMAL || !(battery_sample.valid & SENSOR_VALID_BATTERY)) break;
+      if (power_policy.mode != POWER_NORMAL || !(battery_sample.valid & SENSOR_VALID_BATTERY))
+      {
+        result = FAULT_CMD_REFUSED;
+        break;
+      }
       bool measurement_started = false;
       bool cleaning_started = false;
 
@@ -1429,6 +1442,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       if (SPS30_AcquireBus() != SPS30_STATUS_OK)
       {
         APP_LOG(TS_ON, VLEVEL_M, "SPS30 bus acquire failed\r\n");
+        result = FAULT_CMD_FAILED;
         break;
       }
 
@@ -1436,6 +1450,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       {
         (void)SPS30_ReleaseBus();
         APP_LOG(TS_ON, VLEVEL_M, "SPS30 wake-up failed\r\n");
+        result = FAULT_CMD_FAILED;
         break;
       }
 
@@ -1468,7 +1483,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       }
 
       (void)SPS30_ReleaseBus();
-
+      if (!cleaning_started) result = FAULT_CMD_FAILED;
       break;
     }
     case RX_CMD_SET_TX_INTERVAL:
@@ -1476,6 +1491,7 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       if (size < 3U)
       {
         APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: payload too short (size=%u)\r\n", (unsigned)size);
+        result = FAULT_CMD_INVALID;
         break;
       }
 
@@ -1485,16 +1501,22 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       {
         APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: %u s out of range [%u..%u], ignored\r\n",
                 (unsigned)new_interval, (unsigned)APP_TX_DUTYCYCLE_MIN_S, (unsigned)APP_TX_DUTYCYCLE_MAX_S);
+        result = FAULT_CMD_INVALID;
         break;
       }
 
       if (AppConfig_SaveTxDutycycle(new_interval))
       {
+        /* Applies now, not after the next restart: the next round is
+         * rescheduled from this moment with the new interval. */
+        tx_dutycycle_s = new_interval;
+        if (EventType == TX_ON_TIMER) ScheduleNextRound();
         APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval set to %u s (saved)\r\n", (unsigned)tx_dutycycle_s);
       }
       else
       {
         APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval unchanged at %u s (flash save FAILED)\r\n", (unsigned)tx_dutycycle_s);
+        result = FAULT_CMD_SAVE_FAILED;
       }
       break;
     }
@@ -1512,17 +1534,23 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       append_u16_be(diagnostic, &n, Runtime_PanicCount());
       diagnostic[n++] = Runtime_NvmErrorCount();
       diagnostic[n++] = Runtime_LastNvmError();
-      (void)smtc_modem_request_uplink(STACK_ID, 5U, false, diagnostic, n);
+      if (smtc_modem_request_uplink(STACK_ID, 5U, false, diagnostic, n) != SMTC_MODEM_RC_OK)
+        result = FAULT_CMD_NOT_ACCEPTED;
       break;
     }
     case RX_CMD_SOFTWARE_RESET:
       APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger software reset\r\n");
-      HAL_NVIC_SystemReset();
+      /* An acknowledgement queued now would die with the reset: the boot
+       * entry 0x0540 carries reason 7 instead. */
+      Runtime_Restart(RUNTIME_REASON_COMMAND);
       break;
     default:
       APP_LOG(TS_ON, VLEVEL_M, "Message: Unknown command 0x%02X\r\n", (unsigned)command);
+      result = FAULT_CMD_UNKNOWN;
       break;
   }
+  /* Leaves with the next fPort 99 frame, not at once. */
+  Fault_Event(FAULT_CODE(FAULT_CAT_COMMAND, command), result);
 }
 
 

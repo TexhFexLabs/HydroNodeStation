@@ -29,6 +29,15 @@
 #define FAULT_COMP_TEMP_SENSOR    0x09U
 #define FAULT_COMP_I2C_BUS        0x10U  /* bus recovery failed */
 
+/* Command acknowledgement results (category 0x06 detail, TD_2_0_16). */
+#define FAULT_CMD_OK              0U  /* executed (0x10: new interval in effect now) */
+#define FAULT_CMD_INVALID         1U  /* length or parameter invalid */
+#define FAULT_CMD_REFUSED         2U  /* refused because of battery or power mode */
+#define FAULT_CMD_SAVE_FAILED     3U  /* could not be stored */
+#define FAULT_CMD_UNKNOWN         4U  /* unknown command byte */
+#define FAULT_CMD_NOT_ACCEPTED    5U  /* modem did not accept the reply (0x12) */
+#define FAULT_CMD_FAILED          6U  /* execution failed (0x11: SPS30 did not respond) */
+
 /* Supply states (category 0x03). Standby shows up as 0x0540 reason 8. */
 #define FAULT_SUPPLY_SAVE         0x20U
 #define FAULT_SUPPLY_RECOVERY     0x21U

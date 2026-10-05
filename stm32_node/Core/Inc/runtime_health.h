@@ -24,6 +24,8 @@ void Runtime_Fault(uint32_t reason) __attribute__((noreturn));
 /* For faults before Runtime_Init (clock setup): stores the reason directly,
  * repeats its blink code on the diagnostic LED for hold_s, then resets. */
 void Runtime_EarlyFault(uint32_t reason, uint32_t hold_s) __attribute__((noreturn));
+/* Planned restart: store the reason for the boot report, then reset. */
+void Runtime_Restart(uint32_t reason) __attribute__((noreturn));
 uint32_t Runtime_BootCount(void);
 uint32_t Runtime_ResetFlags(void);
 uint32_t Runtime_LastFault(void);

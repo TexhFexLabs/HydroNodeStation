@@ -97,7 +97,12 @@ int main(void)
  if(!setjmp(reset)) {Runtime_EarlyFault(RUNTIME_FAULT_LSE,9);assert(0);}
  assert(blinks==3*RUNTIME_FAULT_LSE);  /* 9 s = 36 units, 18 units per group */
  Runtime_Init();assert(Runtime_LastFault()==RUNTIME_FAULT_LSE);
- puts("Actual health module: progress deadline, reset diagnostics, fault blink code, seconds wrap, deliberate dormancy and early LSE fault passed");
+ /* Downlink FF: reason 7 stored, no blink code, then reset. */
+ blinks=0;
+ if(!setjmp(reset)) {Runtime_Restart(RUNTIME_REASON_COMMAND);assert(0);}
+ assert(backup[6]==RUNTIME_REASON_COMMAND && backup[7]==0 && blinks==0);
+ Runtime_Init();assert(Runtime_LastFault()==RUNTIME_REASON_COMMAND);
+ puts("Actual health module: progress deadline, reset diagnostics, fault blink code, seconds wrap, deliberate dormancy, early LSE fault and planned restart passed");
 }
 ''')
     exe=tmp/'health'
