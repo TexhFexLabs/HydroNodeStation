@@ -1,7 +1,7 @@
 /**
  ******************************************************************************
  * @file    debug_profile.h
- * @brief   Debug profile: runs when PB4 (DEBUG_SW_Pin) is HIGH at boot.
+ * @brief   Debug profile: runs when DIP 3 (PB4 to GND) is closed at boot.
  *          Reads all sensors every 2 s and dumps values via APP_LOG.
  *          Normal LoRaWAN program is skipped in this mode.
  ******************************************************************************

@@ -30,6 +30,7 @@
 #include "power_rail.h"
 #include "pulse_counter.h"
 #include "standby.h"
+#include "lora_app.h"
 #include <stdbool.h>
 /* USER CODE END Includes */
 
@@ -111,12 +112,19 @@ int main(void)
   /* USART1 (H1) is started by the trace driver or the DIP 3 profile only. */
   /* USER CODE BEGIN 2 */
   PulseCounter_Init();
-  /* Debug profile: switch on PB4 → read all sensors forever, skip LoRaWAN.
-   * MX_LoRaWAN_Init() above already called SystemApp_Init() (trace up) and
-   * LoRaWAN_Init() (sensors init'd), so APP_LOG and EnvSensors_Read are ready. */
-  if (HAL_GPIO_ReadPin(DIP3_DEBUG_GPIO_Port, DIP3_DEBUG_Pin) == GPIO_PIN_SET)
+  /* DIP 3 (debug profile) wins over DIP 4 (installation mode). The debug
+   * profile reads all sensors forever on USART1 and never starts LoRaWAN;
+   * LoRaWAN_Init() already ran, so the sensors are ready. */
   {
-    DebugProfile_Run(); /* never returns */
+    uint8_t dip = DIP_Read();
+    if (dip & DIP_DEBUG)
+    {
+      DebugProfile_Run(); /* never returns */
+    }
+    if (dip & DIP_INSTALL)
+    {
+      LoRaWAN_EnableInstallMode();
+    }
   }
   {
     uint32_t startTick = HAL_GetTick();

@@ -33,13 +33,14 @@ extern "C" {
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN Private defines */
-
+#define DIP_DEBUG    (1U << 0)  /* DIP 3: debug profile */
+#define DIP_INSTALL  (1U << 1)  /* DIP 4: installation mode */
 /* USER CODE END Private defines */
 
 void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+uint8_t DIP_Read(void);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

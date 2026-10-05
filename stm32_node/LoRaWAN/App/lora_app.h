@@ -138,6 +138,12 @@ void LoRaWAN_Init(void);
   */
 void LoRaWAN_Process(void);
 
+/**
+  * @brief  Installation mode (DIP 4): after the join, 30 min of 60 s uplinks
+  *         on port 2 with a LinkCheck every 3rd uplink, shown on LED1
+  */
+void LoRaWAN_EnableInstallMode(void);
+
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

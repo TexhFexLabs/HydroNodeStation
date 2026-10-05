@@ -53,6 +53,7 @@
 #include "pulse_counter.h"
 #include "fault_report.h"
 #include "standby.h"
+#include "led.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -137,6 +138,14 @@ typedef struct
   * @brief Fault and event frames (TD_2_0_15)
   */
 #define TX_PORT_FAULTS                   99U
+
+/**
+  * @brief Installation mode (DIP 4, TD_2_0_19)
+  */
+#define INSTALL_DURATION_S               1800U
+#define INSTALL_INTERVAL_S               60U
+#define INSTALL_LINKCHECK_EVERY          3U
+#define INSTALL_LINKCHECK_MAX            10U   /* TTN fair use: 10 downlinks a day */
 
 
 /* Application config shares the transactional NVM snapshots. */
@@ -527,6 +536,9 @@ static bool fault_frame_due;
 static uint16_t tx_not_sent, tx_rejected;
 static uint8_t nvm_errors_reported;
 static bool solar_bus_recovered;
+static bool install_requested, install_started, install_check_due, install_check_pending;
+static uint32_t install_until;
+static uint8_t install_uplinks, install_checks;
 /* Power mode the current round's pre-measurements were planned with. */
 static power_mode_t planned_mode;
 
@@ -641,6 +653,16 @@ void LoRaWAN_Init(void)
   battery_checked_at = SysTimeGetMcuTime().Seconds;
   ReportPower();
   ReportNvm();
+}
+
+void LoRaWAN_EnableInstallMode(void)
+{
+  install_requested = true;
+}
+
+static bool Installing(void)
+{
+  return install_started && (int32_t)(SysTimeGetMcuTime().Seconds - install_until) < 0;
 }
 
 void LoRaWAN_Process(void)
@@ -1015,6 +1037,11 @@ static void EventCallback(void)
         {
           uint8_t days = LinkCheck_Joined(&link_check, SysTimeGetMcuTime().Seconds);
           if (days != 0U) Fault_Event(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_REJOIN), days);
+          if (install_requested && !install_started)
+          {
+            install_started = true;
+            install_until = SysTimeGetMcuTime().Seconds + INSTALL_DURATION_S;
+          }
         }
         if (CertMode == false)
         {
@@ -1034,6 +1061,15 @@ static void EventCallback(void)
         {
           fault_frame_due = false;
           SendFaultFrame();
+        }
+        if (install_check_due)
+        {
+          install_check_due = false;
+          if (smtc_modem_trig_lorawan_mac_request(STACK_ID, SMTC_MODEM_LORAWAN_MAC_REQ_LINK_CHECK) == SMTC_MODEM_RC_OK)
+          {
+            install_checks++;
+            install_check_pending = true;
+          }
         }
         if (LinkCheck_Due(&link_check, SysTimeGetMcuTime().Seconds) &&
             smtc_modem_trig_lorawan_mac_request(STACK_ID, SMTC_MODEM_LORAWAN_MAC_REQ_LINK_CHECK) == SMTC_MODEM_RC_OK)
@@ -1096,13 +1132,28 @@ static void EventCallback(void)
         break;
 
       case SMTC_MODEM_EVENT_LINK_CHECK:
+      {
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: LINK_CHECK\r\n");
-        if (LinkCheck_Result(&link_check, current_event.event_data.link_check.status ==
-                             SMTC_MODEM_EVENT_MAC_REQUEST_ANSWERED))
+        bool answered = current_event.event_data.link_check.status == SMTC_MODEM_EVENT_MAC_REQUEST_ANSWERED;
+        if (install_check_pending)
+        {
+          /* Installation: one flash per gateway (max 5), one long flash for
+           * no answer. Unanswered installation checks are no silent day. */
+          uint8_t margin = 0U, gateways = 0U;
+          install_check_pending = false;
+          if (answered && smtc_modem_get_lorawan_link_check_data(STACK_ID, &margin, &gateways) == SMTC_MODEM_RC_OK &&
+              gateways > 0U)
+            Led_Flash(LED_1, gateways > 5U ? 5U : gateways, 150U, 350U);
+          else
+            Led_Flash(LED_1, 1U, 1000U, 0U);
+          if (!answered) break;
+        }
+        if (LinkCheck_Result(&link_check, answered))
         {
           rejoin_requested = true;
         }
         break;
+      }
 
       case SMTC_MODEM_EVENT_CLASS_B_PING_SLOT_INFO:
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: CLASS_B_PING_SLOT_INFO\r\n");
@@ -1243,18 +1294,24 @@ static void SendTxData(uint8_t port)
     return;
   }
   ReportNvm();
-  /* Increment tx_counter */
-  tx_counter++;
-  if (tx_counter > POWER_ROUNDS)
+  /* Installation rounds send port 2 only and leave the round counter alone,
+   * so the normal cycle starts fresh afterwards. */
+  bool installing = Installing();
+  if (!installing)
   {
-    tx_counter = 1U;
+    /* Increment tx_counter */
+    tx_counter++;
+    if (tx_counter > POWER_ROUNDS)
+    {
+      tx_counter = 1U;
+    }
   }
 
   /* Sensors for this round from the adaptive plan (TD_2_0_17). Only what
    * both the planning mode and the current mode ask for: a sensor that was
    * not pre-measured would return stale values, and one that was started but
    * is no longer wanted is put back to sleep. */
-  uint8_t planned = PowerPolicy_Measurements(planned_mode, tx_counter);
+  uint8_t planned = installing ? 0U : PowerPolicy_Measurements(planned_mode, tx_counter);
   uint8_t wanted = (uint8_t)(planned & PowerPolicy_Measurements(power_policy.mode, tx_counter));
   uint8_t sensor_flags = 0U;
   if (SCD41_ENABLED && (wanted & POWER_MEASURE_CO2)) { sensor_flags |= SENSOR_FLAG_CO2; }
@@ -1363,6 +1420,13 @@ static void SendTxData(uint8_t port)
     /* The modem took the block: the next one starts from here. */
     if (has_block) CommitBlock(&block);
     fault_frame_due = true;
+    if (installing)
+    {
+      Led_Flash(LED_1, 1U, 50U, 0U);
+      install_uplinks++;
+      if (install_uplinks % INSTALL_LINKCHECK_EVERY == 0U && install_checks < INSTALL_LINKCHECK_MAX)
+        install_check_due = true;
+    }
   }
   else
   {
@@ -1391,6 +1455,8 @@ static void ScheduleNextRound(void)
   uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : tx_dutycycle_s;
 
   dutycycle = PowerPolicy_Interval(power_policy.mode, dutycycle);
+  bool installing = Installing() && (status_mask & SMTC_MODEM_STATUS_JOINED);
+  if (installing) dutycycle = INSTALL_INTERVAL_S;
   if (smtc_modem_alarm_start_timer(dutycycle) != SMTC_MODEM_RC_OK)
     Runtime_Fault(RUNTIME_FAULT_MODEM);
   Runtime_ExpectProgress(dutycycle + 600U);
@@ -1399,7 +1465,7 @@ static void ScheduleNextRound(void)
   /* Schedule pre-measurement only for the next cycle where data is needed:
    * SCD41 12 s and SPS30 16.5 s ahead, per the plan of the current mode. */
   uint8_t next_counter = (uint8_t)((tx_counter % POWER_ROUNDS) + 1U);
-  uint8_t next = PowerPolicy_Measurements(power_policy.mode, next_counter);
+  uint8_t next = installing ? 0U : PowerPolicy_Measurements(power_policy.mode, next_counter);
   planned_mode = power_policy.mode;
   UTIL_TIMER_Stop(&Scd41Timer);
   UTIL_TIMER_Stop(&Scd41RestartTimer);
