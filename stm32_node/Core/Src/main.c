@@ -28,6 +28,7 @@
 #include "debug_profile.h"
 #include "runtime_health.h"
 #include "power_rail.h"
+#include "pulse_counter.h"
 #include <stdbool.h>
 /* USER CODE END Includes */
 
@@ -105,6 +106,7 @@ int main(void)
   MX_LoRaWAN_Init();
   /* USART1 (H1) is started by the trace driver or the DIP 3 profile only. */
   /* USER CODE BEGIN 2 */
+  PulseCounter_Init();
   /* Debug profile: switch on PB4 → read all sensors forever, skip LoRaWAN.
    * MX_LoRaWAN_Init() above already called SystemApp_Init() (trace up) and
    * LoRaWAN_Init() (sensors init'd), so APP_LOG and EnvSensors_Read are ready. */

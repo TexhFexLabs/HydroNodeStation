@@ -90,10 +90,7 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = GPIO_PIN_0 | SOLAR_ADC_Pin | DBG_UART_TX_Pin | DBG_UART_RX_Pin | DIP4_INSTALL_Pin;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-#ifndef STM32WLE5xx
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-#endif
+  /* EXTI4 / EXTI9_5 for the contact counters: PulseCounter_Init(). */
 
 }
 

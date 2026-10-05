@@ -24,6 +24,7 @@
 #include "nvm_store.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "sys_conf.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -184,6 +185,18 @@ void TAMP_STAMP_LSECSS_SSRU_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles EXTI Line 4 Interrupt (contact counter 1).
+  */
+void EXTI4_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI4_IRQn 0 */
+#if PULSE_COUNTERS_ENABLED
+  HAL_GPIO_EXTI_IRQHandler(CNT1_Pin);
+#endif
+  /* USER CODE END EXTI4_IRQn 0 */
+}
+
+/**
   * @brief This function handles EXTI Lines [9:5] Interrupt.
   */
 void EXTI9_5_IRQHandler(void)
@@ -192,6 +205,9 @@ void EXTI9_5_IRQHandler(void)
 
   /* USER CODE END EXTI9_5_IRQn 0 */
   /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+#if PULSE_COUNTERS_ENABLED
+  HAL_GPIO_EXTI_IRQHandler(CNT2_Pin);
+#endif
 
   /* USER CODE END EXTI9_5_IRQn 1 */
 }

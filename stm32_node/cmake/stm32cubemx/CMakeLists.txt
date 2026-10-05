@@ -82,6 +82,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/power_policy.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/link_check.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/solar.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/pulse_counter.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/ina226.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/adc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/adc_if.c

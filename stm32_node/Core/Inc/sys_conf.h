@@ -88,6 +88,14 @@ extern "C" {
 /* USER CODE BEGIN EC */
 
 /* SCD41 sensor support -----------------------------------------------------*/
+/**
+  * @brief Contact counters on P4 (PA4 rain, PA5 wind). Off by default: the
+  *        pins stay analog and the block reports 0xFFFF for both counters.
+  */
+#ifndef PULSE_COUNTERS_ENABLED
+#define PULSE_COUNTERS_ENABLED             0
+#endif
+
 #ifndef SCD41_ENABLED
 #define SCD41_ENABLED                      1
 #endif
