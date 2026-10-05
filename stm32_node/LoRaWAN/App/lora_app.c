@@ -46,6 +46,7 @@
 #include "max17048.h"
 #include "i2c.h"
 #include "nvm_store.h"
+#include "link_check.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -487,6 +488,10 @@ static uint16_t last_valid_sensors;
 static uint8_t failed_uplinks;
 static bool shutdown_pending;
 static uint32_t next_measurement_at;
+static link_check_t link_check;
+static bool rejoin_requested;
+/* Unanswered link-check days behind the last rejoin, for fPort 99 (0x0430). */
+static uint8_t rejoin_report_days;
 
 /* USER CODE END PV */
 
@@ -686,6 +691,19 @@ static void ServiceJoin(void)
 {
   if (!credentials_ready || power_policy.mode == POWER_RECOVERY) return;
   uint32_t now = SysTimeGetMcuTime().Seconds;
+  if (rejoin_requested)
+  {
+    /* Three days without LinkCheckAns: the server context or the gateway is
+     * gone. Leave and rejoin; the JOINED event restarts the uplink cycle. */
+    rejoin_requested = false;
+    StopSensorTimers();
+    (void)smtc_modem_alarm_clear_timer();
+    (void)smtc_modem_leave_network(STACK_ID);
+    tx_pending = false;
+    join_attempt_active = false;
+    join_backoff_s = 300U;
+    next_join_at = now;
+  }
   smtc_modem_status_mask_t status = 0;
   if (smtc_modem_get_status(STACK_ID, &status) != SMTC_MODEM_RC_OK) return;
   if (status & SMTC_MODEM_STATUS_JOINED)
@@ -892,6 +910,12 @@ static void EventCallback(void)
         //   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET); /* LED_RED */
         // }
         /* USER CODE END EventCallback_1 */
+        /* Static node: let the network server drive the data rate. */
+        ASSERT_SMTC_MODEM_RC(smtc_modem_adr_set_profile(STACK_ID, SMTC_MODEM_ADR_PROFILE_NETWORK_CONTROLLED, NULL));
+        {
+          uint8_t days = LinkCheck_Joined(&link_check, SysTimeGetMcuTime().Seconds);
+          if (days != 0U) rejoin_report_days = days;
+        }
         if (CertMode == false)
         {
           /* Send first periodical uplink */
@@ -901,6 +925,12 @@ static void EventCallback(void)
 
       case SMTC_MODEM_EVENT_TXDONE:
         tx_pending = false;
+        if (LinkCheck_Due(&link_check, SysTimeGetMcuTime().Seconds) &&
+            smtc_modem_trig_lorawan_mac_request(STACK_ID, SMTC_MODEM_LORAWAN_MAC_REQ_LINK_CHECK) == SMTC_MODEM_RC_OK)
+        {
+          /* LBM sends the request as its own MAC-only uplink. */
+          LinkCheck_Requested(&link_check, SysTimeGetMcuTime().Seconds);
+        }
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: TXDONE\r\n");
         APP_LOG(TS_OFF, VLEVEL_H,  "Transmission done \r\n");
         smtc_modem_get_status(STACK_ID, &status_mask);
@@ -957,6 +987,11 @@ static void EventCallback(void)
 
       case SMTC_MODEM_EVENT_LINK_CHECK:
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: LINK_CHECK\r\n");
+        if (LinkCheck_Result(&link_check, current_event.event_data.link_check.status ==
+                             SMTC_MODEM_EVENT_MAC_REQUEST_ANSWERED))
+        {
+          rejoin_requested = true;
+        }
         break;
 
       case SMTC_MODEM_EVENT_CLASS_B_PING_SLOT_INFO:

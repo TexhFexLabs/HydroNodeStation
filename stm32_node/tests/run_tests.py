@@ -33,6 +33,7 @@ with tempfile.TemporaryDirectory(prefix='hydronode-tests-') as temp:
     test_scd41.run(ROOT, tmp)
     compile_run(tmp, 'power', [ROOT/'tests/test_power.c', ROOT/'Core/Src/power_policy.c'])
     compile_run(tmp, 'nvm', [ROOT/'tests/test_nvm.c', ROOT/'Core/Src/nvm_store.c'])
+    compile_run(tmp, 'linkcheck', [ROOT/'tests/test_link_check.c', ROOT/'Core/Src/link_check.c'])
     gauge = function('Core/Src/max17048.c', 'static uint16_t max17048_soc_x100(uint16_t raw)') + '\n' + \
             function('Core/Src/max17048.c', 'static int16_t max17048_crate_x100(uint16_t raw)')
     (tmp/'gauge.c').write_text(r'''
