@@ -30,6 +30,7 @@ extern "C" {
 #include "platform.h"
 
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 
 /* USER CODE END Includes */
 
@@ -87,6 +88,12 @@ int16_t SYS_GetTemperatureLevel(void);
 uint16_t SYS_GetBatteryLevel(void);
 
 /* USER CODE BEGIN EFP */
+/**
+  * @brief  Solar panel voltage from the PB2 divider (x2.5), VREFINT-scaled
+  * @param  panel_mv voltage in mV
+  * @return false on an ADC error (nothing written)
+  */
+bool SYS_ReadSolarMv(uint16_t *panel_mv);
 
 /* USER CODE END EFP */
 

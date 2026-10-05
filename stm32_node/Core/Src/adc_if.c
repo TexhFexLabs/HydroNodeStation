@@ -73,6 +73,95 @@ static uint32_t ADC_ReadChannels(uint32_t channel);
 
 /* Exported functions --------------------------------------------------------*/
 /* USER CODE BEGIN EF */
+/* Solar divider R32 = 150 kOhm / R33 = 100 kOhm on PB2 (ADC_IN4). */
+#define SOLAR_DIVIDER_NUM      5U
+#define SOLAR_DIVIDER_DEN      2U
+#define ADC_SAMPLES            4U
+#define ADC_FULL_SCALE         4095U
+
+/* VDDA from the factory VREFINT calibration (taken at VDDA = 3.3 V). */
+static uint32_t adc_vdda_mv(uint32_t vref_raw, uint32_t vref_cal)
+{
+  return (vref_raw == 0U) ? 0U : (VREFINT_CAL_VREF * vref_cal + vref_raw / 2U) / vref_raw;
+}
+
+/* Panel voltage behind the 2.5:1 divider, in mV. */
+static uint16_t adc_panel_mv(uint32_t pin_raw, uint32_t vdda_mv)
+{
+  uint32_t mv = (pin_raw * vdda_mv * SOLAR_DIVIDER_NUM + ADC_FULL_SCALE) / (ADC_FULL_SCALE * SOLAR_DIVIDER_DEN);
+  return (mv > 0xFFFEU) ? 0xFFFEU : (uint16_t)mv;
+}
+
+/* One ADC session: calibrate, convert VREFINT and one channel ADC_SAMPLES
+ * times each with the longest sampling time (160.5 cycles at 12 MHz, the
+ * divider has about 60 kOhm source impedance plus C28), then switch the ADC
+ * off again. Unlike ADC_ReadChannels() a HAL error is not fatal. */
+static bool adc_session(uint32_t channel, uint32_t *vref_avg, uint32_t *ch_avg)
+{
+  const uint32_t channels[2] = { ADC_CHANNEL_VREFINT, channel };
+  uint32_t sum[2] = { 0U, 0U };
+  ADC_ChannelConfTypeDef sConfig = {0};
+  bool ok = true;
+
+  hadc.Instance = ADC;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc.Init.LowPowerAutoWait = DISABLE;
+  hadc.Init.LowPowerAutoPowerOff = DISABLE;
+  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.NbrOfConversion = 1;
+  hadc.Init.DiscontinuousConvMode = DISABLE;
+  hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc.Init.DMAContinuousRequests = DISABLE;
+  hadc.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+  hadc.Init.SamplingTimeCommon1 = ADC_SAMPLETIME_160CYCLES_5;
+  hadc.Init.SamplingTimeCommon2 = ADC_SAMPLETIME_160CYCLES_5;
+  hadc.Init.OversamplingMode = DISABLE;
+  hadc.Init.TriggerFrequencyMode = ADC_TRIGGER_FREQ_HIGH;
+  if (HAL_ADC_Init(&hadc) != HAL_OK || HAL_ADCEx_Calibration_Start(&hadc) != HAL_OK)
+  {
+    ok = false;
+  }
+  for (uint8_t c = 0U; ok && c < 2U; ++c)
+  {
+    sConfig.Channel = channels[c];
+    sConfig.Rank = ADC_REGULAR_RANK_1;
+    sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+    if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+    {
+      ok = false;
+      break;
+    }
+    for (uint8_t i = 0U; i < ADC_SAMPLES; ++i)
+    {
+      if (HAL_ADC_Start(&hadc) != HAL_OK || HAL_ADC_PollForConversion(&hadc, 10U) != HAL_OK)
+      {
+        ok = false;
+        break;
+      }
+      sum[c] += HAL_ADC_GetValue(&hadc);
+      (void)HAL_ADC_Stop(&hadc);
+    }
+  }
+  (void)HAL_ADC_Stop(&hadc);
+  (void)HAL_ADC_DeInit(&hadc);
+  if (!ok) return false;
+  *vref_avg = (sum[0] + ADC_SAMPLES / 2U) / ADC_SAMPLES;
+  *ch_avg = (sum[1] + ADC_SAMPLES / 2U) / ADC_SAMPLES;
+  return *vref_avg != 0U;
+}
+
+bool SYS_ReadSolarMv(uint16_t *panel_mv)
+{
+  uint32_t vref, pin;
+  if (panel_mv == NULL || !adc_session(ADC_CHANNEL_4, &vref, &pin)) return false;
+  *panel_mv = adc_panel_mv(pin, adc_vdda_mv(vref, *VREFINT_CAL_ADDR));
+  return true;
+}
 
 /* USER CODE END EF */
 

@@ -318,7 +318,7 @@ static void OnSps30CleanupTimerEvent(void *context);
 static void OnSolarTimerEvent(void *context);
 
 /**
-  * @brief  One solar sample: INA226 (and later the PB2 ADC) into the block statistics
+  * @brief  One solar sample: INA226 and the PB2 divider into the block statistics
   */
 static void SampleSolar(void);
 
@@ -512,7 +512,7 @@ static bool rejoin_requested;
 static uint8_t rejoin_report_days;
 /* Solar statistics since the last block the modem accepted. */
 static solar_acc_t solar_acc;
-static uint8_t solar_ina_failures;
+static uint8_t solar_ina_failures, solar_adc_failures;
 
 /* USER CODE END PV */
 
@@ -1535,6 +1535,10 @@ static void SampleSolar(void)
      * bus is recovered once, when a read error becomes persistent. */
     if (INA226_Init() != INA226_OK && solar_ina_failures == 3U) (void)I2C2_RecoverBus();
   }
+  /* The divider is measured as well, also as a cross-check of VBUS. */
+  sample.adc_valid = SYS_ReadSolarMv(&sample.adc_mv);
+  if (sample.adc_valid) solar_adc_failures = 0U;
+  else if (solar_adc_failures != UINT8_MAX) solar_adc_failures++;
   Solar_Add(&solar_acc, &sample);
 }
 

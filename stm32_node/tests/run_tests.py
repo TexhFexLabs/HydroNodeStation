@@ -120,6 +120,28 @@ int main(void)
 }
 ''')
     compile_run(tmp, 'rfsw', [tmp/'rfsw.c'])
+    adc = '\n'.join(function('Core/Src/adc_if.c', s) for s in [
+        'static uint32_t adc_vdda_mv(uint32_t vref_raw, uint32_t vref_cal)',
+        'static uint16_t adc_panel_mv(uint32_t pin_raw, uint32_t vdda_mv)'])
+    (tmp/'adc.c').write_text(r'''
+#include <stdint.h>
+#include <assert.h>
+#include <stdio.h>
+#define VREFINT_CAL_VREF 3300UL
+#define SOLAR_DIVIDER_NUM 5U
+#define SOLAR_DIVIDER_DEN 2U
+#define ADC_FULL_SCALE 4095U
+''' + adc + r'''
+int main(void) {
+    /* VREFINT read equals its 3.3 V calibration: VDDA 3300 mV; lower VDDA reads higher. */
+    assert(adc_vdda_mv(1500, 1500) == 3300U && adc_vdda_mv(1650, 1500) == 3000U);
+    /* Panel Voc max 6.91 V -> 2.764 V at PB2 -> 3430 counts at 3.3 V. */
+    assert(adc_panel_mv(3430, 3300) == 6910U);
+    assert(adc_panel_mv(0, 3300) == 0U && adc_panel_mv(4095, 3300) == 8250U);
+    puts("ADC: VREFINT-scaled VDDA and solar divider 2.5:1 passed");
+}
+''')
+    compile_run(tmp, 'adc', [tmp/'adc.c'])
     alarm = function('Middlewares/Third_Party/LoRaWAN/smtc_modem_core/modem_supervisor/modem_supervisor_light.c',
                      'static uint32_t supervisor_check_user_alarm( void )')
     setter = function('Middlewares/Third_Party/LoRaWAN/smtc_modem_core/smtc_modem.c',
