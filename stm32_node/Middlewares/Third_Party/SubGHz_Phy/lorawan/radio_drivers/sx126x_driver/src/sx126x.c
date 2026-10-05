@@ -1282,7 +1282,9 @@ sx126x_status_t sx126x_set_ant_switch( bool is_tx_on )
 {
   RBI_Switch_TypeDef state = RBI_SWITCH_RX;
 
-  uint8_t paSelect= RFO_LP;
+  /* Follow the board's PA instead of a fixed RFO_LP: PCB 1.1 wires only
+   * RFO_HP, matching ral_sx126x_bsp_get_tx_cfg(). */
+  uint8_t paSelect = (RBI_GetTxConfig() == RBI_CONF_RFO_LP) ? RFO_LP : RFO_HP;
 
   if (is_tx_on)
   {
