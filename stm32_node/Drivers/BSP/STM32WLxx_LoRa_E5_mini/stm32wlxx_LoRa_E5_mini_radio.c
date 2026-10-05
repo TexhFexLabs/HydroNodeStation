@@ -47,14 +47,14 @@ int32_t BSP_RADIO_Init(void)
 {
   GPIO_InitTypeDef  gpio_init_structure = {0};
 
-  /* PB0 = BGS12SN6 VDD supply enable (not TCXO - no TCXO on this board) */
-  RF_TCXO_VCC_CLK_ENABLE();
-  gpio_init_structure.Pin   = RF_TCXO_VCC_PIN;
+  /* PB12 = BGS12SN6 VDD supply (PCB 1.1). PB0 is VDD_TCXO and unused. */
+  RF_SW_VDD_CLK_ENABLE();
+  gpio_init_structure.Pin   = RF_SW_VDD_PIN;
   gpio_init_structure.Mode  = GPIO_MODE_OUTPUT_PP;
   gpio_init_structure.Pull  = GPIO_NOPULL;
   gpio_init_structure.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RF_TCXO_VCC_GPIO_PORT, &gpio_init_structure);
-  HAL_GPIO_WritePin(RF_TCXO_VCC_GPIO_PORT, RF_TCXO_VCC_PIN, GPIO_PIN_SET);
+  HAL_GPIO_Init(RF_SW_VDD_GPIO_PORT, &gpio_init_structure);
+  HAL_GPIO_WritePin(RF_SW_VDD_GPIO_PORT, RF_SW_VDD_PIN, GPIO_PIN_SET);
 
 #if defined(USE_RF_SW_SINGLE_CTRL_PC13) && (USE_RF_SW_SINGLE_CTRL_PC13 == 1U)
   /* Enable the Radio Switch Clock */
