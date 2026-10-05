@@ -49,6 +49,8 @@
 #include "link_check.h"
 #include "ina226.h"
 #include "solar.h"
+#include "payload.h"
+#include "pulse_counter.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -129,9 +131,6 @@ typedef struct
 #define RX_CMD_SET_TX_INTERVAL           0x10U
 #define RX_CMD_SOFTWARE_RESET            0xFFU
 
-#define TX_PORT_ENV_BASE                 2U
-#define TX_PORT_ENV_EXTENDED             3U
-#define TX_PORT_ENV_FULL                 4U
 
 /* Application config shares the transactional NVM snapshots. */
 #define APP_CONFIG_MAGIC                 (0x484E4331UL)   /* "HNC1" - HydroNode Config v1 */
@@ -211,6 +210,8 @@ typedef struct
   * @brief  LoRa End Node send request
   */
 static void SendTxData(uint8_t port);
+static void BuildBlock(payload_block_t *block);
+static void CommitBlock(const payload_block_t *block);
 static void ProcessSensorEvents(void);
 static void ServicePower(void);
 static void ServiceJoin(void);
@@ -1122,9 +1123,30 @@ static void append_u16_be(uint8_t *buffer, uint8_t *index, uint16_t value)
   (*index)++;
 }
 
-static void append_i16_be(uint8_t *buffer, uint8_t *index, int16_t value)
+static void BuildBlock(payload_block_t *block)
 {
-  append_u16_be(buffer, index, (uint16_t)value);
+  solar_block_t solar;
+  MAX17048_Gauge_t gauge;
+
+  Solar_Block(&solar_acc, &solar);
+  block->solar_mv = solar.v_mv;
+  block->solar_01ma = solar.i_01ma;
+  block->solar_mw = solar.p_mw;
+  block->solar_01mwh = solar.e_01mwh;
+  block->sun_s = solar.sun_s;
+  block->solar_adc_mv = solar.adc_mv;
+  /* Also re-acknowledges a pending MAX17048 alert; sentinels on failure. */
+  (void)MAX17048_ReadGauge(&gauge);
+  block->soc_x100 = gauge.soc_x100;
+  block->crate_x100 = gauge.crate_x100;
+  if (!SYS_ReadBoardTemperature(&block->board_t_x100)) block->board_t_x100 = INT16_MIN;
+  PulseCounter_Read(&block->count1, &block->count2);
+}
+
+static void CommitBlock(const payload_block_t *block)
+{
+  Solar_Reset(&solar_acc);
+  PulseCounter_Commit(block->count1, block->count2);
 }
 
 static void SendTxData(uint8_t port)
@@ -1132,7 +1154,7 @@ static void SendTxData(uint8_t port)
   /* USER CODE BEGIN SendTxData_1 */
   sensor_t sensor_data;
   uint8_t bufferSize = 0;
-  uint8_t uplink_port = TX_PORT_ENV_BASE;
+  uint8_t uplink_port = PAYLOAD_PORT_BASE;
 
   (void)port;
 
@@ -1199,30 +1221,7 @@ static void SendTxData(uint8_t port)
     APP_LOG(TS_ON, VLEVEL_M, "SPS30 TypSize=%u [nm]\r\n", (unsigned)sensor_data.typ_size);
   }
 
-  if ((sensor_flags & SENSOR_FLAG_SPS30) != 0U)
-  {
-    uplink_port = TX_PORT_ENV_FULL;
-  }
-  else if ((sensor_flags & SENSOR_FLAG_CO2) != 0U)
-  {
-    uplink_port = TX_PORT_ENV_EXTENDED;
-  }
-
-  /* Wire format by port, all fields are 2-byte big-endian values:
-   * - fPort 2: T, RH, P, VBAT, UV
-   * - fPort 3: fPort2 + CO2
-   * - fPort 4: fPort3 + PM mass + PM number + typ_size
-   */
-  append_i16_be(AppDataBuffer, &bufferSize, sensor_data.temperature);
-  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.humidity);
-  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pressure);
-  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.battery_voltage);
-  append_u16_be(AppDataBuffer, &bufferSize, sensor_data.uvi_x100);
-
-  if ((sensor_flags & (SENSOR_FLAG_CO2 | SENSOR_FLAG_SPS30)) != 0U)
-  {
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.co2_ppm);
-  }
+  uplink_port = Payload_Port(sensor_flags);
 
   if (sensor_flags & SENSOR_FLAG_SPS30)
   {
@@ -1253,17 +1252,14 @@ static void SendTxData(uint8_t port)
         (void)SPS30_Init();
       }
     }
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm1_0);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm2_5);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm4_0);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.pm10_0);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_0_5);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_1_0);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_2_5);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_4_0);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.nc_10_0);
-    append_u16_be(AppDataBuffer, &bufferSize, sensor_data.typ_size);
   }
+
+  /* Ports 2 and 3 carry the block (solar, gauge, board temperature,
+   * counters); port 4 rounds leave it to the next block. */
+  payload_block_t block;
+  bool has_block = (uplink_port != PAYLOAD_PORT_FULL);
+  if (has_block) BuildBlock(&block);
+  bufferSize = Payload_Encode(uplink_port, &sensor_data, &block, AppDataBuffer);
 
   APP_LOG(TS_ON, VLEVEL_M, "Uplink payload: fPort=%u, %u bytes\r\n", (unsigned)uplink_port, (unsigned)bufferSize);
 
@@ -1279,6 +1275,8 @@ static void SendTxData(uint8_t port)
     if (!tx_pending) tx_queued_at = SysTimeGetMcuTime().Seconds;
     tx_pending = true;
     failed_uplinks = 0U;
+    /* The modem took the block: the next one starts from here. */
+    if (has_block) CommitBlock(&block);
   }
   else
   {
