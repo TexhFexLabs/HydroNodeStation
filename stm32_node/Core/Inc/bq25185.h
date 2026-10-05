@@ -8,13 +8,15 @@ extern "C" {
 #include "main.h"
 #include <stdint.h>
 
-/* BQ25185 battery charger CE (charge enable) pin, active low.
- * The charger has an internal pull-down on CE, so leaving the MCU pin
- * floating (analog mode) keeps charging enabled at zero GPIO cost.
- * Driving CE high disables charging; the high -> low transition restarts
- * the charger's internal safety timer (expires after ~6 h of charging). */
-#define BQ25185_CE_PORT             GPIOA
-#define BQ25185_CE_PIN              GPIO_PIN_7
+/* BQ25185 battery charger CE (charge enable) pin, active low, on PA2
+ * (U8.4 -> U10.9). The datasheet documents no internal pull-down on CE; the
+ * LOW level comes from R7 (10 kOhm to GND). Leaving the MCU pin floating
+ * (analog mode) therefore keeps charging enabled at zero GPIO cost. Driving
+ * CE high disables charging and costs about 330 uA through R7, but only for
+ * the pulse; the high -> low transition restarts the charger's internal
+ * safety timer (expires after ~6 h of charging). */
+#define BQ25185_CE_PORT             CHG_CE_GPIO_Port
+#define BQ25185_CE_PIN              CHG_CE_Pin
 
 /* CE high time used when resetting the safety timer */
 #define BQ25185_CE_RESET_PULSE_MS   500U

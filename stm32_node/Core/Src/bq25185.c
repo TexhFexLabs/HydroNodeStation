@@ -22,7 +22,7 @@ void BQ25185_ChargeEnable(void)
 
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
-  /* Release CE: the charger's internal pull-down takes it low (charging on) */
+  /* Release CE: R7 (10 kOhm) pulls it low, charging on */
   GPIO_InitStruct.Pin = BQ25185_CE_PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
