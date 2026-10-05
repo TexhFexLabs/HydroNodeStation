@@ -33,6 +33,25 @@ with tempfile.TemporaryDirectory(prefix='hydronode-tests-') as temp:
     test_scd41.run(ROOT, tmp)
     compile_run(tmp, 'power', [ROOT/'tests/test_power.c', ROOT/'Core/Src/power_policy.c'])
     compile_run(tmp, 'nvm', [ROOT/'tests/test_nvm.c', ROOT/'Core/Src/nvm_store.c'])
+    gauge = function('Core/Src/max17048.c', 'static uint16_t max17048_soc_x100(uint16_t raw)') + '\n' + \
+            function('Core/Src/max17048.c', 'static int16_t max17048_crate_x100(uint16_t raw)')
+    (tmp/'gauge.c').write_text(r'''
+#include <stdint.h>
+#include <assert.h>
+#include <stdio.h>
+''' + gauge + r'''
+int main(void) {
+    assert(max17048_soc_x100(0x6400) == 10000);   /* 100 % */
+    assert(max17048_soc_x100(0x3280) == 5050);    /* 50.5 % */
+    assert(max17048_soc_x100(0xFFFF) == 25599);   /* never the 0xFFFF sentinel */
+    assert(max17048_crate_x100(5) == 104);        /* 1.04 %/h */
+    assert(max17048_crate_x100((uint16_t)-5) == -104);
+    assert(max17048_crate_x100(0x7FFF) == 32767); /* clamped */
+    assert(max17048_crate_x100(0x8000) == -32767);/* clamped, not 0x8000 */
+    puts("MAX17048: SOC and charge-rate scaling, clamping away from sentinels passed");
+}
+''')
+    compile_run(tmp, 'gauge', [tmp/'gauge.c'])
     alarm = function('Middlewares/Third_Party/LoRaWAN/smtc_modem_core/modem_supervisor/modem_supervisor_light.c',
                      'static uint32_t supervisor_check_user_alarm( void )')
     setter = function('Middlewares/Third_Party/LoRaWAN/smtc_modem_core/smtc_modem.c',
