@@ -139,6 +139,10 @@ int32_t BSP_RADIO_IsTCXO(void);
 int32_t BSP_RADIO_IsDCDC(void);
 
 int32_t BSP_RADIO_GetRFOMaxPowerConfig(BSP_RADIO_RFOMaxPowerConfig_TypeDef Config);
+/* RF switch supply sequencing, called through the LBM radio HAL hooks. */
+void BSP_RADIO_SwitchPowerOn(void);
+void BSP_RADIO_SwitchPowerOff(void);
+uint32_t BSP_RADIO_SwitchStartupDelayMs(void);
 
 /**
   * @}

@@ -218,24 +218,19 @@ static inline uint32_t smtc_modem_hal_get_random_nb_in_range( const uint32_t val
  *
  * @remark In case used radio has no tcxo please implement an empty function
  */
-//void smtc_modem_hal_start_radio_tcxo( void );
 
-static inline void smtc_modem_hal_start_radio_tcxo( void )
-{
 
-}
+/* HydroNode PCB 1.1: there is no TCXO, but these hooks bracket every radio
+ * task, so they power the RF switch (radio_board_if.c). The startup delay
+ * makes the scheduler start TX/RX tasks early by the switch settle time. */
+void smtc_modem_hal_start_radio_tcxo( void );
 
 /**
  * @brief Stop radio tcxo
  *
  * @remark In case used radio has no tcxo please implement an empty function
  */
-//void smtc_modem_hal_stop_radio_tcxo( void );
-
-static inline void smtc_modem_hal_stop_radio_tcxo( void )
-{
-
-}
+void smtc_modem_hal_stop_radio_tcxo( void );
 
 /**
  * @brief Get TCXO startup delay, in ms
@@ -244,17 +239,7 @@ static inline void smtc_modem_hal_stop_radio_tcxo( void )
  *
  * @return uint32_t TCXO startup delay in ms
  */
-//uint32_t smtc_modem_hal_get_radio_tcxo_startup_delay_ms( void );
-
-static inline uint32_t smtc_modem_hal_get_radio_tcxo_startup_delay_ms( void )
-{
-    // Tcxo is present on LR1110 and LR1120 evk boards, LR1121 ref board does not have tcxo but only 32MHz xtal
-#if defined( LR11XX ) && !defined( LR1121 )
-    return 5;
-#else
-    return 0;
-#endif
-}
+uint32_t smtc_modem_hal_get_radio_tcxo_startup_delay_ms( void );
 
 /**
  * @brief Set antenna switch for Tx operation or not.

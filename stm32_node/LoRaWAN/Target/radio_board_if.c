@@ -247,7 +247,22 @@ int32_t RBI_GetRFOMaxPowerConfig(RBI_RFOMaxPowerConfig_TypeDef Config)
 #endif  /* USE_BSP_DRIVER  */
 }
 /* USER CODE BEGIN EF */
+/* LBM radio HAL hooks (smtc_modem_hal.h): no TCXO on PCB 1.1, they sequence
+ * the RF switch supply on PB12 around every radio task instead. */
+void smtc_modem_hal_start_radio_tcxo(void)
+{
+  BSP_RADIO_SwitchPowerOn();
+}
 
+void smtc_modem_hal_stop_radio_tcxo(void)
+{
+  BSP_RADIO_SwitchPowerOff();
+}
+
+uint32_t smtc_modem_hal_get_radio_tcxo_startup_delay_ms(void)
+{
+  return BSP_RADIO_SwitchStartupDelayMs();
+}
 /* USER CODE END EF */
 
 /* Private Functions Definition -----------------------------------------------*/

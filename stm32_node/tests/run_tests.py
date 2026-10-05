@@ -52,6 +52,72 @@ int main(void) {
 }
 ''')
     compile_run(tmp, 'gauge', [tmp/'gauge.c'])
+    bsp = 'Drivers/BSP/STM32WLxx_LoRa_E5_mini/stm32wlxx_LoRa_E5_mini_radio.c'
+    rf = '\n'.join(function(bsp, s) for s in [
+        'static void rf_sw_wait_us(uint32_t us)', 'static void rf_sw_set_ctrl(bool high)',
+        'void BSP_RADIO_SwitchPowerOn(void)', 'void BSP_RADIO_SwitchPowerOff(void)',
+        'int32_t BSP_RADIO_ConfigRFSwitch(BSP_RADIO_Switch_TypeDef Config)'])
+    (tmp/'rfsw.c').write_text(r'''
+#include <stdint.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <stdio.h>
+typedef enum {RADIO_SWITCH_OFF, RADIO_SWITCH_RX, RADIO_SWITCH_RFO_LP, RADIO_SWITCH_RFO_HP} BSP_RADIO_Switch_TypeDef;
+enum {GPIO_PIN_RESET, GPIO_PIN_SET};
+#define BSP_ERROR_NONE 0
+#define RF_SW_CTRL_GPIO_PORT 1
+#define RF_SW_CTRL_PIN 13
+#define RF_SW_VDD_GPIO_PORT 2
+#define RF_SW_VDD_PIN 12
+#define RF_SW_VDD_SETTLE_US 1000U
+#define RF_SW_CTRL_SETTLE_US 250U
+static uint32_t SystemCoreClock = 48000000U;
+static int vdd, ctrl;
+static uint64_t waited_since_vdd, waited_since_ctrl, time_us;
+static void HAL_GPIO_WritePin(int port, int pin, int state)
+{
+    (void)pin;
+    if (port == RF_SW_VDD_GPIO_PORT) {
+        if (state && !vdd) waited_since_vdd = time_us;
+        vdd = state;
+    } else {
+        /* A CTRL edge needs VDD up and settled. */
+        if (state != ctrl) assert(vdd && time_us - waited_since_vdd >= 1000U);
+        if (state != ctrl) waited_since_ctrl = time_us;
+        ctrl = state;
+    }
+    assert(!(ctrl && !vdd));
+}
+static bool rf_sw_powered, rf_sw_ctrl_high, radio_asleep = true;
+''' + rf.replace('for (volatile uint32_t n = us * (SystemCoreClock / 4000000U); n != 0U; --n) { }',
+                 'time_us += us; (void)SystemCoreClock;') + r'''
+static void radio_ready(void) { assert(vdd && time_us - waited_since_ctrl >= 250U); }
+int main(void)
+{
+    /* Boot: LBM selects RX at init while the radio sleeps: stays unpowered. */
+    BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX); assert(!vdd && !ctrl);
+    /* Uplink: hook powers up, TX selects CTRL HIGH. */
+    BSP_RADIO_SwitchPowerOn(); BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RFO_HP);
+    assert(vdd && ctrl); radio_ready();
+    /* TX done: radio sleeps, planner then selects RX, hook stops. */
+    BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_OFF); assert(!vdd && !ctrl);
+    BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX); assert(!vdd);
+    BSP_RADIO_SwitchPowerOff(); assert(!vdd && !ctrl);
+    /* RX1: hook powers up, RX keeps CTRL LOW. */
+    time_us += 1000000U;
+    BSP_RADIO_SwitchPowerOn(); BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX);
+    assert(vdd && !ctrl && time_us - waited_since_vdd >= 1000U);
+    /* TX <-> RX while powered only toggles CTRL. */
+    BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RFO_HP); radio_ready();
+    BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RX); assert(vdd && !ctrl); radio_ready();
+    /* A TX request without the hook still powers up first. */
+    BSP_RADIO_SwitchPowerOff();
+    BSP_RADIO_ConfigRFSwitch(RADIO_SWITCH_RFO_LP); assert(vdd && ctrl); radio_ready();
+    BSP_RADIO_SwitchPowerOff(); assert(!vdd && !ctrl);
+    puts("RF switch: VDD before every CTRL edge, CTRL low before VDD off, no power-up after radio sleep passed");
+}
+''')
+    compile_run(tmp, 'rfsw', [tmp/'rfsw.c'])
     alarm = function('Middlewares/Third_Party/LoRaWAN/smtc_modem_core/modem_supervisor/modem_supervisor_light.c',
                      'static uint32_t supervisor_check_user_alarm( void )')
     setter = function('Middlewares/Third_Party/LoRaWAN/smtc_modem_core/smtc_modem.c',
