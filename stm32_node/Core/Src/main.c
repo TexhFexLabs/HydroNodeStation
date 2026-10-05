@@ -29,6 +29,7 @@
 #include "runtime_health.h"
 #include "power_rail.h"
 #include "pulse_counter.h"
+#include "standby.h"
 #include <stdbool.h>
 /* USER CODE END Includes */
 
@@ -94,6 +95,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+  /* After a Standby wake-up: back to Standby while the battery is low,
+   * before any rail or sensor draws current. */
+  Standby_CheckWake();
   /* +5 V for the SPS30 before any sensor init, also when booting into
    * RECOVERY or the debug profile; 3V3SWITCHABLE stays off. */
   PowerRail_Init();

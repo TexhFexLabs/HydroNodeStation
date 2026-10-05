@@ -9,8 +9,12 @@
 #define POWER_RESTART_MV 3600U
 #define POWER_RESTART_STABLE_S 60U
 #define POWER_CHECK_S 60U
+/* Deep discharge: below this, twice in a row and valid, RECOVERY becomes
+ * Standby with an RTC wake-up (TD_2_0_18). Validate against the cell
+ * datasheet and its protection circuit. */
+#define POWER_STANDBY_MV 3100U
 typedef enum { POWER_NORMAL, POWER_SAVE, POWER_RECOVERY } power_mode_t;
-typedef struct { power_mode_t mode; uint32_t recovery_since; uint8_t stable, failures; } power_policy_t;
+typedef struct { power_mode_t mode; uint32_t recovery_since; uint8_t stable, failures, low; bool standby; } power_policy_t;
 void PowerPolicy_Init(power_policy_t *p, uint16_t mv, bool valid);
 void PowerPolicy_Update(power_policy_t *p, uint16_t mv, bool valid, uint32_t now);
 /* Adaptive measurement plan (TD_2_0_17). Rounds count 1..10.

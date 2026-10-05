@@ -52,6 +52,7 @@
 #include "payload.h"
 #include "pulse_counter.h"
 #include "fault_report.h"
+#include "standby.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -559,6 +560,9 @@ void LoRaWAN_Init(void)
               (uint16_t)((APP_VERSION_MAIN << 8) | APP_VERSION_SUB1));
   if (SystemClock_LseAttempts() > 1U)
     Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_LSE_RETRY), SystemClock_LseAttempts());
+  /* Every boot while the option byte is missing: no Standby possible. */
+  if (!Standby_IwdgReady())
+    Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NO_IWDG_STDBY), 0U);
 
   APP_LOG(TS_OFF, VLEVEL_M, "LoRaWAN End Node LBM\r\n");
   /* Get LoRaWAN APP version*/
@@ -770,6 +774,9 @@ static void ServicePower(void)
     }
     sensors_started = false;
     recovery_stopped = true;
+    /* Deep discharge: Standby with an hourly RTC wake-up, once the sensors
+     * are asleep and only when the IWDG stops in Standby (0x0544 otherwise). */
+    if (power_policy.standby && !shutdown_pending && Standby_IwdgReady()) Standby_Enter();
   }
   else recovery_stopped = false;
 }

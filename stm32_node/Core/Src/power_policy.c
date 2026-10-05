@@ -7,13 +7,26 @@ void PowerPolicy_Update(power_policy_t *p, uint16_t mv, bool valid, uint32_t now
 {
     if (!valid)
     {
+        /* A missing reading is no undervoltage: it never leads to Standby. */
+        p->low = 0;
+        p->standby = false;
         p->stable = 0;
         if (p->failures < 3U) { p->failures++; }
         if (p->failures >= 3U) { p->mode = POWER_RECOVERY; }
         return;
     }
     p->failures = 0;
-    if (mv < POWER_STOP_MV) { p->mode = POWER_RECOVERY; p->stable = 0; return; }
+    if (mv < POWER_STOP_MV)
+    {
+        p->mode = POWER_RECOVERY;
+        p->stable = 0;
+        if (mv < POWER_STANDBY_MV) { if (p->low < 2U) { p->low++; } }
+        else { p->low = 0; }
+        p->standby = p->low >= 2U;
+        return;
+    }
+    p->low = 0;
+    p->standby = false;
     if (p->mode == POWER_RECOVERY)
     {
         if (mv < POWER_RESTART_MV) { p->stable = 0; return; }
