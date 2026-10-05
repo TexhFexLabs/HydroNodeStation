@@ -6,4 +6,6 @@ Read `../doc/RELIABILITY.md` and `../doc/CONFIGURATION.md` for architecture, NVM
 
 Timer IRQs only post sensor events. I2C work runs in thread mode; the shared bus remains initialized. Use MCU monotonic seconds for long deadlines, never a 32-bit millisecond value divided by 1000. Preserve STM32CubeMX USER CODE sections when modifying generated peripherals.
 
+`LoRaWAN_End_Node_LBM.ioc` is frozen: it is still the ST template and does not match the board (clocks, pins, peripherals). Never open it in STM32CubeMX to regenerate code, that would overwrite the pin map and the clock setup. The generated code is maintained by hand; `Core/Inc/main.h`, `Core/Src/gpio.c` and the radio BSP for PCB 1.1 are authoritative.
+
 Hardware measurements, NTC/protection wiring and field flashing require the real board; host tests do not prove years of physical reliability. Open work is tracked in the repository's GitHub issues.

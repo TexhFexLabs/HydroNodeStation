@@ -51,9 +51,14 @@ GitHub Actions checks both targets on every push.
 
 **Guidelines:**
 
+- Do not regenerate code from `stm32_node/LoRaWAN_End_Node_LBM.ioc`. The
+  `.ioc` is frozen: it is still the ST template and does not match the board,
+  so STM32CubeMX would overwrite the pin map and the clock setup. The
+  generated files are maintained by hand; `Core/Inc/main.h`, `Core/Src/gpio.c`
+  and the radio BSP for PCB 1.1 are authoritative.
 - Keep changes to STM32CubeMX-generated files inside the
-  `/* USER CODE BEGIN */ … /* USER CODE END */` blocks, or the next `.ioc`
-  regeneration will silently delete them.
+  `/* USER CODE BEGIN */ … /* USER CODE END */` blocks anyway, so the files
+  stay comparable with ST's templates.
 - Sensor drivers live in `stm32_node/Core/Src/` and follow the existing shape:
   no blocking waits longer than necessary, explicit error returns, no direct
   HAL calls outside the driver.
