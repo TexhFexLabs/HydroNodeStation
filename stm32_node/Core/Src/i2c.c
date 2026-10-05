@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "i2c.h"
+#include "fault_report.h"
 
 #include "sys_app.h"
 
@@ -69,6 +70,8 @@ int32_t I2C2_RecoverBus(void)
   uint8_t released = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_SET &&
                      HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_SET;
   MX_I2C2_Init();
+  /* Three failed recoveries in a row are reported as 0x0210 on fPort 99. */
+  Fault_ComponentResult(FAULT_COMP_I2C_BUS, released != 0U, 0U);
   return released ? 0 : -1;
 }
 /* USER CODE END 0 */

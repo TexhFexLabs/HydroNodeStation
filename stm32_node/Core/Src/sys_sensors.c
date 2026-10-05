@@ -35,6 +35,7 @@
 #include "sys_app.h"
 #include "adc_if.h"
 #include "ina226.h"
+#include "fault_report.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -50,6 +51,12 @@
 /* Private define ------------------------------------------------------------*/
 
 /* USER CODE BEGIN PD */
+/* 7-bit addresses for the "not found" detail on fPort 99. */
+#define ADDR_SHT45     0x44U
+#define ADDR_BMP390    0x77U
+#define ADDR_LTR390    0x53U
+#define ADDR_SCD41     0x62U
+#define ADDR_MAX17048  0x36U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -64,7 +71,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-
+static void note_result(uint8_t comp, bool ok);
 /* USER CODE END PFP */
 
 /* Exported functions --------------------------------------------------------*/
@@ -97,6 +104,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
 
   /* 1. Read MAX17048 */
   MAX17048_Data_t max17048;
+  uint32_t gauge_error = 0U;
   if (MAX17048_Read(&max17048) == MAX17048_OK)
   {
     sensor_data->battery_voltage = max17048.voltage_mv;
@@ -105,6 +113,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   else
   {
     /* Try to recover I2C and re-init fuel gauge when first read fails at boot. */
+    gauge_error = HAL_I2C_GetError(&hi2c2);
     I2C2_RecoverBus();
     if ((MAX17048_Init() == MAX17048_OK) && (MAX17048_Read(&max17048) == MAX17048_OK))
     {
@@ -112,6 +121,8 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
       sensor_data->valid |= SENSOR_VALID_BATTERY;
     }
   }
+  Fault_ComponentResult(FAULT_COMP_MAX17048, (sensor_data->valid & SENSOR_VALID_BATTERY) != 0U,
+                        (sensor_data->valid & SENSOR_VALID_BATTERY) != 0U ? 0U : gauge_error);
 
   if (sensor_flags & SENSOR_FLAG_ONLY_BATTERY)
   {
@@ -125,9 +136,11 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     sensor_data->valid |= SENSOR_VALID_RHT;
     sensor_data->temperature = sht45.temperature;   /* 0.01 degC */
     sensor_data->humidity    = sht45.humidity;      /* 0.01 %RH  */
+    note_result(FAULT_COMP_SHT45, true);
   }
   else
   {
+    note_result(FAULT_COMP_SHT45, false);
     I2C2_RecoverBus();
   }
 
@@ -137,9 +150,11 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   {
     sensor_data->valid |= SENSOR_VALID_PRESSURE;
     sensor_data->pressure = bmp390.pressure_hPa;  /* 0.1 hPa */
+    note_result(FAULT_COMP_BMP390, true);
   }
   else
   {
+    note_result(FAULT_COMP_BMP390, false);
     I2C2_RecoverBus();
   }
 
@@ -149,6 +164,11 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
   {
     sensor_data->valid |= SENSOR_VALID_UV;
     sensor_data->uvi_x100 = ltr390.uvi_x100;
+    note_result(FAULT_COMP_LTR390, true);
+  }
+  else
+  {
+    note_result(FAULT_COMP_LTR390, false);
   }
 
   /* 5. Read SCD41 */
@@ -160,6 +180,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
       sensor_data->valid |= SENSOR_VALID_CO2;
       sensor_data->co2_ppm = scd41_co2_ppm;
     }
+    note_result(FAULT_COMP_SCD41, (sensor_data->valid & SENSOR_VALID_CO2) != 0U);
   }
 
   /* 6. Read SPS30 */
@@ -180,6 +201,7 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
       sensor_data->nc_10_0  = sps30_data.nc_10_0;
       sensor_data->typ_size = sps30_data.typ_size; /* nm */
     }
+    note_result(FAULT_COMP_SPS30, (sensor_data->valid & SENSOR_VALID_PM) != 0U);
   }
 
   return 0;
@@ -189,40 +211,38 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
 int32_t EnvSensors_Init(void)
 {
   /* USER CODE BEGIN EnvSensors_Init */
-  if (SHT45_Init() != SHT45_OK)
+  /* A part missing here is reported once as 0x01xx on fPort 99 and as
+   * resolved (0x81xx) when a later read succeeds. */
+  bool found = SHT45_Init() == SHT45_OK;
+  Fault_ComponentInit(FAULT_COMP_SHT45, found, ADDR_SHT45);
+  if (!found) APP_LOG(TS_OFF, VLEVEL_M, "SHT45 not found\r\n");
+
+  found = BMP390_Init() == BMP390_OK;
+  Fault_ComponentInit(FAULT_COMP_BMP390, found, ADDR_BMP390);
+  if (!found) APP_LOG(TS_OFF, VLEVEL_M, "BMP390 not found\r\n");
+
+  found = LTR390_Init() == LTR390_OK;
+  Fault_ComponentInit(FAULT_COMP_LTR390, found, ADDR_LTR390);
+  if (!found) APP_LOG(TS_OFF, VLEVEL_M, "LTR390 not found\r\n");
+
+  found = MAX17048_Init() == MAX17048_OK;
+  Fault_ComponentInit(FAULT_COMP_MAX17048, found, ADDR_MAX17048);
+  if (!found) APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 not found\r\n");
+
+  if (SCD41_ENABLED)
   {
-    APP_LOG(TS_OFF, VLEVEL_M, "SHT45 not found\r\n");
+    found = SCD41_Init() == SCD41_STATUS_OK;
+    Fault_ComponentInit(FAULT_COMP_SCD41, found, ADDR_SCD41);
+    if (!found) APP_LOG(TS_OFF, VLEVEL_M, "SCD41 not found\r\n");
   }
 
-  if (BMP390_Init() != BMP390_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "BMP390 not found\r\n");
-  }
+  found = SPS30_Init() == SPS30_STATUS_OK;
+  Fault_ComponentInit(FAULT_COMP_SPS30, found, SPS30_I2C_ADDR);
+  if (!found) APP_LOG(TS_OFF, VLEVEL_M, "SPS30 not found\r\n");
 
-  if (LTR390_Init() != LTR390_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "LTR390 not found\r\n");
-  }
-
-  if (MAX17048_Init() != MAX17048_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "MAX17048 not found\r\n");
-  }
-
-  if (SCD41_ENABLED && (SCD41_Init() != SCD41_STATUS_OK))
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "SCD41 not found\r\n");
-  }
-
-  if (SPS30_Init() != SPS30_STATUS_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "SPS30 not found\r\n");
-  }
-
-  if (INA226_Init() != INA226_OK)
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "INA226 not found\r\n");
-  }
+  found = INA226_Init() == INA226_OK;
+  Fault_ComponentInit(FAULT_COMP_INA226, found, INA226_I2C_ADDR_7B);
+  if (!found) APP_LOG(TS_OFF, VLEVEL_M, "INA226 not found\r\n");
 
   return 0;
   /* USER CODE END EnvSensors_Init */
@@ -259,7 +279,12 @@ int32_t EnvSensors_RestartPreMeasurement(uint8_t sensor_flags)
 
 /* Private Functions Definition -----------------------------------------------*/
 /* USER CODE BEGIN PrFD */
-
+/* The HAL error bits are those of the failed transfer, read before any bus
+ * recovery resets the handle. */
+static void note_result(uint8_t comp, bool ok)
+{
+  Fault_ComponentResult(comp, ok, ok ? 0U : HAL_I2C_GetError(&hi2c2));
+}
 /* USER CODE END PrFD */
 
 

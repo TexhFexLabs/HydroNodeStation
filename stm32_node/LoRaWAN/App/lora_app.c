@@ -51,6 +51,7 @@
 #include "solar.h"
 #include "payload.h"
 #include "pulse_counter.h"
+#include "fault_report.h"
 /* USER CODE END Includes */
 
 /* External variables ---------------------------------------------------------*/
@@ -130,6 +131,11 @@ typedef struct
 #define RX_CMD_TRIGGER_SPS30_CLEANING    0x11U
 #define RX_CMD_SET_TX_INTERVAL           0x10U
 #define RX_CMD_SOFTWARE_RESET            0xFFU
+
+/**
+  * @brief Fault and event frames (TD_2_0_15)
+  */
+#define TX_PORT_FAULTS                   99U
 
 
 /* Application config shares the transactional NVM snapshots. */
@@ -217,6 +223,9 @@ static void ServicePower(void);
 static void ServiceJoin(void);
 static void ReadBattery(void);
 static void StopSensorTimers(void);
+static void ReportPower(void);
+static void ReportNvm(void);
+static void SendFaultFrame(void);
 static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata);
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
@@ -509,11 +518,13 @@ static bool shutdown_pending;
 static uint32_t next_measurement_at;
 static link_check_t link_check;
 static bool rejoin_requested;
-/* Unanswered link-check days behind the last rejoin, for fPort 99 (0x0430). */
-static uint8_t rejoin_report_days;
 /* Solar statistics since the last block the modem accepted. */
 static solar_acc_t solar_acc;
-static uint8_t solar_ina_failures, solar_adc_failures;
+/* One fPort 99 frame may follow each accepted regular uplink. */
+static bool fault_frame_due;
+static uint16_t tx_not_sent, tx_rejected;
+static uint8_t nvm_errors_reported;
+static bool solar_bus_recovered;
 
 /* USER CODE END PV */
 
@@ -536,6 +547,15 @@ void LoRaWAN_Init(void)
   /* USER CODE END LoRaWAN_Init_LV */
 
   /* USER CODE BEGIN LoRaWAN_Init_1 */
+  /* Boot report, first in the fPort 99 queue so it leaves in the first
+   * frame after the join: restart reason and reset flags, version, and a
+   * LSE that needed the second attempt. */
+  Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_BOOT),
+              (uint16_t)(((Runtime_LastFault() & 0xFFU) << 8) | Fault_CompressResetFlags(Runtime_ResetFlags())));
+  Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_VERSION),
+              (uint16_t)((APP_VERSION_MAIN << 8) | APP_VERSION_SUB1));
+  if (SystemClock_LseAttempts() > 1U)
+    Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_LSE_RETRY), SystemClock_LseAttempts());
 
   APP_LOG(TS_OFF, VLEVEL_M, "LoRaWAN End Node LBM\r\n");
   /* Get LoRaWAN APP version*/
@@ -611,6 +631,8 @@ void LoRaWAN_Init(void)
   PowerPolicy_Init(&power_policy, battery_sample.battery_voltage,
                    (battery_sample.valid & SENSOR_VALID_BATTERY) != 0U);
   battery_checked_at = SysTimeGetMcuTime().Seconds;
+  ReportPower();
+  ReportNvm();
 }
 
 void LoRaWAN_Process(void)
@@ -673,6 +695,35 @@ static void ReadBattery(void)
   PowerPolicy_Update(&power_policy, battery_sample.battery_voltage,
                      (battery_sample.valid & SENSOR_VALID_BATTERY) != 0U,
                      battery_checked_at);
+  ReportPower();
+}
+
+/* Supply states on fPort 99: SAVE 0x0320, RECOVERY 0x0321 and three invalid
+ * readings 0x0323, each on entry and on exit, with the battery voltage. */
+static void ReportPower(void)
+{
+  uint16_t mv = (battery_sample.valid & SENSOR_VALID_BATTERY) ? battery_sample.battery_voltage : 0xFFFFU;
+  Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE), power_policy.mode == POWER_SAVE, mv);
+  Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_RECOVERY), power_policy.mode == POWER_RECOVERY, mv);
+  Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_INVALID), power_policy.failures >= 3U, mv);
+}
+
+static void ReportNvm(void)
+{
+  uint8_t errors = Runtime_NvmErrorCount();
+  if (errors == nvm_errors_reported) return;
+  nvm_errors_reported = errors;
+  Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), Runtime_LastNvmError());
+}
+
+static void SendFaultFrame(void)
+{
+  uint8_t frame[FAULT_FRAME_MAX_LEN];
+  uint8_t n = Fault_BuildFrame(frame);
+  if (n == 0U) return;
+  /* Unconfirmed; rejected (duty cycle) means the entries wait a round. */
+  if (smtc_modem_request_uplink(STACK_ID, TX_PORT_FAULTS, false, frame, n) == SMTC_MODEM_RC_OK)
+    Fault_FrameAccepted();
 }
 
 static void StopSensorTimers(void)
@@ -951,7 +1002,7 @@ static void EventCallback(void)
         ASSERT_SMTC_MODEM_RC(smtc_modem_adr_set_profile(STACK_ID, SMTC_MODEM_ADR_PROFILE_NETWORK_CONTROLLED, NULL));
         {
           uint8_t days = LinkCheck_Joined(&link_check, SysTimeGetMcuTime().Seconds);
-          if (days != 0U) rejoin_report_days = days;
+          if (days != 0U) Fault_Event(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_REJOIN), days);
         }
         if (CertMode == false)
         {
@@ -962,6 +1013,16 @@ static void EventCallback(void)
 
       case SMTC_MODEM_EVENT_TXDONE:
         tx_pending = false;
+        if (current_event.event_data.txdone.status == SMTC_MODEM_EVENT_TXDONE_NOT_SENT)
+        {
+          if (tx_not_sent != UINT16_MAX) tx_not_sent++;
+          Fault_Event(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_FAILED), tx_not_sent);
+        }
+        if (fault_frame_due)
+        {
+          fault_frame_due = false;
+          SendFaultFrame();
+        }
         if (LinkCheck_Due(&link_check, SysTimeGetMcuTime().Seconds) &&
             smtc_modem_trig_lorawan_mac_request(STACK_ID, SMTC_MODEM_LORAWAN_MAC_REQ_LINK_CHECK) == SMTC_MODEM_RC_OK)
         {
@@ -1139,7 +1200,9 @@ static void BuildBlock(payload_block_t *block)
   (void)MAX17048_ReadGauge(&gauge);
   block->soc_x100 = gauge.soc_x100;
   block->crate_x100 = gauge.crate_x100;
-  if (!SYS_ReadBoardTemperature(&block->board_t_x100)) block->board_t_x100 = INT16_MIN;
+  bool temperature_ok = SYS_ReadBoardTemperature(&block->board_t_x100);
+  if (!temperature_ok) block->board_t_x100 = INT16_MIN;
+  Fault_ComponentResult(FAULT_COMP_TEMP_SENSOR, temperature_ok, 0U);
   PulseCounter_Read(&block->count1, &block->count2);
 }
 
@@ -1167,6 +1230,7 @@ static void SendTxData(uint8_t port)
     Runtime_ExpectProgress(POWER_CHECK_S + 120U);
     return;
   }
+  ReportNvm();
   /* Increment tx_counter */
   tx_counter++;
   if (tx_counter > 10U)
@@ -1277,10 +1341,17 @@ static void SendTxData(uint8_t port)
     failed_uplinks = 0U;
     /* The modem took the block: the next one starts from here. */
     if (has_block) CommitBlock(&block);
+    fault_frame_due = true;
   }
   else
   {
     if (tx_failures != UINT16_MAX) tx_failures++;
+    /* Duty-cycle backpressure (BUSY/NO_TIME) is expected and not reported. */
+    if (tx_status != SMTC_MODEM_RC_BUSY && tx_status != SMTC_MODEM_RC_NO_TIME)
+    {
+      if (tx_rejected != UINT16_MAX) tx_rejected++;
+      Fault_Event(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_REJECTED), tx_rejected);
+    }
     /* Duty-cycle and scheduling backpressure are expected, not a crash. */
     if (tx_status != SMTC_MODEM_RC_BUSY && tx_status != SMTC_MODEM_RC_NO_TIME &&
         ++failed_uplinks >= 5U) Runtime_Fault(RUNTIME_FAULT_MODEM);
@@ -1524,19 +1595,24 @@ static void SampleSolar(void)
     sample.ina_valid = true;
     sample.bus_mv = ina.bus_mv;
     sample.current_01ma = ina.current_01ma;
-    solar_ina_failures = 0U;
+    Fault_ComponentResult(FAULT_COMP_INA226, true, 0U);
   }
   else
   {
-    if (solar_ina_failures != UINT8_MAX) solar_ina_failures++;
+    Fault_ComponentResult(FAULT_COMP_INA226, false, INA226_LastI2cError());
     /* A part missing at boot is retried here, cheaply, every sample; the
      * bus is recovered once, when a read error becomes persistent. */
-    if (INA226_Init() != INA226_OK && solar_ina_failures == 3U) (void)I2C2_RecoverBus();
+    if (INA226_Init() != INA226_OK && Fault_IsActive(FAULT_CODE(FAULT_CAT_READ_ERROR, FAULT_COMP_INA226)) &&
+        !solar_bus_recovered)
+    {
+      solar_bus_recovered = true;
+      (void)I2C2_RecoverBus();
+    }
   }
+  if (sample.ina_valid) solar_bus_recovered = false;
   /* The divider is measured as well, also as a cross-check of VBUS. */
   sample.adc_valid = SYS_ReadSolarMv(&sample.adc_mv);
-  if (sample.adc_valid) solar_adc_failures = 0U;
-  else if (solar_adc_failures != UINT8_MAX) solar_adc_failures++;
+  Fault_ComponentResult(FAULT_COMP_SOLAR_ADC, sample.adc_valid, 0U);
   Solar_Add(&solar_acc, &sample);
 }
 
