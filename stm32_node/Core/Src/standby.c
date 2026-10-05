@@ -67,6 +67,7 @@ void Standby_Enter(void)
    * The quick checks in between leave it untouched. */
   HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR6, RUNTIME_REASON_STANDBY);
   HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR7, 0U);
+  Runtime_BlinkCode(RUNTIME_REASON_STANDBY);
   __disable_irq();
   standby_sleep();
 }

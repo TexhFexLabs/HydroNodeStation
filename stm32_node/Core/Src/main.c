@@ -126,15 +126,6 @@ int main(void)
       LoRaWAN_EnableInstallMode();
     }
   }
-  {
-    uint32_t startTick = HAL_GetTick();
-    while ((HAL_GetTick() - startTick) < 10000U)
-    {
-      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-      HAL_Delay(1000U);
-    }
-    HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-  }
   /* USER CODE END 2 */
 
   /* Infinite loop */

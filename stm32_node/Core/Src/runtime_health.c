@@ -70,6 +70,19 @@ static void fault_wait(uint32_t units)
     while (units-- != 0U) { for (volatile uint32_t d = 0U; d < FAULT_BLINK_LOOPS; ++d) { } }
 }
 
+/* The LED pins idle in analog mode; drive LED_DIAG as an output first. */
+static void fault_led_init(void)
+{
+    GPIO_InitTypeDef gpio = {0};
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    HAL_GPIO_WritePin(LED_DIAG_GPIO_Port, LED_DIAG_Pin, GPIO_PIN_SET);
+    gpio.Pin = LED_DIAG_Pin;
+    gpio.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio.Pull = GPIO_NOPULL;
+    gpio.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(LED_DIAG_GPIO_Port, &gpio);
+}
+
 /* Fault codes go to the diagnostic LED, never to LED1: the startup blink on
  * LED1 must stay distinguishable from a fault. Active low. */
 static void fault_blink(uint32_t count)
@@ -108,7 +121,8 @@ void Runtime_Fault(uint32_t reason)
         HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR6, reason);
         HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR7, fault_detail);
     }
-    /* Blink the reason on LED1 before resetting: an unattended reset is
+    fault_led_init();
+    /* Blink the reason on LED_DIAG before resetting: an unattended reset is
      * otherwise undiagnosable without the trace UART or a debugger.
      * A second group after
      * a longer gap carries the detail, so "NVM failed" says which step failed. */
@@ -123,8 +137,6 @@ void Runtime_Fault(uint32_t reason)
 }
 void Runtime_EarlyFault(uint32_t reason, uint32_t hold_s)
 {
-    GPIO_InitTypeDef gpio = {0};
-
     /* Backup registers live in TAMP: they need the RTC APB clock and backup
      * domain access, not a running RTC. Runtime_Init reads them next boot. */
     __HAL_RCC_RTCAPB_CLK_ENABLE();
@@ -132,13 +144,7 @@ void Runtime_EarlyFault(uint32_t reason, uint32_t hold_s)
     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR6, reason);
     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR7, 0U);
 
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    HAL_GPIO_WritePin(LED_DIAG_GPIO_Port, LED_DIAG_Pin, GPIO_PIN_SET);
-    gpio.Pin = LED_DIAG_Pin;
-    gpio.Mode = GPIO_MODE_OUTPUT_PP;
-    gpio.Pull = GPIO_NOPULL;
-    gpio.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(LED_DIAG_GPIO_Port, &gpio);
+    fault_led_init();
 
     /* One group is 2 * reason + 6 units of 250 ms; the watchdog is fed per
      * group, well inside its 32 s. */
@@ -151,6 +157,13 @@ void Runtime_EarlyFault(uint32_t reason, uint32_t hold_s)
     }
     NVIC_SystemReset();
     for (;;) { }
+}
+
+void Runtime_BlinkCode(uint32_t reason)
+{
+    fault_led_init();
+    fault_blink(reason);
+    IWDG->KR = 0xAAAAU;
 }
 
 void Runtime_Restart(uint32_t reason)

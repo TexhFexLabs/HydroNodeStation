@@ -147,6 +147,11 @@ typedef struct
 #define INSTALL_LINKCHECK_EVERY          3U
 #define INSTALL_LINKCHECK_MAX            10U   /* TTN fair use: 10 downlinks a day */
 
+/**
+  * @brief LED1 start phase (TD_2_0_20): join attempts, join, first uplink
+  */
+#define LED_START_PHASE_S                1800U
+
 
 /* Application config shares the transactional NVM snapshots. */
 #define APP_CONFIG_MAGIC                 (0x484E4331UL)   /* "HNC1" - HydroNode Config v1 */
@@ -539,6 +544,7 @@ static bool solar_bus_recovered;
 static bool install_requested, install_started, install_check_due, install_check_pending;
 static uint32_t install_until;
 static uint8_t install_uplinks, install_checks;
+static bool led_start_phase = true;
 /* Power mode the current round's pre-measurements were planned with. */
 static power_mode_t planned_mode;
 
@@ -658,6 +664,21 @@ void LoRaWAN_Init(void)
 void LoRaWAN_EnableInstallMode(void)
 {
   install_requested = true;
+}
+
+/* LED1 start phase: short flash per join attempt, double flash on the
+ * join, one flash for the first uplink, then dark; dark after 30 min at the
+ * latest, joined or not. */
+static void StartPhaseFlash(uint8_t count, uint16_t on_ms, bool last)
+{
+  if (!led_start_phase) return;
+  if (SysTimeGetMcuTime().Seconds >= LED_START_PHASE_S)
+  {
+    led_start_phase = false;
+    return;
+  }
+  Led_Flash(LED_1, count, on_ms, 200U);
+  if (last) led_start_phase = false;
 }
 
 static bool Installing(void)
@@ -842,6 +863,7 @@ static void ServiceJoin(void)
   if ((int32_t)(now - next_join_at) < 0) return;
   if (smtc_modem_join_network(STACK_ID) == SMTC_MODEM_RC_OK)
   {
+    StartPhaseFlash(1U, 50U, false);
     join_attempt_active = true;
     join_started_at = now;
     Runtime_ExpectProgress(600U);
@@ -1032,6 +1054,7 @@ static void EventCallback(void)
         //   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET); /* LED_RED */
         // }
         /* USER CODE END EventCallback_1 */
+        StartPhaseFlash(2U, 100U, false);
         /* Static node: let the network server drive the data rate. */
         ASSERT_SMTC_MODEM_RC(smtc_modem_adr_set_profile(STACK_ID, SMTC_MODEM_ADR_PROFILE_NETWORK_CONTROLLED, NULL));
         {
@@ -1080,6 +1103,10 @@ static void EventCallback(void)
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: TXDONE\r\n");
         APP_LOG(TS_OFF, VLEVEL_H,  "Transmission done \r\n");
         smtc_modem_get_status(STACK_ID, &status_mask);
+        /* First uplink after the join went out: last flash of the start phase. */
+        if ((status_mask & SMTC_MODEM_STATUS_JOINED) &&
+            current_event.event_data.txdone.status != SMTC_MODEM_EVENT_TXDONE_NOT_SENT)
+          StartPhaseFlash(1U, 50U, true);
         /* USER CODE BEGIN EventCallback_2 */
         /* Check if the device has already joined a network */
         // if ((JoinLedTimer.IsRunning) && (status_mask & SMTC_MODEM_STATUS_JOINED) == SMTC_MODEM_STATUS_JOINED)
@@ -1117,6 +1144,8 @@ static void EventCallback(void)
 
       case SMTC_MODEM_EVENT_JOINFAIL:
         APP_LOG(TS_OFF, VLEVEL_M,  "Event received: JOINFAIL\r\n");
+        /* LBM retries on its own: each failed attempt marks the next one. */
+        StartPhaseFlash(1U, 50U, false);
         smtc_modem_get_status(STACK_ID, &status_mask);
         /* USER CODE BEGIN EventCallback_4 */
         /* Check if the device has already joined a network */

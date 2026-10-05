@@ -49,25 +49,13 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED1_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin : LED1_Pin */
-  GPIO_InitStruct.Pin = LED1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  /* LED1 (PB5) and LED_DIAG (PB3) stay analog: active low through a DIP, an
+   * output HIGH would leak nothing useful and a pattern drives them only
+   * while it runs (led.c, Runtime_Fault). */
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Pin = LED1_Pin | LED_DIAG_Pin;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : LED_DIAG_Pin (PB3)
-   * Diagnostic LED, driven only by Runtime_Fault. Same active-low wiring as
-   * LED1, so it is parked HIGH (off) here. */
-  HAL_GPIO_WritePin(LED_DIAG_GPIO_Port, LED_DIAG_Pin, GPIO_PIN_SET);
-  GPIO_InitStruct.Pin = LED_DIAG_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(LED_DIAG_GPIO_Port, &GPIO_InitStruct);
 
   /* Unused and not yet driven pins are analog: no input buffer, no leakage.
    * PA0 (MAX17048 ALRT) has an external pull-up and is not used, so no EXTI

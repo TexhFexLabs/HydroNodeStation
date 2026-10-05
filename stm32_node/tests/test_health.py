@@ -84,12 +84,12 @@ int main(void)
  Runtime_FaultDetail(7);
  if(!setjmp(reset)) {Runtime_Fault(RUNTIME_FAULT_MODEM);assert(0);}
  assert(backup[6]==RUNTIME_FAULT_MODEM && backup[7]==7);
- /* Reason group then detail group, both blinked out. */
+ /* Reason group then detail group, both blinked out; LED pin set up first. */
  assert(blinks==RUNTIME_FAULT_MODEM+7 && led==GPIO_PIN_SET);
  Runtime_Init();assert(Runtime_LastFault()==RUNTIME_FAULT_MODEM && Runtime_LastFaultDetail()==7);
  /* Clock-setup fault before Runtime_Init: reason stored, LED set up and the
   * code repeated until the hold time is over, then a reset. */
- blinks=0;backup[7]=9;
+ blinks=0;backup[7]=9;gpio_inits=0;
  if(!setjmp(reset)) {Runtime_EarlyFault(RUNTIME_FAULT_LSE,0);assert(0);}
  assert(backup[6]==RUNTIME_FAULT_LSE && backup[7]==0 && gpio_inits==1);
  assert(blinks==RUNTIME_FAULT_LSE && led==GPIO_PIN_SET);
@@ -97,6 +97,9 @@ int main(void)
  if(!setjmp(reset)) {Runtime_EarlyFault(RUNTIME_FAULT_LSE,9);assert(0);}
  assert(blinks==3*RUNTIME_FAULT_LSE);  /* 9 s = 36 units, 18 units per group */
  Runtime_Init();assert(Runtime_LastFault()==RUNTIME_FAULT_LSE);
+ /* Standby announces reason 8 once on the LED, without a reset. */
+ blinks=0;gpio_inits=0;Runtime_BlinkCode(RUNTIME_REASON_STANDBY);
+ assert(blinks==RUNTIME_REASON_STANDBY && gpio_inits==1 && led==GPIO_PIN_SET);
  /* Downlink FF: reason 7 stored, no blink code, then reset. */
  blinks=0;
  if(!setjmp(reset)) {Runtime_Restart(RUNTIME_REASON_COMMAND);assert(0);}
