@@ -526,6 +526,8 @@ static bool fault_frame_due;
 static uint16_t tx_not_sent, tx_rejected;
 static uint8_t nvm_errors_reported;
 static bool solar_bus_recovered;
+/* Power mode the current round's pre-measurements were planned with. */
+static power_mode_t planned_mode;
 
 /* USER CODE END PV */
 
@@ -631,6 +633,7 @@ void LoRaWAN_Init(void)
   (void)EnvSensors_Read(&battery_sample, SENSOR_FLAG_ONLY_BATTERY);
   PowerPolicy_Init(&power_policy, battery_sample.battery_voltage,
                    (battery_sample.valid & SENSOR_VALID_BATTERY) != 0U);
+  planned_mode = power_policy.mode;
   battery_checked_at = SysTimeGetMcuTime().Seconds;
   ReportPower();
   ReportNvm();
@@ -847,7 +850,8 @@ static void ProcessSensorEvents(void)
     result |= EnvSensors_StartPreMeasurement(SENSOR_FLAG_CO2);
   if (SCD41_ENABLED && (pending & EVENT_SCD_RESTART))
     result |= EnvSensors_RestartPreMeasurement(SENSOR_FLAG_CO2);
-  if (pending & EVENT_SPS_START)
+  /* The PM measurement (1.6 C each) runs in NORMAL only. */
+  if ((pending & EVENT_SPS_START) && power_policy.mode == POWER_NORMAL)
     result |= EnvSensors_StartPreMeasurement(SENSOR_FLAG_SPS30);
   if (result != 0)
   {
@@ -1234,16 +1238,25 @@ static void SendTxData(uint8_t port)
   ReportNvm();
   /* Increment tx_counter */
   tx_counter++;
-  if (tx_counter > 10U)
+  if (tx_counter > POWER_ROUNDS)
   {
     tx_counter = 1U;
   }
 
-  /* Determine which sensors to read this cycle.
-   * Base TX every 180 s. CO2 every 5th TX (15 min), SPS30 every 10th TX (30 min). */
+  /* Sensors for this round from the adaptive plan (TD_2_0_17). Only what
+   * both the planning mode and the current mode ask for: a sensor that was
+   * not pre-measured would return stale values, and one that was started but
+   * is no longer wanted is put back to sleep. */
+  uint8_t planned = PowerPolicy_Measurements(planned_mode, tx_counter);
+  uint8_t wanted = (uint8_t)(planned & PowerPolicy_Measurements(power_policy.mode, tx_counter));
   uint8_t sensor_flags = 0U;
-  if (SCD41_ENABLED && tx_counter % 5U == 0U) { sensor_flags |= SENSOR_FLAG_CO2; }
-  if (tx_counter % 10U == 0U) { sensor_flags |= SENSOR_FLAG_SPS30; }
+  if (SCD41_ENABLED && (wanted & POWER_MEASURE_CO2)) { sensor_flags |= SENSOR_FLAG_CO2; }
+  if (wanted & POWER_MEASURE_PM) { sensor_flags |= SENSOR_FLAG_SPS30; }
+  if ((planned & POWER_MEASURE_PM) && !(wanted & POWER_MEASURE_PM))
+  {
+    (void)SPS30_StopMeasurement();
+    (void)SPS30_Sleep();
+  }
 
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
@@ -1370,19 +1383,22 @@ static void ScheduleNextRound(void)
   smtc_modem_get_status(STACK_ID, &status_mask);
   uint32_t dutycycle = (CertMode || ((status_mask & SMTC_MODEM_STATUS_JOINED) != SMTC_MODEM_STATUS_JOINED)) ? CERT_TX_DUTYCYCLE : tx_dutycycle_s;
 
-  if (power_policy.mode == POWER_SAVE) dutycycle *= 2U;
+  dutycycle = PowerPolicy_Interval(power_policy.mode, dutycycle);
   if (smtc_modem_alarm_start_timer(dutycycle) != SMTC_MODEM_RC_OK)
     Runtime_Fault(RUNTIME_FAULT_MODEM);
   Runtime_ExpectProgress(dutycycle + 600U);
   next_measurement_at = SysTimeGetMcuTime().Seconds + dutycycle;
 
-  /* Schedule pre-measurement only for the next cycle where data is needed */
-  uint8_t next_counter = (tx_counter % 10U) + 1U;
+  /* Schedule pre-measurement only for the next cycle where data is needed:
+   * SCD41 12 s and SPS30 16.5 s ahead, per the plan of the current mode. */
+  uint8_t next_counter = (uint8_t)((tx_counter % POWER_ROUNDS) + 1U);
+  uint8_t next = PowerPolicy_Measurements(power_policy.mode, next_counter);
+  planned_mode = power_policy.mode;
   UTIL_TIMER_Stop(&Scd41Timer);
   UTIL_TIMER_Stop(&Scd41RestartTimer);
   UTIL_TIMER_Stop(&Sps30Timer);
 
-  if (SCD41_ENABLED && next_counter % 5U == 0U)
+  if (SCD41_ENABLED && (next & POWER_MEASURE_CO2))
   {
     UTIL_TIMER_SetPeriod(&Scd41Timer, (dutycycle * 1000U > SCD41_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SCD41_PRE_MEASUREMENT_TIME_MS : 1U);
     UTIL_TIMER_Start(&Scd41Timer);
@@ -1390,7 +1406,7 @@ static void ScheduleNextRound(void)
     UTIL_TIMER_Start(&Scd41RestartTimer);
   }
 
-  if (next_counter % 10U == 0U)
+  if (next & POWER_MEASURE_PM)
   {
     UTIL_TIMER_SetPeriod(&Sps30Timer, (dutycycle * 1000U > SPS30_PRE_MEASUREMENT_TIME_MS) ? dutycycle * 1000U - SPS30_PRE_MEASUREMENT_TIME_MS : 1U);
     UTIL_TIMER_Start(&Sps30Timer);
