@@ -28,6 +28,7 @@
 #include "sw_uart.h"
 #include "debug_profile.h"
 #include "runtime_health.h"
+#include "power_rail.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,6 +87,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+  /* +5 V for the SPS30 before any sensor init, also when booting into
+   * RECOVERY or the debug profile; 3V3SWITCHABLE stays off. */
+  PowerRail_Init();
 
   /* USER CODE END SysInit */
 
