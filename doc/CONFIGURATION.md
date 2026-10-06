@@ -37,7 +37,7 @@ Both CMake presets (Release, Debug) target the STM32WLE5 on PCB 1.1. `stm32_node
 | `LED1` / `LED_DIAG` | PB5 / PB3 | Low-active, visible only with DIP 1 / DIP 2 closed. |
 | `DBG_UART` | PB6 / PB7 | USART1 on H1, only while the debug profile or a trace writes. |
 
-I2C2 on PA11 (SDA) / PA12 (SCL) carries SHT45 0x44, BMP390 0x77, LTR390 0x53, SCD41 0x62, SPS30 0x69, MAX17048 0x36 and INA226 0x40. Unused pins are analog.
+I2C2 on PA11 (SDA) / PA12 (SCL) carries SHT45 0x44, BMP390 0x77, LTR390 0x53, SCD41 0x62, SPS30 0x69, MAX17048 0x36 and INA226 0x40. The Qwiic connector CN2 (always powered from VCC) is on the same bus; firmware 2.0 has no driver for it, see [ADDING_SENSORS.md](ADDING_SENSORS.md). Unused pins are analog.
 
 ## Timing and energy
 

@@ -6,6 +6,10 @@ static void put16(uint8_t *buf, uint8_t *n, uint16_t v)
     buf[(*n)++] = (uint8_t)v;
 }
 
+/* ADD YOUR SENSOR (send): ports 2/3/4 keep their lengths (backend layouts
+ * depend on them). Give your data its own port, e.g. 6 = port 2 + your bytes,
+ * select it here and encode it in Payload_Encode(); at most 51 bytes (DR0).
+ * See doc/ADDING_SENSORS.md. */
 uint8_t Payload_Port(uint8_t sensor_flags)
 {
     if ((sensor_flags & SENSOR_FLAG_SPS30) != 0U) { return PAYLOAD_PORT_FULL; }

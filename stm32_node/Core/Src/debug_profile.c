@@ -116,6 +116,7 @@ void DebugProfile_Run(void)
         dbg_printf("PM NC [0.1 #/cm3]: 0.5=%u  1.0=%u  2.5=%u  4.0=%u  10=%u  TypSize=%u nm\r\n",
                    (unsigned)d.nc_0_5, (unsigned)d.nc_1_0, (unsigned)d.nc_2_5,
                    (unsigned)d.nc_4_0, (unsigned)d.nc_10_0, (unsigned)d.typ_size);
+        /* ADD YOUR SENSOR (debug): print your value here for DIP 3 on H1. */
         dbg_printf("---\r\n");
 
         HAL_Delay(DBG_CYCLE_PAUSE_MS);

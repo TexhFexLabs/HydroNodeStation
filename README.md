@@ -52,6 +52,7 @@ It is not a paper design. It was built, assembled and deployed as part of a univ
 | Build a station | [Jump to the build guide](#build-a-station) |
 | Firmware reference | [doc/GETTING_STARTED.md](doc/GETTING_STARTED.md) |
 | Configuration reference | [doc/CONFIGURATION.md](doc/CONFIGURATION.md) |
+| Adding a sensor (Qwiic) | [doc/ADDING_SENSORS.md](doc/ADDING_SENSORS.md) |
 | Reliability and rollout notes | [doc/RELIABILITY.md](doc/RELIABILITY.md) |
 | Licensing | [LICENSING.md](LICENSING.md) |
 | Development history | [doc/DEVELOPMENT_HISTORY.md](doc/DEVELOPMENT_HISTORY.md) |
@@ -71,7 +72,7 @@ It is not a paper design. It was built, assembled and deployed as part of a univ
 
 All six share one I2C bus. Sensors are commanded into their own sleep states between measurements. The SPS30 sits on a separate 5 V rail that the firmware switches off entirely through a GPIO.
 
-The sensor set is a starting point, not a limit. Any I2C sensor can be added with a firmware adaptation.
+The sensor set is a starting point, not a limit. Any I2C sensor can be added on the Qwiic connector (CN2) with a firmware adaptation, see [doc/ADDING_SENSORS.md](doc/ADDING_SENSORS.md).
 
 ---
 
@@ -392,6 +393,7 @@ HydroNodeStation/
 ├── doc/
 │   ├── GETTING_STARTED.md          Firmware reference
 │   ├── CONFIGURATION.md            Pins, timing, power modes, payloads, fault codes, downlinks
+│   ├── ADDING_SENSORS.md           Where your own Qwiic/I2C sensor goes in the firmware
 │   ├── RELIABILITY.md              Reliability and rollout notes, firmware 1.6 and 2.0
 │   ├── DEVELOPMENT_HISTORY.md      Issue and pull request record of the private phase
 │   ├── payload-decoder.js          LoRaWAN payload decoder

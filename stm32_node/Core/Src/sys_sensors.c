@@ -204,6 +204,11 @@ int32_t EnvSensors_Read(sensor_t *sensor_data, uint8_t sensor_flags)
     note_result(FAULT_COMP_SPS30, (sensor_data->valid & SENSOR_VALID_PM) != 0U);
   }
 
+  /* ADD YOUR SENSOR (read): read it here, store the value in sensor_data,
+   * set its SENSOR_VALID_* bit and call note_result(FAULT_COMP_<PART>, ok);
+   * after a failure I2C2_RecoverBus(), like the blocks above. Thread mode
+   * only, never from a timer. See doc/ADDING_SENSORS.md. */
+
   return 0;
   /* USER CODE END EnvSensors_Read */
 }
@@ -243,6 +248,11 @@ int32_t EnvSensors_Init(void)
   found = INA226_Init() == INA226_OK;
   Fault_ComponentInit(FAULT_COMP_INA226, found, INA226_I2C_ADDR_7B);
   if (!found) APP_LOG(TS_OFF, VLEVEL_M, "INA226 not found\r\n");
+
+  /* ADD YOUR SENSOR (init): found = <PART>_Init() == <PART>_OK;
+   * Fault_ComponentInit(FAULT_COMP_<PART>, found, <7-bit address>);
+   * A part on Qwiic (CN2) shares this bus and is powered all the time, so
+   * leave it asleep after init. See doc/ADDING_SENSORS.md. */
 
   return 0;
   /* USER CODE END EnvSensors_Init */
@@ -290,6 +300,7 @@ static void note_result(uint8_t comp, bool ok)
 
 int32_t EnvSensors_Sleep(void)
 {
+  /* ADD YOUR SENSOR (sleep): put your part to sleep here as well. */
   int32_t status = SPS30_StopMeasurement();
   if (SPS30_Sleep() != SPS30_STATUS_OK) status = -1;
   if (SCD41_ENABLED && SCD41_Sleep() != SCD41_STATUS_OK) status = -1;

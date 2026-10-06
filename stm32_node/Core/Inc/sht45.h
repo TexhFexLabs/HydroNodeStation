@@ -5,8 +5,8 @@
  *
  * Uses hardware I2C2 (hi2c2, configured by MX_I2C2_Init).
  * Hardware connections:
- *   PA15  ->  SDA  (I2C2, AF4, open-drain, external 4.7k pull-up to VDD)
- *   PB15  ->  SCL  (I2C2, AF4, open-drain, external 4.7k pull-up to VDD)
+ *   PA11  ->  SDA  (I2C2, open-drain, external 4.7k pull-up to VCC)
+ *   PA12  ->  SCL  (I2C2, open-drain, external 4.7k pull-up to VCC)
  *
  * Datasheet: Sensirion SHT4x Datasheet, Document Version 6, Feb 2023
  *   I2C address: 0x44 (ADDR connected to VSS)

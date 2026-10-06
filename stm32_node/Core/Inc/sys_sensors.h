@@ -54,6 +54,8 @@ typedef struct
   uint16_t nc_4_0;        /*!< SPS30 PM4.0 NC in 0.1 #/cm3 */
   uint16_t nc_10_0;       /*!< SPS30 PM10  NC in 0.1 #/cm3 */
   uint16_t typ_size;      /*!< SPS30 Typical Particle Size in nm (um*1000) */
+  /* ADD YOUR SENSOR (data): add your field here, as an integer in a fixed
+   * unit, plus a free SENSOR_VALID_* bit below. See doc/ADDING_SENSORS.md. */
 } sensor_t;
 
 /* USER CODE BEGIN ET */
@@ -89,6 +91,7 @@ int32_t EnvSensors_Init(void);
 #define SENSOR_VALID_UV      (1U << 3)
 #define SENSOR_VALID_CO2     (1U << 4)
 #define SENSOR_VALID_PM      (1U << 5)
+/* ADD YOUR SENSOR: bits 6..15 are free for your SENSOR_VALID_* flag. */
 #define SENSOR_INVALID_U16  UINT16_MAX
 #define SENSOR_INVALID_T    INT16_MIN
 int32_t EnvSensors_Sleep(void);

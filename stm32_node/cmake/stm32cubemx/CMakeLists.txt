@@ -115,6 +115,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/stm32wlxx_hal_msp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sysmem.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/syscalls.c
+    # ADD YOUR SENSOR: list your driver's .c file next to the others below.
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/sht45.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/bmp390.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/ltr390.c

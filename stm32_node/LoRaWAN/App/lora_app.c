@@ -1479,6 +1479,9 @@ static void SendTxData(uint8_t port)
 
 /* Alarm for the next round, from now, plus the pre-measurements it needs.
  * Also used when a downlink changes the interval, so it applies at once. */
+/* ADD YOUR SENSOR (slow parts): a sensor that needs seconds to measure gets
+ * a pre-measurement timer here like the SCD41/SPS30. Its callback only posts
+ * an event; the I2C work runs in ProcessSensorEvents(). */
 static void ScheduleNextRound(void)
 {
   smtc_modem_status_mask_t status_mask = 0;

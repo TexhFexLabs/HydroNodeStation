@@ -28,6 +28,9 @@
 #define FAULT_COMP_SOLAR_ADC      0x08U
 #define FAULT_COMP_TEMP_SENSOR    0x09U
 #define FAULT_COMP_I2C_BUS        0x10U  /* bus recovery failed */
+/* ADD YOUR SENSOR: 0x0A-0x0F are free (above 0x10 raise FAULT_COMPONENTS in
+ * fault_report.h). Add the id to the backend table DeviceFaultCodes and to
+ * PARTS in doc/payload-decoder.js too. See doc/ADDING_SENSORS.md. */
 
 /* Command acknowledgement results (category 0x06 detail, TD_2_0_16). */
 #define FAULT_CMD_OK              0U  /* executed (0x10: new interval in effect now) */
