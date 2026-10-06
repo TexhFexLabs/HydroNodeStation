@@ -45,8 +45,8 @@
 
 /* Radio events (category 0x04). */
 #define FAULT_RADIO_REJOIN        0x30U  /* detail: days without LinkCheckAns */
-#define FAULT_RADIO_TX_FAILED     0x31U  /* detail: TXDONE "not sent" count since boot */
-#define FAULT_RADIO_TX_REJECTED   0x32U  /* detail: rejected uplink requests since boot */
+#define FAULT_RADIO_TX_FAILED     0x31U  /* detail: TXDONE "not sent" count in the last day */
+#define FAULT_RADIO_TX_REJECTED   0x32U  /* detail: rejected uplink requests in the last day */
 
 /* System events (category 0x05). */
 #define FAULT_SYS_BOOT            0x40U  /* detail: reason << 8 | compressed reset flags */

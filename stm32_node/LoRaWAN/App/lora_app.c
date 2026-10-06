@@ -688,6 +688,7 @@ static bool Installing(void)
 
 void LoRaWAN_Process(void)
 {
+  Fault_Tick(SysTimeGetMcuTime().Seconds);
   ServicePower();
   uint32_t sleep_time_ms = RUNTIME_MAX_SLEEP_MS;
   if (power_policy.mode != POWER_RECOVERY)
@@ -1078,12 +1079,13 @@ static void EventCallback(void)
         if (current_event.event_data.txdone.status == SMTC_MODEM_EVENT_TXDONE_NOT_SENT)
         {
           if (tx_not_sent != UINT16_MAX) tx_not_sent++;
-          Fault_Event(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_FAILED), tx_not_sent);
+          Fault_Count(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_FAILED));
         }
         if (fault_frame_due)
         {
           fault_frame_due = false;
-          SendFaultFrame();
+          /* Urgent entries now, the rest at most hourly (fault_report.h). */
+          if (Fault_FrameDue()) SendFaultFrame();
         }
         if (install_check_due)
         {
@@ -1464,7 +1466,7 @@ static void SendTxData(uint8_t port)
     if (tx_status != SMTC_MODEM_RC_BUSY && tx_status != SMTC_MODEM_RC_NO_TIME)
     {
       if (tx_rejected != UINT16_MAX) tx_rejected++;
-      Fault_Event(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_REJECTED), tx_rejected);
+      Fault_Count(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_REJECTED));
     }
     /* Duty-cycle and scheduling backpressure are expected, not a crash. */
     if (tx_status != SMTC_MODEM_RC_BUSY && tx_status != SMTC_MODEM_RC_NO_TIME &&

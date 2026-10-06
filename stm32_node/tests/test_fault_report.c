@@ -89,6 +89,72 @@ int main(void)
     /* Reset flags: pin 26, BOR 27, SW 28, IWDG 29, WWDG 30, LPWR 31, OBL 25. */
     assert(Fault_CompressResetFlags(0xFE000000UL) == 0x7F);
     assert(Fault_CompressResetFlags(1UL << 29) == FAULT_RST_IWDG);
-    puts("Fault report: boot frame, state edges, 3-in-a-row read errors, 8-entry frames, overflow policy and reset flags passed");
+    /* Priorities: urgent entries make a frame due at once, the rest waits an
+     * hour after the last accepted frame. */
+    Fault_Reset();
+    Fault_Tick(1000U);
+    assert(!Fault_FrameDue());
+    Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_BOOT), 1U);
+    assert(Fault_IsUrgent(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_BOOT)) && Fault_FrameDue());
+    Fault_BuildFrame(f); Fault_FrameAccepted();
+    assert(!Fault_IsUrgent(FAULT_CODE(FAULT_CAT_READ_ERROR, FAULT_COMP_SPS30)));
+    assert(!Fault_IsUrgent(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM)));
+    assert(Fault_IsUrgent(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE) | FAULT_RESOLVED));
+    assert(Fault_IsUrgent(FAULT_CODE(FAULT_CAT_COMMAND, 0x10)) && Fault_IsUrgent(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_REJOIN)));
+    Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), 3U);
+    Fault_Tick(1000U + 3599U); assert(!Fault_FrameDue());
+    Fault_Tick(1000U + 3600U); assert(Fault_FrameDue());
+    Fault_Tick(1100U);
+    Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE), true, 3490U);
+    assert(Fault_FrameDue());   /* urgent entry, the NVM entry rides along */
+    assert(Fault_BuildFrame(f) == 8U && be(f, 0) == 0x0543 && be(f, 4) == 0x0320);
+    Fault_FrameAccepted();
+
+    /* Flapping read errors: the first open/close pair goes out as it happens;
+     * a second open within 6 h stays open until 6 h of good reads. */
+    Fault_Reset();
+    uint32_t t = 50000U;
+    Fault_Tick(t);
+    Fault_ComponentInit(FAULT_COMP_LTR390, true, 0x53);
+    for (int i = 0; i < 3; i++) Fault_ComponentResult(FAULT_COMP_LTR390, false, 4U);
+    Fault_Tick(t += 600U); Fault_ComponentResult(FAULT_COMP_LTR390, true, 0U);
+    assert(Fault_Pending() == 2U && !Fault_IsActive(FAULT_CODE(FAULT_CAT_READ_ERROR, FAULT_COMP_LTR390)));
+    Fault_BuildFrame(f); Fault_FrameAccepted();
+    Fault_Tick(t += 600U);
+    for (int i = 0; i < 3; i++) Fault_ComponentResult(FAULT_COMP_LTR390, false, 4U);
+    assert(Fault_Pending() == 1U);   /* second open is reported */
+    for (int k = 0; k < 20; k++)     /* then it flaps for hours: nothing more */
+    {
+        Fault_Tick(t += 600U); Fault_ComponentResult(FAULT_COMP_LTR390, true, 0U);
+        Fault_Tick(t += 600U); for (int i = 0; i < 3; i++) Fault_ComponentResult(FAULT_COMP_LTR390, false, 4U);
+    }
+    assert(Fault_Pending() == 1U && Fault_IsActive(FAULT_CODE(FAULT_CAT_READ_ERROR, FAULT_COMP_LTR390)));
+    Fault_Tick(t += 600U); Fault_ComponentResult(FAULT_COMP_LTR390, true, 0U);
+    Fault_Tick(t += FAULT_FLAP_HOLD_S - 1U); Fault_ComponentResult(FAULT_COMP_LTR390, true, 0U);
+    assert(Fault_Pending() == 1U);
+    Fault_Tick(t += 1U); Fault_ComponentResult(FAULT_COMP_LTR390, true, 0U);
+    assert(Fault_Pending() == 2U && !Fault_IsActive(FAULT_CODE(FAULT_CAT_READ_ERROR, FAULT_COMP_LTR390)));
+    Fault_BuildFrame(f);
+    assert(be(f, 4) == 0x8203 && be(f, 6) == 3U + 20U * 3U);   /* all failed reads since the open */
+    Fault_FrameAccepted();
+    /* Hours later a single new failure-triple is a plain open again. */
+    Fault_Tick(t += FAULT_FLAP_HOLD_S);
+    for (int i = 0; i < 3; i++) Fault_ComponentResult(FAULT_COMP_LTR390, false, 4U);
+    Fault_Tick(t += 60U); Fault_ComponentResult(FAULT_COMP_LTR390, true, 0U);
+    assert(Fault_Pending() == 2U);
+
+    /* Counted radio events: one entry per day with the count, none at 0. */
+    Fault_Reset();
+    Fault_Tick(UINT32_MAX - 100U);   /* across the seconds wrap */
+    for (int i = 0; i < 5; i++) Fault_Count(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_FAILED));
+    Fault_Count(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_REJOIN));   /* not counted */
+    assert(Fault_Pending() == 0U);
+    Fault_Tick(UINT32_MAX - 100U + FAULT_COUNTER_PERIOD_S - 1U); assert(Fault_Pending() == 0U);
+    Fault_Tick(UINT32_MAX - 100U + FAULT_COUNTER_PERIOD_S);
+    assert(Fault_Pending() == 1U && Fault_BuildFrame(f) == 4U && be(f, 0) == 0x0431 && be(f, 2) == 5U);
+    Fault_FrameAccepted();
+    Fault_Tick(UINT32_MAX - 100U + 2U * FAULT_COUNTER_PERIOD_S); assert(Fault_Pending() == 0U);
+
+    puts("Fault report: boot frame, state edges, 3-in-a-row read errors, 8-entry frames, overflow policy, reset flags, priorities, flap damping and daily counters passed");
     return 0;
 }
