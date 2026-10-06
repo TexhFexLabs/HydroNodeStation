@@ -195,6 +195,6 @@ A part whose read errors open again within 6 h of its last report is flapping: t
 
 A RAM queue holds 16 entries; at most one fPort 99 frame per round, right after the accepted regular uplink. The rest follows in a later round. On overflow the oldest resolved entries go first, then the oldest; `0x054F` reports the loss. Nothing survives a reset except the restart reason (RTC backup DR6/DR7). Each frame costs one extra uplink, and only when something happened.
 
-The HydroNode backend shows every entry in the device console, keeps open states in the monitoring status and can mail them (off by default).
+The HydroNode backend shows every entry in the device console, keeps open states in the monitoring status and can mail them (off by default). Because nothing survives a reset, the boot entry `0x0540` closes all open states; what is still broken is reported again right after it, and a state back within 24 h counts as the same fault (same "since", no second mail).
 
 RF region is selected by `ACTIVE_REGION` in `lora_app.h`; the compiled region set is in `LoRaWAN/Target/lorawan_conf.h`.
