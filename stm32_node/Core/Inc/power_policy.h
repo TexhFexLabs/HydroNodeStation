@@ -12,7 +12,7 @@
 /* Deep discharge: below this, twice in a row and valid, RECOVERY becomes
  * Standby with an RTC wake-up (TD_2_0_18). Validate against the cell
  * datasheet and its protection circuit. */
-#define POWER_STANDBY_MV 3100U
+#define POWER_STANDBY_MV 3200U
 typedef enum { POWER_NORMAL, POWER_SAVE, POWER_RECOVERY } power_mode_t;
 typedef struct { power_mode_t mode; uint32_t recovery_since; uint8_t stable, failures, low; bool standby; } power_policy_t;
 void PowerPolicy_Init(power_policy_t *p, uint16_t mv, bool valid);

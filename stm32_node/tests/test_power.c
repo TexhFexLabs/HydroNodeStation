@@ -19,17 +19,17 @@ int main(void)
     PowerPolicy_Init(&p,65535,false); assert(p.mode==POWER_RECOVERY);
     PowerPolicy_Update(&p,3700,true,UINT32_MAX-30);
     PowerPolicy_Update(&p,3700,true,30); assert(p.mode==POWER_NORMAL);
-    /* Standby: two valid readings below 3100 mV in a row, invalid ones never. */
+    /* Standby: two valid readings below 3200 mV in a row, invalid ones never. */
     PowerPolicy_Init(&p,3700,true);
-    PowerPolicy_Update(&p,3090,true,1); assert(p.mode==POWER_RECOVERY && !p.standby);
+    PowerPolicy_Update(&p,3190,true,1); assert(p.mode==POWER_RECOVERY && !p.standby);
     PowerPolicy_Update(&p,65535,false,2); assert(!p.standby);
-    PowerPolicy_Update(&p,3090,true,3); assert(!p.standby);
-    PowerPolicy_Update(&p,3110,true,4); assert(!p.standby);
-    PowerPolicy_Update(&p,3080,true,5); assert(!p.standby);
-    PowerPolicy_Update(&p,3070,true,6); assert(p.standby && p.mode==POWER_RECOVERY);
+    PowerPolicy_Update(&p,3190,true,3); assert(!p.standby);
+    PowerPolicy_Update(&p,3210,true,4); assert(!p.standby);
+    PowerPolicy_Update(&p,3180,true,5); assert(!p.standby);
+    PowerPolicy_Update(&p,3170,true,6); assert(p.standby && p.mode==POWER_RECOVERY);
     for(int i=0;i<5;i++) PowerPolicy_Update(&p,65535,false,7+i);
     assert(!p.standby);
-    PowerPolicy_Update(&p,3200,true,20); PowerPolicy_Update(&p,3200,true,21); assert(!p.standby);
+    PowerPolicy_Update(&p,3300,true,20); PowerPolicy_Update(&p,3300,true,21); assert(!p.standby);
     /* Measurement plan per mode over one 10-round cycle. */
     unsigned co2=0, pm=0;
     for(uint8_t r=1;r<=POWER_ROUNDS;r++){uint8_t m=PowerPolicy_Measurements(POWER_NORMAL,r);co2+=!!(m&POWER_MEASURE_CO2);pm+=!!(m&POWER_MEASURE_PM);}
