@@ -20,7 +20,7 @@ the hardware tests still outstanding see [RELIABILITY.md](RELIABILITY.md).
 | `ninja` or `make` | any | CMake generator backend |
 | ST-Link V2 or J-Link | hardware | Flashing over SWD |
 | `openocd` or STM32CubeProgrammer | any | Flash utility |
-| USB to UART adapter, 3.3 V | hardware | Reading the debug console on PA6 |
+| USB to UART adapter, 3.3 V | hardware | Reading the debug console on H1 (USART1, PB6 TX / PB7 RX) |
 
 ```bash
 # macOS
@@ -39,7 +39,7 @@ git clone https://github.com/TexhFexLabs/HydroNodeStation.git
 cd HydroNodeStation/stm32_node
 ```
 
-**Custom PCB, STM32WLE5CCU6:**
+**PCB 1.1, STM32WLE5CCU6 (firmware 2.0; revision 1 boards use a 1.6.x release):**
 
 ```bash
 cmake -B build/Release \
@@ -48,7 +48,7 @@ cmake -B build/Release \
 cmake --build build/Release
 ```
 
-**Wio-E5 mini prototyping board:**
+**Same board with trace output over USART1:**
 
 ```bash
 cmake -B build/Debug \
@@ -126,8 +126,11 @@ Download.
 
 ## 5. Read the Device EUI
 
-After flashing, the LED blinks for 10 seconds. Connect the USB to UART adapter
-to **PA6** at 115200 baud. The firmware prints the derived Device EUI on boot.
+Flash the Debug build once and connect the USB to UART adapter to header **H1**
+(PB6 = TX) at 115200 baud. The firmware prints the derived Device EUI on boot.
+Clear the option byte IWDG_STDBY once per board
+(`STM32_Programmer_CLI -c port=SWD -ob IWDG_STDBY=0`), see
+[CONFIGURATION.md](CONFIGURATION.md#power-modes).
 
 Register that EUI as an OTAA device on your network server using LoRaWAN 1.0.4
 and the regional parameters for your region. Helium IoT, ChirpStack v4 and
@@ -152,9 +155,9 @@ The backend decodes the payload by fPort and acknowledges uplinks
 automatically. No decoder configuration is needed on your side.
 
 To run your own backend instead, use [payload-decoder.js](payload-decoder.js).
-Before deploying firmware 1.6 against an existing backend, make sure its
-decoder treats the missing-value sentinels as absent readings rather than as
-real measurements. The sentinels are documented in
+Before deploying firmware 2.0 against an existing backend, make sure its
+decoder knows the 32/34-byte ports 2/3, treats the missing-value sentinels as
+absent readings rather than as real measurements, and ignores or reads fPort 99. The sentinels are documented in
 [CONFIGURATION.md](CONFIGURATION.md).
 
 ### Additional sensor slots
@@ -173,7 +176,7 @@ to two minutes if there is gateway coverage.
 
 If nothing arrives, check in this order:
 
-1. Is the Device EUI on the network server identical to the one printed on PA6?
+1. Is the Device EUI on the network server identical to the one printed on H1?
 2. Did the join succeed? Enable logging (below) and watch the console.
 3. Is there gateway coverage at the deployment site? Move the node closer to a
    known gateway to rule this out.
@@ -188,12 +191,15 @@ not reboot merely because no gateway is in range.
 ## 8. Debugging
 
 **Serial logging in normal operation.** Set `APP_LOG_ENABLED 1` in
-`Core/Inc/sys_conf.h` and rebuild. The console appears on PA6 at 115200 baud.
+`Core/Inc/sys_conf.h` (the Debug preset does this) and rebuild. The console
+appears on H1 (PB6) at 115200 baud.
 Debug logs print the DevEUI and never the keys.
 
-**Debug profile mode.** With `APP_LOG_ENABLED=1`, pull `DEBUG_SW_Pin` (PB4)
-HIGH before power-on. The node skips LoRaWAN entirely and reads all sensors in a
-loop, printing raw values on PA6 roughly every 8 seconds. This is the fastest
+**Debug profile mode.** Close DIP 3 before power-on (also in the Release
+build). The node skips LoRaWAN entirely and reads all sensors, including the
+solar measurement and fuel gauge, in a loop and prints the values on H1.
+DIP 4 instead starts the installation mode, see
+[CONFIGURATION.md](CONFIGURATION.md#dip-switches). This is the fastest
 way to bring up sensors or check calibration without waiting for transmit
 windows.
 

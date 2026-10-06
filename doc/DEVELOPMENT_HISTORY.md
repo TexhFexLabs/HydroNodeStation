@@ -74,3 +74,9 @@ development LoRaWAN key material and personal data (see [SECURITY.md](../SECURIT
 | 54 | Refactor README and documentation; update LoRaWAN integration details… | `50-project-cleanup` | 2026-06-22 | 2026-06-22 |
 | 55 | docs: finalize study presentation and enclosure CAD | `50-project-cleanup` | 2026-09-05 | 2026-09-05 |
 | 56 | Fix 49-day uplink outage and harden unattended operation | `feature/long-term-reliability` | 2026-09-06 | 2026-09-06 |
+
+## After the republication
+
+Firmware 2.0 for hardware revision 2 (PCB 1.1) was developed in the public
+repository on the branch `pcb-1.1-firmware-2.0`; its commit messages carry the
+planning references (`Refs TD_2_0_n`). Revision 1 boards stay on firmware 1.6.x.

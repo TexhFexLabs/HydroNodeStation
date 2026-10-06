@@ -38,11 +38,11 @@ Both build targets must compile:
 ```bash
 cd stm32_node
 
-# Release target, custom PCB, STM32WLE5CCU6
+# Release target, PCB 1.1, STM32WLE5CCU6
 cmake -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
 cmake --build build/Release
 
-# Debug target, Wio-E5 mini prototyping board
+# Debug target, same board with trace over USART1 (H1)
 cmake -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake
 cmake --build build/Debug
 ```

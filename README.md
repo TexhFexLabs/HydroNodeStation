@@ -34,7 +34,7 @@ HydroNodeStation is a monitoring node that needs no mains power, no Wi-Fi and no
 
 It is not a paper design. It was built, assembled and deployed as part of a university engineering project, and one station has been reporting continuously.
 
-**Project status:** hardware revision 2 is pending fabrication, firmware 1.6 is deployed, one station is live in the field. Long-term solar autonomy through a winter is not verified yet. See [Power budget](#power-budget-measured) for measured numbers instead of estimates.
+**Project status:** hardware revision 2 (PCB 1.1) is the supported board, firmware 2.0.0 is written for it and awaits its field acceptance test. Revision 1 boards stay on firmware 1.6.x, which is deployed; one station is live in the field. Long-term solar autonomy through a winter is not verified yet. See [Power budget](#power-budget-measured) for measured numbers instead of estimates.
 
 <div align="center">
   <img src="doc/assets/station_outdoor.jpg" width="420" alt="HydroNodeStation deployed outdoors, Stevenson screen mounted on a railing post" />
@@ -88,17 +88,20 @@ Designed from scratch in EasyEDA Pro, fabricated and assembled at JLCPCB.
 | Function | Part |
 |---|---|
 | MCU and radio | **STM32WLE5CCU6**, Cortex-M4 at 48 MHz with an integrated sub-GHz LoRa transceiver |
-| RF front end | **BALFHB-WL-02D3** balun and **BGS12SN6** TX/RX switch on GPIO PC13 |
+| RF front end | **BALFHB-WL-02D3** balun on RFO_HP and **BGS12SN6** TX/RX switch (select PC13, supply PB12), 32 MHz crystal |
 | Antenna | External SMA connector |
 | Solar charger | **BQ25185** |
-| Regulators | Two **TPS63900** buck-boost converters. 3.3 V primary always on, 5 V secondary switched by GPIO for the SPS30 |
+| Regulators | Three **TPS63900** buck-boost converters. 3.3 V primary always on, 5 V for the SPS30 (EN5V, PA9) and a switchable 3.3 V rail (EN3V3SW, PA8) |
 | Fuel gauge | **MAX17048** |
+| Solar measurement | **INA226** on a 68 mOhm shunt plus a voltage divider on ADC PB2 |
 
 **Stackup.** Top and bottom carry signal and supply. Inner 1 is a dedicated ground layer with a continuous copper pour. Inner 2 is a second signal layer. The continuous ground layer gives short return paths and keeps common-mode noise off the I2C and control lines.
 
 **RF layout.** Traces in the RF section are 50 ohm controlled impedance for 868 MHz. A dense ground via fence surrounds the balun, the switch, the decoupling capacitors and the SMA path. It ties the RF field down to the ground layer and suppresses coupling into the rest of the board.
 
 **Connectors.** A 2-pin JST connector and a parallel screw terminal for the battery, a 2-pin screw terminal for the solar panel, a 6-pin screw terminal for the cable to the Stevenson screen (I2C, supply, panel lead), and a 4-pin header for the ST-Link V2 (NRST, SWDCLK, SWDIO, GND). Test pads are provided on the supply rails, the I2C bus and the charger CE pin.
+
+> **Revision 2 (PCB 1.1) pin changes against revision 1.** Charger CE moves to PA2, the RF switch is supplied from PB12, the 5 V and switchable 3.3 V rails have enable pins (PA9, PA8), and an INA226 measures the solar input. Firmware 2.0 requires these; firmware 1.6.x stays for revision 1.
 
 > **Two faults in revision 1, both fixed in the published design.**
 >
@@ -160,7 +163,7 @@ This is the complete path from ordering parts to seeing your own readings on the
 | Path | What you get |
 |---|---|
 | **Custom PCB** (recommended) | The real thing. Order and assemble at JLCPCB straight from the EasyEDA project. Roughly 200 EUR for 5 assembled boards including shipping, 2 to 3 weeks lead time. |
-| **Seeed Studio Wio-E5 mini** (prototyping) | A development board with an STM32WL55JC and pin headers. No soldering iron needed. Sensors attach as breakout boards over jumper wires on the same I2C bus the custom PCB uses. Good for trying the firmware before committing to a board order. |
+| **Seeed Studio Wio-E5 mini** (prototyping, historical) | A development board with pin headers. No soldering iron needed. Sensors attach as breakout boards over jumper wires on the same I2C bus the custom PCB uses. Current firmware (1.6 and 2.0) builds only for the custom PCB; this path needs your own pin and radio adaptation. |
 
 For the Wio-E5 path you also need breakout boards for the SHT45, BMP390 and LTR390 (Adafruit), the SCD41 (Seeed Studio) and the SPS30 (Sensirion), a MAX17048 breakout, jumper wires, and a step-up converter to 5 V for the SPS30.
 
@@ -184,7 +187,7 @@ These are not on the PCB and have to be sourced separately.
 | Cable gland | Waterproof, sized for your cable | For the panel lead entering the enclosure. |
 | UV window | 2 mm polystyrene sheet | See the note below. |
 | Programmer | ST-Link V2 | Connects to NRST, SWDCLK, SWDIO, GND. |
-| Serial adapter | USB to UART, 3.3 V | Needed once, to read the Device EUI off PA6 at 115200 baud. |
+| Serial adapter | USB to UART, 3.3 V | Needed once, to read the Device EUI off header H1 at 115200 baud. |
 
 > **About the UV window.** The LTR390 has to see UV through the enclosure, but ordinary glass and PETG block most of it and produce a reading that is wrong rather than missing. The deployed station uses roughly 2 mm of polystyrene with an empirical correction factor of 17/13, applied in the firmware as integer arithmetic. That was a cost decision. It works, but polystyrene is not UV-stable and will degrade outdoors. **UV-transmitting acrylic (PMMA UVT) is the better choice** for a station meant to last. Quartz or borosilicate is better still and costs around 50 EUR for a small disc. Issue [#2](../../issues/2) tracks cheaper options.
 
@@ -237,7 +240,7 @@ cmake -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/g
 cmake --build build/Release
 ```
 
-The output is `build/Release/LoRaWAN_End_Node_LBM.elf` plus `.bin` and `.hex`. For the Wio-E5 mini, use the `Debug` target instead.
+The output is `build/Release/LoRaWAN_End_Node_LBM.elf` plus `.bin` and `.hex`. The `Debug` target builds the same firmware with trace output over USART1, which step 7 uses. Firmware 2.0 needs a revision 2 board (PCB 1.1); for revision 1 check out a 1.6.x release.
 
 Leave the LoRaWAN keys alone for now. `LORAWAN_DEVICE_EUI` stays at all zeros, which tells the firmware to derive the Device EUI from the STM32 hardware UID.
 
@@ -252,7 +255,13 @@ openocd -f interface/stlink.cfg -f target/stm32wlx.cfg \
 
 STM32CubeProgrammer works too. Open the `.elf`, select ST-Link, click Download.
 
-After flashing, the LED blinks for 10 seconds. Connect the USB to UART adapter to **PA6** at 115200 baud. The firmware prints the derived **Device EUI** on boot. Write it down, it is needed in the next two steps.
+Clear the option byte **IWDG_STDBY** once per board, otherwise the station cannot use its Standby stage at deep discharge (it then stays in RECOVERY and reports `0x0544`):
+
+```bash
+STM32_Programmer_CLI -c port=SWD -ob IWDG_STDBY=0
+```
+
+To read the Device EUI, flash the `Debug` build once (`cmake --preset Debug && cmake --build --preset Debug`, then flash `build/Debug/LoRaWAN_End_Node_LBM.elf`). Connect the USB to UART adapter to header **H1** (PB6 = TX, PB7 = RX) at 115200 baud. The firmware prints the derived **Device EUI** on boot. Write it down, it is needed in the next two steps. With DIP 1 closed, LED1 flashes once per join attempt and twice when the join succeeds.
 
 ### Step 8: register the device on a LoRaWAN network server
 
@@ -275,7 +284,7 @@ Create `stm32_node/LoRaWAN/App/se-identity-local.h`. This file is git-ignored, a
 
 Never put real keys in the tracked `se-identity.h`, and never commit them. See [SECURITY.md](SECURITY.md).
 
-Rebuild and flash again. The station now starts the OTAA join with your credentials.
+Rebuild the `Release` target and flash it. The station now starts the OTAA join with your credentials.
 
 ### Step 10: connect it to HydroNode
 
@@ -293,7 +302,9 @@ To run your own backend instead, the payload decoder is published as [`doc/paylo
 
 The first uplink lands on fPort 2 and should appear within one to two minutes if there is gateway coverage.
 
-To check the sensors without waiting for LoRaWAN, use debug profile mode. Set `APP_LOG_ENABLED=1` in `Core/Inc/sys_conf.h`, rebuild, then pull `DEBUG_SW_Pin` (PB4) HIGH before power-on. The node skips LoRaWAN entirely and reads all sensors in a loop, printing raw values on PA6.
+To place the antenna, close DIP 4 (installation mode) and DIP 1 before power-on. For 30 minutes after the join the station sends every 60 seconds and runs a link check after every third uplink; LED1 then flashes once per gateway that heard it, or once long when none answered.
+
+To check the sensors without LoRaWAN, close DIP 3 (debug profile) before power-on. The node skips LoRaWAN entirely, reads all sensors including the solar measurement in a loop and prints the values on H1 at 115200 baud. This works with the Release build. Open both switches again for normal operation; they are read only at boot.
 
 ### Cost
 
@@ -309,26 +320,28 @@ Sensors only. The board itself, the RF section, the power stage and the fabricat
 
 ## Firmware
 
-Firmware 1.6 fixes a reproducible uplink outage after 49.71 days and adds watchdog and progress recovery, robust sensor shutdown, battery recovery and transactional NVM. See [doc/RELIABILITY.md](doc/RELIABILITY.md).
+Firmware 2.0.0 runs on PCB 1.1. It keeps everything firmware 1.6 brought (fix of the uplink outage after 49.71 days, watchdog and progress recovery, robust sensor shutdown, battery recovery, transactional NVM) and adds solar and fuel gauge data on ports 2 and 3, fault and event reports on fPort 99, command acknowledgements, an adaptive measurement plan with a Standby stage for deep discharge, a daily link check with rejoin, and the installation mode. See [doc/CONFIGURATION.md](doc/CONFIGURATION.md) and [doc/RELIABILITY.md](doc/RELIABILITY.md).
 
 The firmware runs on the STM32Cube ecosystem with the Semtech **LoRa Basics Modem**.
 
 - **STOP2 deep sleep** between transmissions, capped at 8 seconds so the independent watchdog stays fed.
 - **3 minute measurement cycle** (`APP_TX_DUTYCYCLE`), adjustable over the air between 30 and 3600 seconds.
 - **CO2 every fifth uplink, particulate matter every tenth.** The expensive sensors do not run every cycle.
-- **LoRaWAN Class A** with adaptive data rate, SF7 by default to keep on-air time short.
+- **Solar sampling every 30 seconds.** INA226 voltage, current and power, energy and sunshine time, plus the panel voltage on the ADC, collected into a 22-byte block on ports 2 and 3.
+- **LoRaWAN Class A** with network-controlled adaptive data rate and a daily link check. Three days without an answer trigger a rejoin.
+- **Faults reach the backend.** Missing sensors, read errors, supply states, rejoins and every restart with its reason are reported on fPort 99.
 - **Staggered pre-wakeup.** Slow sensors start ahead of the transmit window so the MCU sleeps through their measurement time instead of waiting for them.
     - The **SCD41** runs two power-cycled single shots. A throwaway stabilisation shot starts 12 seconds before the uplink, the useful shot 6 seconds before it. Only the second is transmitted. Without the first, the reading after a power cycle is measurably wrong.
     - The **SPS30** starts 16.5 seconds before the uplink to cover fan spin-up and settling.
-- **Battery policy** with hysteresis. Below 3500 mV the interval doubles. Below 3300 mV the node cancels radio and sensor work and checks the voltage every 60 seconds until it recovers.
+- **Battery policy** with hysteresis. Below 3500 mV the interval doubles and PM pauses. Below 3300 mV the node cancels radio and sensor work and checks the voltage every 60 seconds until it recovers. Two readings below 3100 mV put it into Standby with an hourly wake-up (needs the option byte IWDG_STDBY cleared, see [doc/CONFIGURATION.md](doc/CONFIGURATION.md#power-modes)).
 
 ### Downlink commands
 
-Sent on fPort 2.
+Sent on fPort 2. Every command is acknowledged on fPort 99 with its result.
 
 | Payload | Action |
 |---|---|
-| `10 HH LL` | Set the transmit interval in seconds, 30 to 3600, persisted to flash |
+| `10 HH LL` | Set the transmit interval in seconds, 30 to 3600, persisted to flash and in effect at once |
 | `11` | Trigger an SPS30 fan cleaning cycle |
 | `12` | Request boot, reset and sensor diagnostics on fPort 5 |
 | `FF` | Software reset |
@@ -387,8 +400,8 @@ HydroNodeStation/
 │   └── datasheets/      Component datasheets, vendor copyright, see LICENSING.md
 ├── doc/
 │   ├── GETTING_STARTED.md          Firmware reference
-│   ├── CONFIGURATION.md            Timing, payload format, downlinks
-│   ├── RELIABILITY.md              Firmware 1.6 reliability and rollout notes
+│   ├── CONFIGURATION.md            Pins, timing, power modes, payloads, fault codes, downlinks
+│   ├── RELIABILITY.md              Reliability and rollout notes, firmware 1.6 and 2.0
 │   ├── DEVELOPMENT_HISTORY.md      Issue and pull request record of the private phase
 │   ├── payload-decoder.js          LoRaWAN payload decoder
 │   ├── open-source-documentation/  OSHWLab project description
