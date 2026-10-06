@@ -36,4 +36,22 @@ assert.equal(decodeUplink({fPort:2,bytes:[...base]}).data.solar_mv,undefined);
 assert.ok(decodeUplink({fPort:2,bytes:Array(31).fill(0)}).errors);
 assert.ok(decodeUplink({fPort:3,bytes:Array(32).fill(0)}).errors);
 assert.ok(decodeUplink({fPort:4,bytes:Array(34).fill(0)}).errors);
-console.log('Decoder: negative temperatures, null sentinels, lengths, diagnostic uint32, split fault code and anomaly counters, 2.0 block on ports 2/3 and 1.x lengths passed');
+/* Port 99: 1 to 8 entries of code + detail (TD_2_0_15). */
+const boot=decodeUplink({fPort:99,bytes:[5,64,2,11,5,65,2,0]}).data.entries;
+assert.equal(boot.length,2);
+assert.equal(boot[0].code,'0x0540');assert.equal(boot[0].reason,'CPU fault');
+assert.deepEqual(boot[0].reset_flags,['pin','brown-out','IWDG']);
+assert.equal(boot[1].version,'2.0');assert.equal(boot[1].state,false);
+const f=decodeUplink({fPort:99,bytes:[1,2,0,119, 130,5,0,7, 3,32,13,172, 131,35,255,255,
+  6,16,0,0, 6,171,0,4, 5,79,0,3, 7,153,0,5]}).data.entries;
+assert.equal(f.length,8);
+assert.equal(f[0].text,'BMP390 not found at start');assert.equal(f[0].i2c_address,0x77);
+assert.equal(f[1].resolved,true);assert.equal(f[1].text,'SPS30 reads again');assert.equal(f[1].part,'SPS30');assert.equal(f[1].detail,7);
+assert.equal(f[2].battery_mv,3500);assert.equal(f[2].state,true);
+assert.equal(f[3].battery_mv,null);assert.equal(f[3].text,'Battery reading invalid');
+assert.equal(f[4].text,'Command 0x10 executed');assert.equal(f[5].text,'Command 0xAB unknown command');
+assert.equal(f[6].text,'Fault queue overflow');assert.equal(f[7].text,'Code 0x0799, detail 5');
+assert.ok(decodeUplink({fPort:99,bytes:[1,2,0,119,0,0]}).errors);
+assert.ok(decodeUplink({fPort:99,bytes:[]}).errors);
+assert.ok(decodeUplink({fPort:99,bytes:Array(36).fill(0)}).errors);
+console.log('Decoder: negative temperatures, null sentinels, lengths, diagnostic uint32, split fault code and anomaly counters, 2.0 block on ports 2/3, 1.x lengths and port 99 fault entries passed');

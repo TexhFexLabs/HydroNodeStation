@@ -2,11 +2,57 @@
  * Every port has a fixed length. Ports 2 and 3 end in a 22-byte block
  * (solar, fuel gauge, board temperature, counters); port 4 is unchanged.
  * Firmware 1.x frames (port 2: 10 bytes, port 3: 12 bytes) still decode,
- * without the block, so a station keeping its DevEUI stays readable. */
+ * without the block, so a station keeping its DevEUI stays readable.
+ * Port 99 carries 1 to 8 fault/event entries of 4 bytes (code u16 + detail
+ * u16); the code table mirrors stm32_node/Core/Inc/fault_codes.h. */
+const PARTS = {1: "SHT45", 2: "BMP390", 3: "LTR390", 4: "SCD41", 5: "SPS30", 6: "MAX17048",
+  7: "INA226", 8: "Solar ADC", 9: "Board temperature sensor", 16: "I2C bus"};
+const EVENTS = {0x0320: "Power save mode", 0x0321: "Recovery mode, radio off",
+  0x0323: "Battery reading invalid", 0x0430: "Rejoined after the link check",
+  0x0431: "Uplink not sent", 0x0432: "Uplink request rejected", 0x0540: "Restart",
+  0x0541: "Firmware version", 0x0542: "LSE crystal started late", 0x0543: "NVM error",
+  0x0544: "Option byte IWDG_STDBY not set, no Standby", 0x054f: "Fault queue overflow"};
+const RESTART = ["none", "HAL error", "CPU fault", "modem", "no progress", "NVM", "LSE",
+  "command FF", "Standby wake-up"];
+const RESET_FLAGS = ["pin", "brown-out", "software", "IWDG", "WWDG", "low-power", "option byte"];
+const COMMAND_RESULTS = ["executed", "length or parameter invalid",
+  "refused because of battery or power mode", "could not be saved", "unknown command",
+  "reply not accepted by the modem", "execution failed"];
+
+function faultEntry(code, detail) {
+  const base = code & 0x7fff, category = (code >> 8) & 0x7f, id = code & 0xff;
+  const entry = {code: "0x" + code.toString(16).toUpperCase().padStart(4, "0"),
+    category, resolved: (code & 0x8000) !== 0, state: category >= 1 && category <= 3, detail};
+  if ((category === 1 || category === 2) && PARTS[id]) {
+    entry.part = PARTS[id];
+    entry.text = PARTS[id] + (category === 1
+      ? (entry.resolved ? " found again" : " not found at start")
+      : (entry.resolved ? " reads again" : " read errors, 3 in a row"));
+    if (category === 1 && !entry.resolved && detail) entry.i2c_address = detail & 0x7f;
+  } else if (base === 0x0540) {
+    entry.text = "Restart";
+    entry.reason = RESTART[detail >> 8] || "reason " + (detail >> 8);
+    entry.reset_flags = RESET_FLAGS.filter((_, bit) => detail & (1 << bit));
+  } else if (base === 0x0541) {
+    entry.text = "Firmware version";
+    entry.version = (detail >> 8) + "." + (detail & 0xff);
+  } else if (category === 6) {
+    entry.text = "Command 0x" + id.toString(16).toUpperCase().padStart(2, "0") + " " +
+      (COMMAND_RESULTS[detail] || "result " + detail);
+  } else if (EVENTS[base]) {
+    entry.text = EVENTS[base];
+  } else {
+    entry.text = "Code " + entry.code + ", detail " + detail;
+  }
+  if (category === 3) entry.battery_mv = detail === 65535 ? null : detail;
+  return entry;
+}
+
 function decodeUplink(input) {
   const bytes = input.bytes;
   const port = input.fPort;
-  const lengths = {2: [32, 10], 3: [34, 12], 4: [32], 5: [26]};
+  const lengths = {2: [32, 10], 3: [34, 12], 4: [32], 5: [26],
+    99: [4, 8, 12, 16, 20, 24, 28, 32]};
   if (!Array.isArray(bytes) || !lengths[port] || !lengths[port].includes(bytes.length) ||
       bytes.some(b => !Number.isInteger(b) || b < 0 || b > 255)) {
     return {errors: ["Invalid HydroNode port, length or byte value"]};
@@ -16,6 +62,11 @@ function decodeUplink(input) {
   const value = (i, scale = 1) => u16(i) === 65535 ? null : u16(i) / scale;
   const signed = (i, scale) => u16(i) === 32768 ? null :
     (u16(i) >= 32768 ? u16(i) - 65536 : u16(i)) / scale;
+  if (port === 99) {
+    const entries = [];
+    for (let i = 0; i < bytes.length; i += 4) entries.push(faultEntry(u16(i), u16(i + 2)));
+    return {data: {entries}};
+  }
   if (port === 5) {
     if (bytes[0] !== 1) return {errors: ["Unsupported diagnostic version"]};
     return {data: {version: bytes[0], power_mode: bytes[1], uptime_s: u32(2),
