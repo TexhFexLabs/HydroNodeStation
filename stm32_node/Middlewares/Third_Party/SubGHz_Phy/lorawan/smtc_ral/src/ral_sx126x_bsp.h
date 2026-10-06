@@ -137,7 +137,8 @@ static inline void ral_sx126x_bsp_get_tx_cfg( const void* context, const ral_sx1
                                 ral_sx126x_bsp_tx_cfg_output_params_t* output_params )
 {
 
-    int16_t power = input_params->system_output_pwr_in_dbm;  // + board_tx_pwr_offset_db;
+    /* EIRP from the stack minus the antenna gain = conducted power (radio_board_if.h). */
+    int16_t power = input_params->system_output_pwr_in_dbm - BOARD_ANTENNA_GAIN_DB;
 
     output_params->pa_ramp_time  = RAMP_40_US;
     output_params->pa_cfg.pa_lut = 0x01;  // reserved value, same for sx1261 sx1262 and sx1268

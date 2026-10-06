@@ -29,6 +29,12 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "platform.h"
 /* USER CODE BEGIN include */
+/* Gain of the mounted antenna in dB. The stack asks for EIRP (EU868: 16 dBm);
+ * the PA gets EIRP minus this gain, so a 2 dBi antenna stays at 16 dBm EIRP
+ * (14 dBm ERP). Change it together with the antenna. */
+#ifndef BOARD_ANTENNA_GAIN_DB
+#define BOARD_ANTENNA_GAIN_DB  2
+#endif
 
 /* USER CODE END include */
 
