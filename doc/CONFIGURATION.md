@@ -44,6 +44,8 @@ I2C2 on PA11 (SDA) / PA12 (SCL) carries SHT45 0x44, BMP390 0x77, LTR390 0x53, SC
 | Setting | Default | Location |
 |---|---|---|
 | Uplink interval | 180 s, downlink `10 HH LL` sets 30 to 3600 s and applies at once | `LoRaWAN/App/lora_app.h` |
+| TX power | EIRP from the stack (EU868 16 dBm) minus `BOARD_ANTENNA_GAIN_DB` (2) = conducted power | `LoRaWAN/Target/radio_board_if.h` |
+| Fault frames (fPort 99) | urgent with the next uplink, the rest at most hourly, counters daily | `Core/Inc/fault_report.h` |
 | SCD41 first / useful shot | 12 / 6 s before the uplink | `lora_app.h` |
 | SPS30 start | 16.5 s before the uplink | `lora_app.h` |
 | Solar sample (INA226 + ADC) | every 30 s in NORMAL and SAVE | `lora_app.c` |
@@ -61,7 +63,7 @@ The measurement plan follows the battery. Thresholds are in `Core/Inc/power_poli
 | NORMAL | | | 180 s | every 5th round | every 10th round | yes |
 | SAVE | below 3500 mV | 3650 mV | 360 s | every 10th round (hourly) | no | yes |
 | RECOVERY | below 3300 mV or 3 invalid readings | 3600 mV stable for 60 s | none | no | no | off |
-| Standby | in RECOVERY, 2 valid readings in a row below 3100 mV | wake-up every 60 min, boot when at least 3600 mV | none | no | no | off |
+| Standby | in RECOVERY, 2 valid readings in a row below 3200 mV | wake-up every 60 min, boot when at least 3600 mV | none | no | no | off |
 
 The battery is checked every 60 s. An invalid reading never leads into Standby: a missing measurement is no undervoltage. Mode changes are reported on fPort 99 (`0x0320`/`0x8320` SAVE, `0x0321`/`0x8321` RECOVERY). RECOVERY entry and exit leave together once the radio is back.
 
@@ -172,8 +174,8 @@ Parts for `0x01`/`0x02`: `0x01` SHT45, `0x02` BMP390, `0x03` LTR390, `0x04` SCD4
 | `0x0321` | RECOVERY | battery mV |
 | `0x0323` | Battery reading invalid | battery mV or `0xFFFF` |
 | `0x0430` | Rejoined after the link check | days without an answer |
-| `0x0431` | Uplink not sent (TX done "not sent") | count since boot |
-| `0x0432` | Uplink request rejected (not BUSY/NO_TIME) | count since boot |
+| `0x0431` | Uplink not sent (TX done "not sent"), once a day | count in that day |
+| `0x0432` | Uplink request rejected (not BUSY/NO_TIME), once a day | count in that day |
 | `0x0540` | Restart | high byte: reason, low byte: reset flags |
 | `0x0541` | Firmware version | major << 8 \| minor, `0x0200` |
 | `0x0542` | LSE started in the second attempt | attempts |
@@ -185,7 +187,13 @@ Restart reasons (high byte of `0x0540`): 0 none, 1 HAL, 2 CPU, 3 modem, 4 missin
 
 Examples: `0102 0077` = BMP390 not found at start; `0205 0004` = SPS30 read errors (NACK); `8205 0007` = SPS30 reads again after 7 failed attempts; `0540 0001` + `0541 0200` = boot after a pin reset, firmware 2.0.
 
-**Sending.** States (`0x01`-`0x03`) are reported once on entry and once on exit; repeated errors while a state is active add nothing. Events are reported per occurrence. After every boot, once after the join, `0x0540` and `0x0541` leave in one frame. A RAM queue holds 16 entries; at most one fPort 99 frame per round, right after the accepted regular uplink. The rest follows in the next round. On overflow the oldest resolved entries go first, then the oldest; `0x054F` reports the loss. Nothing survives a reset except the restart reason (RTC backup DR6/DR7). Each frame costs one extra uplink, and only when something happened.
+**Sending.** States (`0x01`-`0x03`) are reported once on entry and once on exit; repeated errors while a state is active add nothing. Events are reported per occurrence, except `0x0431`/`0x0432`: they are counted and reported once a day, only when the count is not 0. After every boot, once after the join, `0x0540` and `0x0541` leave in one frame.
+
+Entries are urgent or normal. Urgent: boot info (`0x0540`-`0x0542`, `0x0544`), rejoin `0x0430`, part not found (`0x01`), supply (`0x03`) and command acknowledgements (`0x06`). They make a frame due with the next regular uplink. Everything else (read errors, NVM, the daily counters, overflow) waits until an hour has passed since the last fault frame, or rides along with an urgent one. A frame carries up to 8 entries, so a burst costs one uplink.
+
+A part whose read errors open again within 6 h of its last report is flapping: the new open is reported, but "resolved" follows only after 6 h of good reads, and its detail counts every failed read since the open. One open and close per part and 6 h, at most one more open.
+
+A RAM queue holds 16 entries; at most one fPort 99 frame per round, right after the accepted regular uplink. The rest follows in a later round. On overflow the oldest resolved entries go first, then the oldest; `0x054F` reports the loss. Nothing survives a reset except the restart reason (RTC backup DR6/DR7). Each frame costs one extra uplink, and only when something happened.
 
 The HydroNode backend shows every entry in the device console, keeps open states in the monitoring status and can mail them (off by default).
 

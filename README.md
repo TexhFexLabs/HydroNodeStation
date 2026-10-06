@@ -158,15 +158,6 @@ flowchart LR
 
 This is the complete path from ordering parts to seeing your own readings on the dashboard. Budget two to three weeks, most of which is PCB lead time.
 
-### Step 0: pick a path
-
-| Path | What you get |
-|---|---|
-| **Custom PCB** (recommended) | The real thing. Order and assemble at JLCPCB straight from the EasyEDA project. Roughly 200 EUR for 5 assembled boards including shipping, 2 to 3 weeks lead time. |
-| **Seeed Studio Wio-E5 mini** (prototyping, historical) | A development board with pin headers. No soldering iron needed. Sensors attach as breakout boards over jumper wires on the same I2C bus the custom PCB uses. Current firmware (1.6 and 2.0) builds only for the custom PCB; this path needs your own pin and radio adaptation. |
-
-For the Wio-E5 path you also need breakout boards for the SHT45, BMP390 and LTR390 (Adafruit), the SCD41 (Seeed Studio) and the SPS30 (Sensirion), a MAX17048 breakout, jumper wires, and a step-up converter to 5 V for the SPS30.
-
 ### Step 1: order the PCB
 
 1. Open the [OSHWLab project](https://oshwlab.com/knollfelix004/project_fegzdygg) and fork it. It opens in EasyEDA Pro in the browser, so no desktop EDA installation is needed.
@@ -333,7 +324,7 @@ The firmware runs on the STM32Cube ecosystem with the Semtech **LoRa Basics Mode
 - **Staggered pre-wakeup.** Slow sensors start ahead of the transmit window so the MCU sleeps through their measurement time instead of waiting for them.
     - The **SCD41** runs two power-cycled single shots. A throwaway stabilisation shot starts 12 seconds before the uplink, the useful shot 6 seconds before it. Only the second is transmitted. Without the first, the reading after a power cycle is measurably wrong.
     - The **SPS30** starts 16.5 seconds before the uplink to cover fan spin-up and settling.
-- **Battery policy** with hysteresis. Below 3500 mV the interval doubles and PM pauses. Below 3300 mV the node cancels radio and sensor work and checks the voltage every 60 seconds until it recovers. Two readings below 3100 mV put it into Standby with an hourly wake-up (needs the option byte IWDG_STDBY cleared, see [doc/CONFIGURATION.md](doc/CONFIGURATION.md#power-modes)).
+- **Battery policy** with hysteresis. Below 3500 mV the interval doubles and PM pauses. Below 3300 mV the node cancels radio and sensor work and checks the voltage every 60 seconds until it recovers. Two readings below 3200 mV put it into Standby with an hourly wake-up (needs the option byte IWDG_STDBY cleared, see [doc/CONFIGURATION.md](doc/CONFIGURATION.md#power-modes)).
 
 ### Downlink commands
 
