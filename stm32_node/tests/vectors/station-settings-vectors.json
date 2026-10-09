@@ -1,0 +1,44 @@
+{
+  "_comment": "Power-Sync test vectors (MASTER §7.7). The station (TODO 03: tests/test_payload.c, test_decoder.js) and the backend downlink encoder (TODO 02/06) use these same bytes. Big endian, hex upper case.",
+  "fport6": [
+    {
+      "name": "factory defaults after join",
+      "hex": "010201020000012C0DAC0CE40C800E100001",
+      "layout": 1, "firmware": "2.1", "hardware": 2, "hardwareName": "HNS-PCB-1.1",
+      "revision": 0, "powerState": "NORMAL", "intervalSeconds": 300,
+      "saveMv": 3500, "recoveryMv": 3300, "standbyMv": 3200, "resumeMv": 3600, "flags": 1
+    },
+    {
+      "name": "revision 7 in save mode, values from NVM",
+      "hex": "01020102070102580D7A0CB20C1C0DDE0003",
+      "layout": 1, "firmware": "2.1", "hardware": 2, "hardwareName": "HNS-PCB-1.1",
+      "revision": 7, "powerState": "SAVE", "intervalSeconds": 600,
+      "saveMv": 3450, "recoveryMv": 3250, "standbyMv": 3100, "resumeMv": 3550, "flags": 3
+    },
+    {
+      "name": "revision 255 in recovery, all flags",
+      "hex": "01020102FF020E100DAC0CE40C800E100007",
+      "layout": 1, "firmware": "2.1", "hardware": 2, "hardwareName": "HNS-PCB-1.1",
+      "revision": 255, "powerState": "RECOVERY", "intervalSeconds": 3600,
+      "saveMv": 3500, "recoveryMv": 3300, "standbyMv": 3200, "resumeMv": 3600, "flags": 7
+    }
+  ],
+  "fport6Invalid": [
+    {"name": "17 bytes", "hex": "010201020000012C0DAC0CE40C800E1000"},
+    {"name": "layout 0", "hex": "000201020000012C0DAC0CE40C800E100001"}
+  ],
+  "downlink14": [
+    {
+      "name": "revision 7, 600 s, save 3.45, recovery 3.25, standby 3.10, resume 3.55",
+      "hex": "140702580D7A0CB20C1C0DDE",
+      "revision": 7, "intervalSeconds": 600,
+      "saveMv": 3450, "recoveryMv": 3250, "standbyMv": 3100, "resumeMv": 3550
+    },
+    {
+      "name": "revision 1, station defaults",
+      "hex": "1401012C0DAC0CE40C800E10",
+      "revision": 1, "intervalSeconds": 300,
+      "saveMv": 3500, "recoveryMv": 3300, "standbyMv": 3200, "resumeMv": 3600
+    }
+  ]
+}

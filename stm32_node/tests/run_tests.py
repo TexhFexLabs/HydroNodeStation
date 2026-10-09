@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Host regression tests. No STM32 hardware or third-party Python packages needed."""
 from pathlib import Path
+import json
 import re
 import subprocess
 import tempfile
@@ -36,6 +37,17 @@ with tempfile.TemporaryDirectory(prefix='hydronode-tests-') as temp:
     compile_run(tmp, 'solar', [ROOT/'tests/test_solar.c', ROOT/'Core/Src/solar.c'])
     compile_run(tmp, 'pulse', [ROOT/'tests/test_pulse_counter.c', ROOT/'Core/Src/pulse_counter.c'])
     compile_run(tmp, 'payload', [ROOT/'tests/test_payload.c', ROOT/'Core/Src/payload.c'])
+    compile_run(tmp, 'settings', [ROOT/'tests/test_device_settings.c', ROOT/'Core/Src/device_settings.c',
+                                  ROOT/'Core/Src/power_policy.c'])
+    # Same rule table as the backend (tests/vectors, Power-Sync §5): 1S LiPo rows only. The station
+    # accepts 2800 to 4200 mV for every chemistry, so rows above 4100 mV (LiPo cell range) are left out.
+    rules = json.loads((ROOT/'tests/vectors/threshold-rules-vectors.json').read_text())['cases']
+    rows = [c for c in rules if c['cells'] == 1 and c['chemistry'] in (None, 'LIPO')
+            and max(c['save'], c['recovery'], c['standby'], c['resume']) <= 4100]
+    (tmp/'rules.c').write_text('#include "power_policy.h"\n#include <assert.h>\n#include <stdio.h>\nint main(void) {\n' +
+        ''.join(f"    assert(PowerPolicy_Validate(&(power_thresholds_t){{{c['save']},{c['recovery']},{c['standby']},{c['resume']}}}) == {int(not c['expected'])}); /* {c['name']} */\n" for c in rows) +
+        f'    puts("Power rules: {len(rows)} rows of the shared backend table passed");\n}}\n')
+    compile_run(tmp, 'rules', [tmp/'rules.c', ROOT/'Core/Src/power_policy.c'])
     compile_run(tmp, 'faults', [ROOT/'tests/test_fault_report.c', ROOT/'Core/Src/fault_report.c'])
     compile_run(tmp, 'linkcheck', [ROOT/'tests/test_link_check.c', ROOT/'Core/Src/link_check.c'])
     gauge = function('Core/Src/max17048.c', 'static uint16_t max17048_soc_x100(uint16_t raw)') + '\n' + \

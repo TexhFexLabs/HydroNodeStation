@@ -43,9 +43,10 @@ I2C2 on PA11 (SDA) / PA12 (SCL) carries SHT45 0x44, BMP390 0x77, LTR390 0x53, SC
 
 | Setting | Default | Location |
 |---|---|---|
-| Uplink interval | 180 s, downlink `10 HH LL` sets 30 to 3600 s and applies at once | `LoRaWAN/App/lora_app.h` |
+| Uplink interval | 180 s, downlink `10 HH LL` or `14` sets 30 to 3600 s and applies at once | `LoRaWAN/App/lora_app.h` |
 | TX power | EIRP from the stack (EU868 16 dBm) minus `BOARD_ANTENNA_GAIN_DB` (2) = conducted power | `LoRaWAN/Target/radio_board_if.h` |
 | Fault frames (fPort 99) | urgent with the next uplink, the rest at most hourly, counters daily | `Core/Inc/fault_report.h` |
+| Settings report (fPort 6) | after every join, after every `10`/`14`, otherwise daily | `Core/Inc/device_settings.h` |
 | SCD41 first / useful shot | 12 / 6 s before the uplink | `lora_app.h` |
 | SPS30 start | 16.5 s before the uplink | `lora_app.h` |
 | Solar sample (INA226 + ADC) | every 30 s in NORMAL and SAVE | `lora_app.c` |
@@ -56,18 +57,20 @@ I2C2 on PA11 (SDA) / PA12 (SCL) carries SHT45 0x44, BMP390 0x77, LTR390 0x53, SC
 
 ### Power modes
 
-The measurement plan follows the battery. Thresholds are in `Core/Inc/power_policy.h` and are starting values to validate against the installed cell and its protection circuit.
+The measurement plan follows the battery. The four thresholds have defaults in `Core/Inc/power_policy.h` (starting values to validate against the installed cell and its protection circuit) and can be changed by downlink `14` since firmware 2.1. The table shows the defaults; SAVE always ends at Save + 150 mV.
 
 | Mode | Enter | Leave | Interval | CO2 | PM | Radio |
 |---|---|---|---|---|---|---|
 | NORMAL | | | 180 s | every 5th round | every 10th round | yes |
-| SAVE | below 3500 mV | 3650 mV | 360 s | every 10th round (hourly) | no | yes |
-| RECOVERY | below 3300 mV or 3 invalid readings | 3600 mV stable for 60 s | none | no | no | off |
-| Standby | in RECOVERY, 2 valid readings in a row below 3200 mV | wake-up every 60 min, boot when at least 3600 mV | none | no | no | off |
+| SAVE | below Save (3500 mV) | Save + 150 (3650 mV) | 2 × interval | every 10th round (hourly) | no | yes |
+| RECOVERY | below Recovery (3300 mV) or 3 invalid readings | Resume (3600 mV) stable for 60 s | none | no | no | off |
+| Standby | in RECOVERY, 2 valid readings in a row below Standby (3200 mV) | wake-up every 60 min, boot at Resume (3600 mV) or more | none | no | no | off |
+
+The station checks new thresholds against the same rules as the backend: every value 2800 to 4200 mV, Standby at least 50 mV below Recovery, Recovery at least 50 mV below Save, Resume at least 100 mV above Recovery and at most 400 mV above Save.
 
 The battery is checked every 60 s. An invalid reading never leads into Standby: a missing measurement is no undervoltage. Mode changes are reported on fPort 99 (`0x0320`/`0x8320` SAVE, `0x0321`/`0x8321` RECOVERY). RECOVERY entry and exit leave together once the radio is back.
 
-Standby turns off everything except VCC, the RTC with its LSE and the fuel gauge. The INA226 is shut down, the RF switch is off, and the EN pins float so the 1 MΩ pull-downs switch off the 5 V and 3V3SWITCHABLE rails. Waking up is a reset: the boot sees `PWR_FLAG_SB`, reads only the MAX17048, and goes back to Standby below 3600 mV. The full boot afterwards reports `0x0540` with reason 8.
+Standby turns off everything except VCC, the RTC with its LSE and the fuel gauge. The INA226 is shut down, the RF switch is off, and the EN pins float so the 1 MΩ pull-downs switch off the 5 V and 3V3SWITCHABLE rails. Waking up is a reset: the boot sees `PWR_FLAG_SB`, reads only the MAX17048, and goes back to Standby below Resume. Standby keeps Resume in the RTC backup register DR8, so these hourly checks never read flash. The full boot afterwards reports `0x0540` with reason 8.
 
 **Option byte IWDG_STDBY.** The independent watchdog must be frozen in Standby, otherwise it resets the MCU after a few seconds. Clear `IWDG_STDBY` once when setting up a board, with STM32CubeProgrammer (Option bytes, User configuration, uncheck IWDG_STDBY) or `STM32_Programmer_CLI -c port=SWD -ob IWDG_STDBY=0`. The firmware checks `FLASH->OPTR` at every boot. Without the setting the station never enters Standby, stays in RECOVERY, and reports `0x0544` at every boot.
 
@@ -100,7 +103,8 @@ With `PULSE_COUNTERS_ENABLED=1`, PA4 (counter 1, rain gauge, 50 ms lockout) and 
 
 | Payload | Action |
 |---|---|
-| `10 HH LL` | Set the interval in seconds, 30 to 3600. Stored in flash, then the next round is scheduled from now. |
+| `10 HH LL` | Set the interval in seconds, 30 to 3600. Stored in flash, then the next round is scheduled from now. The settings revision stays. |
+| `14 RR II II SS SS CC CC BB BB UU UU` | Set interval and battery thresholds at once (firmware 2.1, 12 bytes, see below). |
 | `11` | SPS30 fan cleaning, only in NORMAL with a valid battery reading |
 | `12` | Diagnostic response on fPort 5 |
 | `FF` | Restart. Stores reason 7 first; the acknowledgement is the `0x0540` entry with reason 7 after the boot. |
@@ -109,13 +113,29 @@ Every non-empty downlink on fPort 2 is acknowledged on fPort 99 as code `0x06CC`
 
 | Result | Meaning |
 |---|---|
-| 0 | executed (`10`: the new interval is in effect) |
+| 0 | executed (`10`: the new interval is in effect; `14`: the new values are in effect) |
 | 1 | length or parameter invalid |
 | 2 | refused because of battery or power mode |
-| 3 | could not be saved (`10`: the interval stays unchanged) |
+| 3 | could not be saved (`10`/`14`: nothing changes) |
 | 4 | unknown command |
 | 5 | the modem did not accept the reply (`12`) |
 | 6 | execution failed (`11`: SPS30 did not respond or cleaning did not start) |
+
+### Settings (`14`, firmware 2.1)
+
+| Off | Field | Type |
+|---|---|---|
+| 0 | `0x14` | u8 |
+| 1 | Revision, 1 to 255 (0 is reserved for factory values) | u8 |
+| 2 | Interval, 30 to 3600 s | u16 |
+| 4 | Save mV | u16 |
+| 6 | Recovery mV | u16 |
+| 8 | Standby mV | u16 |
+| 10 | Resume mV | u16 |
+
+Example: `14 07 0258 0D7A 0CB2 0C1C 0DDE` sets revision 7, 600 s, Save 3450, Recovery 3250, Standby 3100 and Resume 3550 mV. A wrong length, revision 0 or a value outside the rules answers `0x0614` with result 1 and changes nothing. Otherwise the station stores everything in one flash write, uses the interval from now and the thresholds from the next battery check, and answers result 0 (or 3 when the flash write failed). In every case the settings report on fPort 6 follows, so the backend sees the values in effect. The HydroNode backend sends `14` through its downlink integration (Profile, LoRaWAN).
+
+The values live in the NVM config area next to the 2.0 interval record (one 16-byte record: version, revision, interval, four thresholds, CRC-16). A station updated from 2.0 starts with the default thresholds and its stored interval. A broken record means defaults and `0x0543` with detail 11.
 
 ## Payloads
 
@@ -127,6 +147,7 @@ All fields are big-endian. Every port has one fixed length. Missing unsigned val
 | 3 | 34 | Base (10) + CO2 (2) + block (22) |
 | 4 | 32 | Base + CO2 + PM, no block (as in 1.x) |
 | 5 | 26 | Diagnostics on request, layout in RELIABILITY.md |
+| 6 | 18 | Settings report (firmware 2.1), below |
 | 99 | 4 to 32 | Faults, events, command acknowledgements |
 
 Port 4 carries no block: 54 bytes would not fit DR0 to DR2 (51 bytes in EU868). Its block values flow into the next port 2 or 3 frame.
@@ -150,6 +171,25 @@ Port 4 carries no block: 54 bytes would not fit DR0 to DR2 (51 bytes in EU868). 
 | 20 | Counter 2 (PA5) since the last block | u16 | pulses | `0xFFFF` = off |
 
 "Since the last block" means since the last block the modem accepted. Sums saturate at `0xFFFE`. Sunshine counts a 30-second sample when the panel delivers more than 68 mW or the ADC sees more than 5.5 V. Backend layouts may leave the counters out; surplus bytes are ignored.
+
+**Settings report** (fPort 6, unconfirmed, after every join behind the boot frame, after every `10`/`14` and otherwise daily, never in RECOVERY; one more uplink only when it is due):
+
+| Off | Field | Type |
+|---|---|---|
+| 0 | Layout version (1) | u8 |
+| 1 | Firmware major | u8 |
+| 2 | Firmware minor | u8 |
+| 3 | Hardware (2 = PCB 1.1) | u8 |
+| 4 | Revision (0 = factory values) | u8 |
+| 5 | Power mode (0 NORMAL, 1 SAVE, 2 RECOVERY) | u8 |
+| 6 | Interval s | u16 |
+| 8 | Save mV | u16 |
+| 10 | Recovery mV | u16 |
+| 12 | Standby mV | u16 |
+| 14 | Resume mV | u16 |
+| 16 | Flags: bit 0 Standby possible (IWDG_STDBY cleared), bit 1 values from the stored record, bit 2 contact counters built in | u16 |
+
+Example with the factory values: `01 02 01 02 00 00 012C 0DAC 0CE4 0C80 0E10 0001`.
 
 Firmware 1.x frames (port 2 with 10 bytes, port 3 with 12) still decode without the block, so a station keeping its DevEUI stays readable during the swap. Port 2 grows from 10 to 32 bytes; at SF12 an uplink takes about 1.5 s instead of 1.0 s, so the TTN fair use (30 s uplink airtime per day) gets tight at 180 s on poor links.
 

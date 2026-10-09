@@ -34,7 +34,7 @@ HydroNodeStation is a monitoring node that needs no mains power, no Wi-Fi and no
 
 It is not a paper design. It was built, assembled and deployed as part of a university engineering project, and one station has been reporting continuously.
 
-**Project status:** hardware revision 2 (PCB 1.1) is the supported board, firmware 2.0.0 is written for it and awaits its field acceptance test. Revision 1 boards stay on firmware 1.6.x, which is deployed; one station is live in the field. Long-term solar autonomy through a winter is not verified yet. See [Power budget](#power-budget-measured) for measured numbers instead of estimates.
+**Project status:** hardware revision 2 (PCB 1.1) is the supported board, firmware 2.1.0 is written for it and awaits its field acceptance test. Revision 1 boards stay on firmware 1.6.x, which is deployed; one station is live in the field. Long-term solar autonomy through a winter is not verified yet. See [Power budget](#power-budget-measured) for measured numbers instead of estimates.
 
 <div align="center">
   <img src="doc/assets/station_outdoor.jpg" width="420" alt="HydroNodeStation deployed outdoors, Stevenson screen mounted on a railing post" />
@@ -312,7 +312,7 @@ Sensors only. The board itself, the RF section, the power stage and the fabricat
 
 ## Firmware
 
-Firmware 2.0.0 runs on PCB 1.1. It keeps everything firmware 1.6 brought (fix of the uplink outage after 49.71 days, watchdog and progress recovery, robust sensor shutdown, battery recovery, transactional NVM) and adds solar and fuel gauge data on ports 2 and 3, fault and event reports on fPort 99, command acknowledgements, an adaptive measurement plan with a Standby stage for deep discharge, a daily link check with rejoin, and the installation mode. See [doc/CONFIGURATION.md](doc/CONFIGURATION.md) and [doc/RELIABILITY.md](doc/RELIABILITY.md).
+Firmware 2.1.0 runs on PCB 1.1. Since 2.1 the send interval and the four battery thresholds can be changed by downlink `14` and the station reports the values in effect on fPort 6. It keeps everything firmware 1.6 brought (fix of the uplink outage after 49.71 days, watchdog and progress recovery, robust sensor shutdown, battery recovery, transactional NVM) and adds solar and fuel gauge data on ports 2 and 3, fault and event reports on fPort 99, command acknowledgements, an adaptive measurement plan with a Standby stage for deep discharge, a daily link check with rejoin, and the installation mode. See [doc/CONFIGURATION.md](doc/CONFIGURATION.md) and [doc/RELIABILITY.md](doc/RELIABILITY.md).
 
 The firmware runs on the STM32Cube ecosystem with the Semtech **LoRa Basics Modem**.
 
@@ -325,7 +325,7 @@ The firmware runs on the STM32Cube ecosystem with the Semtech **LoRa Basics Mode
 - **Staggered pre-wakeup.** Slow sensors start ahead of the transmit window so the MCU sleeps through their measurement time instead of waiting for them.
     - The **SCD41** runs two power-cycled single shots. A throwaway stabilisation shot starts 12 seconds before the uplink, the useful shot 6 seconds before it. Only the second is transmitted. Without the first, the reading after a power cycle is measurably wrong.
     - The **SPS30** starts 16.5 seconds before the uplink to cover fan spin-up and settling.
-- **Battery policy** with hysteresis. Below 3500 mV the interval doubles and PM pauses. Below 3300 mV the node cancels radio and sensor work and checks the voltage every 60 seconds until it recovers. Two readings below 3200 mV put it into Standby with an hourly wake-up (needs the option byte IWDG_STDBY cleared, see [doc/CONFIGURATION.md](doc/CONFIGURATION.md#power-modes)).
+- **Battery policy** with hysteresis. Below 3500 mV the interval doubles and PM pauses. Below 3300 mV the node cancels radio and sensor work and checks the voltage every 60 seconds until it recovers. Two readings below 3200 mV put it into Standby with an hourly wake-up (needs the option byte IWDG_STDBY cleared, see [doc/CONFIGURATION.md](doc/CONFIGURATION.md#power-modes)). These are the defaults; downlink `14` changes all four thresholds and the interval (firmware 2.1).
 
 ### Downlink commands
 
@@ -336,6 +336,7 @@ Sent on fPort 2. Every command is acknowledged on fPort 99 with its result.
 | `10 HH LL` | Set the transmit interval in seconds, 30 to 3600, persisted to flash and in effect at once |
 | `11` | Trigger an SPS30 fan cleaning cycle |
 | `12` | Request boot, reset and sensor diagnostics on fPort 5 |
+| `14 …` | Set interval and the four battery thresholds (12 bytes, firmware 2.1); the station answers with its values on fPort 6 |
 | `FF` | Software reset |
 
 The SPS30 also cleans itself every 120 hours, but only when the battery is above 4120 mV.

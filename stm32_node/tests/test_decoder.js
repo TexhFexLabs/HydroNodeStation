@@ -4,6 +4,7 @@ assert.equal(decodeUplink({fPort:2,bytes:[254,12,0,0,0,0,16,104,0,0]}).data.temp
 assert.equal(decodeUplink({fPort:2,bytes:[128,0,255,255,0,0,255,255,0,0]}).data.temperature,null);
 assert.equal(decodeUplink({fPort:2,bytes:[128,0,255,255,0,0,255,255,0,0]}).data.battery_mv,null);
 assert.ok(decodeUplink({fPort:2,bytes:[0]}).errors);
+assert.ok(decodeUplink({fPort:7,bytes:[]}).errors);
 assert.ok(decodeUplink({fPort:6,bytes:[]}).errors);
 assert.ok(decodeUplink({fPort:2,bytes:Array(10).fill(-1)}).errors);
 const full=Array(32).fill(255);full[0]=128;full[1]=0;
@@ -54,4 +55,20 @@ assert.equal(f[6].text,'Fault queue overflow');assert.equal(f[7].text,'Code 0x07
 assert.ok(decodeUplink({fPort:99,bytes:[1,2,0,119,0,0]}).errors);
 assert.ok(decodeUplink({fPort:99,bytes:[]}).errors);
 assert.ok(decodeUplink({fPort:99,bytes:Array(36).fill(0)}).errors);
-console.log('Decoder: negative temperatures, null sentinels, lengths, diagnostic uint32, split fault code and anomaly counters, 2.0 block on ports 2/3, 1.x lengths and port 99 fault entries passed');
+/* Port 6 settings report and the 0x14 answer (firmware 2.1), against the backend vectors. */
+const vectors=require('./vectors/station-settings-vectors.json');
+const hex=h=>h.match(/../g).map(x=>parseInt(x,16));
+for (const v of vectors.fport6) {
+  const r=decodeUplink({fPort:6,bytes:hex(v.hex)}).data;
+  assert.equal(r.firmware,v.firmware);assert.equal(r.hardware,v.hardware);assert.equal(r.revision,v.revision);
+  assert.equal(r.power_state,v.powerState);assert.equal(r.interval_s,v.intervalSeconds);
+  assert.equal(r.save_mv,v.saveMv);assert.equal(r.recovery_mv,v.recoveryMv);
+  assert.equal(r.standby_mv,v.standbyMv);assert.equal(r.resume_mv,v.resumeMv);
+  assert.equal(r.iwdg_stdby_ok,(v.flags&1)!==0);assert.equal(r.from_nvm,(v.flags&2)!==0);
+}
+assert.ok(decodeUplink({fPort:6,bytes:hex(vectors.fport6Invalid[0].hex)}).errors);
+assert.ok(decodeUplink({fPort:6,bytes:hex(vectors.fport6Invalid[1].hex)}).errors);
+const acks=decodeUplink({fPort:99,bytes:[6,20,0,0, 6,20,0,1, 6,20,0,3, 5,65,2,1]}).data.entries;
+assert.equal(acks[0].text,'Device settings applied');assert.equal(acks[1].text,'Device settings refused, values invalid');
+assert.equal(acks[2].text,'Device settings could not be saved');assert.equal(acks[3].version,'2.1');
+console.log('Decoder: negative temperatures, null sentinels, lengths, diagnostic uint32, split fault code and anomaly counters, 2.0 block on ports 2/3, 1.x lengths port 99 fault entries, port 6 settings report and 0x0614 answers passed');

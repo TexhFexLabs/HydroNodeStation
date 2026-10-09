@@ -8,6 +8,10 @@
 #include "runtime_health.h"
 #include "stm32wlxx_LoRa_E5_mini_radio.h"
 
+/* Resume threshold for the hourly wake-up (PowerPolicy_PackResume). DR0-2 hold
+ * the timer, DR3-7 the runtime health record. */
+#define STANDBY_BKP_RESUME RTC_BKP_DR8
+
 bool Standby_IwdgReady(void)
 {
   return (FLASH->OPTR & FLASH_OPTR_IWDG_STDBY) == 0U;
@@ -45,11 +49,15 @@ void Standby_CheckWake(void)
 
   if (!__HAL_PWR_GET_FLAG(PWR_FLAG_SB)) return;
   __HAL_PWR_CLEAR_FLAG(PWR_FLAG_SB);
+  /* The resume threshold from NVM, parked by Standby_Enter(): no flash read on
+   * a wake-up that only goes back to sleep. */
+  __HAL_RCC_RTCAPB_CLK_ENABLE();
+  uint16_t resume_mv = PowerPolicy_UnpackResume(HAL_RTCEx_BKUPRead(&hrtc, STANDBY_BKP_RESUME));
   /* Only I2C and the gauge; it kept measuring in hibernate. A reading that
    * fails is no undervoltage: boot normally and let RECOVERY decide. */
   MX_I2C2_Init();
   if (MAX17048_Init() != MAX17048_OK || MAX17048_Read(&battery) != MAX17048_OK ||
-      battery.voltage_mv >= POWER_RESTART_MV)
+      battery.voltage_mv >= resume_mv)
   {
     return;
   }
@@ -58,7 +66,7 @@ void Standby_CheckWake(void)
   standby_sleep();
 }
 
-void Standby_Enter(void)
+void Standby_Enter(uint16_t resume_mv)
 {
   (void)INA226_Shutdown();
   BSP_RADIO_SwitchPowerOff();
@@ -67,6 +75,7 @@ void Standby_Enter(void)
    * The quick checks in between leave it untouched. */
   HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR6, RUNTIME_REASON_STANDBY);
   HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR7, 0U);
+  HAL_RTCEx_BKUPWrite(&hrtc, STANDBY_BKP_RESUME, PowerPolicy_PackResume(resume_mv));
   Runtime_BlinkCode(RUNTIME_REASON_STANDBY);
   __disable_irq();
   standby_sleep();

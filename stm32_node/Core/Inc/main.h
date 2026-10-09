@@ -67,6 +67,8 @@ uint8_t SystemClock_LseAttempts(void);
 #define RTC_PREDIV_S ((1<<RTC_N_PREDIV_S)-1)
 
 /* USER CODE BEGIN Private defines */
+/* Hardware byte of the fPort 6 settings report: 2 = PCB 1.1. */
+#define BOARD_HW_REV 2U
 /* PCB 1.1 (hardware revision 2) pin map, named after the schematic nets.
  * Unused pins (PA1, PA3 1-Wire, PA6, PA7, PA10, PA15, PB0 VDD_TCXO) stay
  * analog; see MX_GPIO_Init(). PA13/PA14 remain SWD. */

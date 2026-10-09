@@ -101,5 +101,5 @@ bool NvmPort_MarkMigrated(void)
 bool NvmPort_CanWrite(void)
 {
     MAX17048_Data_t battery;
-    return MAX17048_Read(&battery)==MAX17048_OK && battery.voltage_mv>=POWER_STOP_MV;
+    return MAX17048_Read(&battery)==MAX17048_OK && battery.voltage_mv>=POWER_FLASH_WRITE_MIN_MV;
 }

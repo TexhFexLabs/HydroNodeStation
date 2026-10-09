@@ -53,6 +53,7 @@
 #include "pulse_counter.h"
 #include "fault_report.h"
 #include "standby.h"
+#include "device_settings.h"
 #include "led.h"
 /* USER CODE END Includes */
 
@@ -89,6 +90,19 @@ typedef struct
   uint32_t magic;
   uint32_t tx_dutycycle_s;
 } app_config_t;
+
+/**
+  * @brief Config area in the NVM snapshot: the 2.0 interval record, kept so a
+  *        downgrade still finds its interval, then the 2.1 device settings
+  *        (device_settings.h). Both go to flash in one write.
+  */
+typedef struct
+{
+  app_config_t legacy;
+  uint8_t settings[SETTINGS_RECORD_LEN];
+} app_store_t;
+_Static_assert(NVM_CONFIG_OFFSET + sizeof(app_store_t) <= NVM_PAYLOAD_BYTES,
+               "config area must fit the NVM payload");
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -241,7 +255,7 @@ static void ReadBattery(void);
 static void StopSensorTimers(void);
 static void ReportPower(void);
 static void ReportNvm(void);
-static void SendFaultFrame(void);
+static bool SendFaultFrame(void);
 static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem_dl_metadata_t *metadata);
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
@@ -367,16 +381,22 @@ static void ChargerSafetyTimerReset(void);
 static void OnChargerSafetyTimerEvent(void *context);
 
 /**
-  * @brief  Load persistent app config from flash into RAM (falls back to defaults if invalid)
+  * @brief  Load interval and thresholds from NVM (defaults, or the 2.0 interval, if none stored)
   */
-static void AppConfig_Load(void);
+static void Settings_Load(void);
 
 /**
-  * @brief  Persist the TX duty cycle to flash
-  * @param  dutycycle_s  duty cycle in seconds (assumed already range-validated)
+  * @brief  Persist interval and thresholds (assumed already validated)
   * @retval true on success, false on flash write error
   */
-static bool AppConfig_SaveTxDutycycle(uint32_t dutycycle_s);
+static bool Settings_Save(const device_settings_t *next);
+
+/**
+  * @brief  Use new settings at once: interval from this moment, thresholds from the next reading
+  */
+static void Settings_Apply(const device_settings_t *next);
+
+static bool SendSettingsReport(void);
 
 /* USER CODE END PFP */
 
@@ -517,6 +537,13 @@ static UTIL_TIMER_Object_t SolarTimer;
   */
 static uint32_t tx_dutycycle_s = APP_TX_DUTYCYCLE;
 
+/* Interval and thresholds in effect (firmware 2.1), and their fPort 6 report:
+ * after the join, after every 0x14/0x10 (accepted or not), else daily. */
+static device_settings_t settings;
+static bool settings_from_nvm;
+static bool settings_report_due;
+static uint32_t settings_reported_at;
+
 enum { EVENT_SCD_START=1U, EVENT_SCD_RESTART=2U, EVENT_SPS_START=4U, EVENT_SPS_STOP=8U, EVENT_SOLAR=16U };
 static volatile uint32_t sensor_events;
 static power_policy_t power_policy;
@@ -650,10 +677,10 @@ void LoRaWAN_Init(void)
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0)
   UTIL_TIMER_Create(&SleepTimer, LED_PERIOD_TIME, UTIL_TIMER_ONESHOT, OnSleepTimerEvent, NULL);
 #endif /* (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 0) */
-  AppConfig_Load();
+  Settings_Load();
   (void)MAX17048_Init();
   (void)EnvSensors_Read(&battery_sample, SENSOR_FLAG_ONLY_BATTERY);
-  PowerPolicy_Init(&power_policy, battery_sample.battery_voltage,
+  PowerPolicy_Init(&power_policy, &settings.th, battery_sample.battery_voltage,
                    (battery_sample.valid & SENSOR_VALID_BATTERY) != 0U);
   planned_mode = power_policy.mode;
   battery_checked_at = SysTimeGetMcuTime().Seconds;
@@ -768,14 +795,41 @@ static void ReportNvm(void)
   Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), Runtime_LastNvmError());
 }
 
-static void SendFaultFrame(void)
+/* True when a frame went to the modem. */
+static bool SendFaultFrame(void)
 {
   uint8_t frame[FAULT_FRAME_MAX_LEN];
   uint8_t n = Fault_BuildFrame(frame);
-  if (n == 0U) return;
+  if (n == 0U) return false;
   /* Unconfirmed; rejected (duty cycle) means the entries wait a round. */
-  if (smtc_modem_request_uplink(STACK_ID, TX_PORT_FAULTS, false, frame, n) == SMTC_MODEM_RC_OK)
-    Fault_FrameAccepted();
+  if (smtc_modem_request_uplink(STACK_ID, TX_PORT_FAULTS, false, frame, n) != SMTC_MODEM_RC_OK)
+    return false;
+  Fault_FrameAccepted();
+  return true;
+}
+
+/* The settings report on fPort 6. Its own unconfirmed uplink right after a
+ * regular one, never in RECOVERY; a rejected request stays due. True when the
+ * modem took it. */
+static bool SendSettingsReport(void)
+{
+  if (power_policy.mode == POWER_RECOVERY) return false;
+  settings_report_info_t info = {
+    .fw_major = APP_VERSION_MAIN,
+    .fw_minor = APP_VERSION_SUB1,
+    .hardware = BOARD_HW_REV,
+    .mode = power_policy.mode,
+    .flags = (uint16_t)((Standby_IwdgReady() ? SETTINGS_FLAG_IWDG_STDBY : 0U) |
+                        (settings_from_nvm ? SETTINGS_FLAG_FROM_NVM : 0U) |
+                        (PULSE_COUNTERS_ENABLED ? SETTINGS_FLAG_PULSE : 0U)),
+  };
+  uint8_t report[SETTINGS_REPORT_LEN];
+  DeviceSettings_BuildReport(&settings, &info, report);
+  if (smtc_modem_request_uplink(STACK_ID, SETTINGS_REPORT_PORT, false, report, sizeof report) != SMTC_MODEM_RC_OK)
+    return false;
+  settings_report_due = false;
+  settings_reported_at = SysTimeGetMcuTime().Seconds;
+  return true;
 }
 
 static void StopSensorTimers(void)
@@ -820,7 +874,8 @@ static void ServicePower(void)
     recovery_stopped = true;
     /* Deep discharge: Standby with an hourly RTC wake-up, once the sensors
      * are asleep and only when the IWDG stops in Standby (0x0544 otherwise). */
-    if (power_policy.standby && !shutdown_pending && Standby_IwdgReady()) Standby_Enter();
+    if (power_policy.standby && !shutdown_pending && Standby_IwdgReady())
+      Standby_Enter(power_policy.th.resume);
   }
   else recovery_stopped = false;
 }
@@ -1056,6 +1111,8 @@ static void EventCallback(void)
         // }
         /* USER CODE END EventCallback_1 */
         StartPhaseFlash(2U, 100U, false);
+        /* The backend learns the values after every join, behind the boot frame. */
+        settings_report_due = true;
         /* Static node: let the network server drive the data rate. */
         ASSERT_SMTC_MODEM_RC(smtc_modem_adr_set_profile(STACK_ID, SMTC_MODEM_ADR_PROFILE_NETWORK_CONTROLLED, NULL));
         {
@@ -1081,11 +1138,21 @@ static void EventCallback(void)
           if (tx_not_sent != UINT16_MAX) tx_not_sent++;
           Fault_Count(FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_TX_FAILED));
         }
-        if (fault_frame_due)
+        /* At most one extra uplink per TXDONE: the fault frame first, the
+         * settings report with the TXDONE that follows it. */
         {
-          fault_frame_due = false;
-          /* Urgent entries now, the rest at most hourly (fault_report.h). */
-          if (Fault_FrameDue()) SendFaultFrame();
+          bool sent_extra = false;
+          if (fault_frame_due)
+          {
+            fault_frame_due = false;
+            /* Urgent entries now, the rest at most hourly (fault_report.h). */
+            if (Fault_FrameDue()) sent_extra = SendFaultFrame();
+          }
+          if ((uint32_t)(SysTimeGetMcuTime().Seconds - settings_reported_at) >= SETTINGS_REPORT_PERIOD_S)
+            settings_report_due = true;
+          if (!sent_extra && settings_report_due &&
+              current_event.event_data.txdone.status != SMTC_MODEM_EVENT_TXDONE_NOT_SENT)
+            (void)SendSettingsReport();
         }
         if (install_check_due)
         {
@@ -1628,18 +1695,41 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
         break;
       }
 
-      if (AppConfig_SaveTxDutycycle(new_interval))
+      device_settings_t next = settings;
+      next.interval_s = new_interval;
+      if (Settings_Save(&next))
       {
         /* Applies now, not after the next restart: the next round is
          * rescheduled from this moment with the new interval. */
-        tx_dutycycle_s = new_interval;
-        if (EventType == TX_ON_TIMER) ScheduleNextRound();
+        Settings_Apply(&next);
         APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval set to %u s (saved)\r\n", (unsigned)tx_dutycycle_s);
       }
       else
       {
         APP_LOG(TS_ON, VLEVEL_M, "SET_TX_INTERVAL: TX interval unchanged at %u s (flash save FAILED)\r\n", (unsigned)tx_dutycycle_s);
         result = FAULT_CMD_SAVE_FAILED;
+      }
+      break;
+    }
+    case SETTINGS_CMD:
+    {
+      device_settings_t next;
+      if (!DeviceSettings_ParseDownlink(payload, size, &next))
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SETTINGS: invalid (size=%u), nothing changed\r\n", (unsigned)size);
+        result = FAULT_CMD_INVALID;
+      }
+      else if (!Settings_Save(&next))
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "SETTINGS: flash save FAILED, nothing changed\r\n");
+        result = FAULT_CMD_SAVE_FAILED;
+      }
+      else
+      {
+        Settings_Apply(&next);
+        APP_LOG(TS_ON, VLEVEL_M, "SETTINGS: revision %u, interval %u s, save %u, recovery %u, standby %u, resume %u mV\r\n",
+                (unsigned)next.revision, (unsigned)next.interval_s, (unsigned)next.th.save,
+                (unsigned)next.th.recovery, (unsigned)next.th.standby, (unsigned)next.th.resume);
       }
       break;
     }
@@ -1674,6 +1764,8 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
   }
   /* Leaves with the next fPort 99 frame, not at once. */
   Fault_Event(FAULT_CODE(FAULT_CAT_COMMAND, command), result);
+  /* Accepted or refused, the backend gets the values that are in effect. */
+  if (command == SETTINGS_CMD || command == RX_CMD_SET_TX_INTERVAL) settings_report_due = true;
 }
 
 
@@ -1783,38 +1875,43 @@ static void OnChargerSafetyTimerEvent(void *context)
   ChargerSafetyTimerReset();
 }
 
-static void AppConfig_Load(void)
+static void Settings_Load(void)
 {
-  app_config_t cfg = { 0 };
+  app_store_t store;
 
-  if (!Nvm_Read(NVM_CONFIG_OFFSET, &cfg, sizeof(cfg)))
+  DeviceSettings_Defaults(&settings, APP_TX_DUTYCYCLE);
+  settings_from_nvm = false;
+  if (Nvm_Read(NVM_CONFIG_OFFSET, &store, sizeof store))
   {
-    APP_LOG(TS_OFF, VLEVEL_M, "AppConfig: flash read failed, using default TX interval %u s\r\n",
-            (unsigned)tx_dutycycle_s);
-    return;
+    settings_load_t loaded = DeviceSettings_DecodeRecord(store.settings, &settings);
+    settings_from_nvm = loaded == SETTINGS_LOADED;
+    /* A broken record means defaults, reported as 0x0543 detail NVM_ERR_SETTINGS. */
+    if (loaded == SETTINGS_CORRUPT) Runtime_NoteNvmError(NVM_ERR_SETTINGS);
+    /* Nothing usable from 2.1: keep the interval firmware 2.0 stored. */
+    if (!settings_from_nvm && store.legacy.magic == APP_CONFIG_MAGIC &&
+        DeviceSettings_IntervalValid(store.legacy.tx_dutycycle_s))
+      settings.interval_s = (uint16_t)store.legacy.tx_dutycycle_s;
   }
-
-  if ((cfg.magic == APP_CONFIG_MAGIC) &&
-      (cfg.tx_dutycycle_s >= APP_TX_DUTYCYCLE_MIN_S) &&
-      (cfg.tx_dutycycle_s <= APP_TX_DUTYCYCLE_MAX_S))
-  {
-    tx_dutycycle_s = cfg.tx_dutycycle_s;
-    APP_LOG(TS_OFF, VLEVEL_M, "AppConfig: loaded TX interval %u s from flash\r\n", (unsigned)tx_dutycycle_s);
-  }
-  else
-  {
-    APP_LOG(TS_OFF, VLEVEL_M, "AppConfig: no valid config, using default TX interval %u s\r\n",
-            (unsigned)tx_dutycycle_s);
-  }
+  tx_dutycycle_s = settings.interval_s;
+  APP_LOG(TS_OFF, VLEVEL_M, "Settings: revision %u, interval %u s%s\r\n", (unsigned)settings.revision,
+          (unsigned)settings.interval_s, settings_from_nvm ? "" : " (defaults)");
 }
 
-static bool AppConfig_SaveTxDutycycle(uint32_t dutycycle_s)
+static bool Settings_Save(const device_settings_t *next)
 {
-  app_config_t cfg;
-  cfg.magic          = APP_CONFIG_MAGIC;
-  cfg.tx_dutycycle_s = dutycycle_s;
+  app_store_t store = { .legacy = { APP_CONFIG_MAGIC, next->interval_s } };
+  DeviceSettings_EncodeRecord(next, store.settings);
+  /* Nvm_Write skips the flash when nothing changed. */
+  return Nvm_Write(NVM_CONFIG_OFFSET, &store, sizeof store);
+}
 
-  return Nvm_Write(NVM_CONFIG_OFFSET, &cfg, sizeof(cfg));
+static void Settings_Apply(const device_settings_t *next)
+{
+  settings = *next;
+  settings_from_nvm = true;
+  tx_dutycycle_s = settings.interval_s;
+  PowerPolicy_SetThresholds(&power_policy, &settings.th);
+  if (EventType == TX_ON_TIMER) ScheduleNextRound();
 }
 
 /* USER CODE END PrFD_LedEvents */

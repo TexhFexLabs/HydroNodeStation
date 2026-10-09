@@ -14,7 +14,8 @@
  * 1 is reserved for the caller's own context-range rejection. */
 enum { NVM_ERR_NONE=0, NVM_ERR_CONTEXT=1, NVM_ERR_ARGS=2, NVM_ERR_POWER=3,
        NVM_ERR_ERASE=4, NVM_ERR_PROGRAM=5, NVM_ERR_VERIFY=6, NVM_ERR_COMMIT=7,
-       NVM_ERR_CONFIRM=8, NVM_ERR_MIGRATION=9, NVM_ERR_LEGACY=10 };
+       NVM_ERR_CONFIRM=8, NVM_ERR_MIGRATION=9, NVM_ERR_LEGACY=10,
+       NVM_ERR_SETTINGS=11 /* device settings record unreadable, defaults in use */ };
 uint32_t Nvm_LastError(void);
 bool Nvm_Init(void);
 bool Nvm_Read(uint32_t offset, void *data, uint32_t size);

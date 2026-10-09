@@ -32,8 +32,10 @@
  * fault_report.h). Add the id to the backend table DeviceFaultCodes and to
  * PARTS in doc/payload-decoder.js too. See doc/ADDING_SENSORS.md. */
 
-/* Command acknowledgement results (category 0x06 detail, TD_2_0_16). */
-#define FAULT_CMD_OK              0U  /* executed (0x10: new interval in effect now) */
+/* Command acknowledgement results (category 0x06 detail, TD_2_0_16).
+ * 0x0614 answers the settings command 0x14 (firmware 2.1): 0 applied, 1 invalid,
+ * 3 not saved; the fPort 6 settings report follows in every case. */
+#define FAULT_CMD_OK              0U  /* executed (0x10: new interval in effect now; 0x14: settings applied) */
 #define FAULT_CMD_INVALID         1U  /* length or parameter invalid */
 #define FAULT_CMD_REFUSED         2U  /* refused because of battery or power mode */
 #define FAULT_CMD_SAVE_FAILED     3U  /* could not be stored */

@@ -1,6 +1,7 @@
 #ifndef STANDBY_H
 #define STANDBY_H
 #include <stdbool.h>
+#include <stdint.h>
 /* Deep-discharge Standby below RECOVERY (TD_2_0_18).
  * In Standby only VCC (U3), the RTC with the LSE and the MAX17048 (in
  * hibernate) keep running; the GPIOs float, so the 1 MOhm pull-downs switch
@@ -13,10 +14,11 @@
  * 32 s and Standby is refused (the station stays in RECOVERY). */
 bool Standby_IwdgReady(void);
 /* Very early in main(), before the rails come up: after a Standby wake-up,
- * read only the MAX17048 and go back to Standby below POWER_RESTART_MV.
- * Returns for a normal boot. */
+ * read only the MAX17048 and go back to Standby below the resume threshold
+ * Standby_Enter() parked in a backup register. Returns for a normal boot. */
 void Standby_CheckWake(void);
-/* Shuts down what still draws current, records restart reason 8, arms the
- * RTC wake-up and enters Standby. Does not return. */
-void Standby_Enter(void) __attribute__((noreturn));
+/* Shuts down what still draws current, records restart reason 8, keeps the
+ * resume threshold for the wake-ups, arms the RTC and enters Standby. Does not
+ * return. */
+void Standby_Enter(uint16_t resume_mv) __attribute__((noreturn));
 #endif
