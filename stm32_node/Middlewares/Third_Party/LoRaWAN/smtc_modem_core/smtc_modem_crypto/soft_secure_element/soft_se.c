@@ -925,7 +925,10 @@ smtc_se_return_code_t SecureElementGetDevAddr( lr1mac_activation_mode_t mode, ui
 
 void PrintKey( smtc_se_key_identifier_t keyID, uint8_t stack_id )
 {
-#if (KEY_EXTRACTABLE == 1)
+    /* HydroNode: never print keys, not even session keys in Debug builds. */
+    ( void ) keyID;
+    ( void ) stack_id;
+#if 0
 #if (LORAWAN_KMS == 0)
 	soft_se_key_t *keyItem;
     if( SMTC_SE_RC_SUCCESS == get_key_by_id( keyID, &keyItem,  stack_id) )
@@ -958,23 +961,12 @@ void PrintKey( smtc_se_key_identifier_t keyID, uint8_t stack_id )
 
 static void PrintIds( lr1mac_activation_mode_t mode, uint8_t stack_id )
 {
-    uint8_t joinEui[SMTC_SE_EUI_SIZE];
+    /* HydroNode: only the DevEUI is printed, no JoinEUI and no DevAddr. */
     uint8_t devEui[SMTC_SE_EUI_SIZE];
-    uint32_t devAddr = 0;;
+    ( void ) mode;
 
     smtc_secure_element_get_deveui( devEui, stack_id );
     MW_LOG( TS_OFF, VLEVEL_M, "###### DevEUI:      %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\r\n", HEX8( devEui ) );
-
-    smtc_secure_element_get_joineui( joinEui, stack_id );
-    MW_LOG( TS_OFF, VLEVEL_M, "###### AppEUI:      %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\r\n", HEX8( joinEui ) );
-
-    SecureElementGetDevAddr( mode, &devAddr, stack_id );
-    MW_LOG( TS_OFF, VLEVEL_M, "###### DevAddr:     %02X:%02X:%02X:%02X\r\n",
-            ( unsigned )( ( unsigned char * )( &devAddr ) )[3],
-            ( unsigned )( ( unsigned char * )( &devAddr ) )[2],
-            ( unsigned )( ( unsigned char * )( &devAddr ) )[1],
-            ( unsigned )( ( unsigned char * )( &devAddr ) )[0] );
-
 }
 
 
