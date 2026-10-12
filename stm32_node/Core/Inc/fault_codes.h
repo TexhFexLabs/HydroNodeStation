@@ -41,7 +41,7 @@
 #define FAULT_CMD_SAVE_FAILED     3U  /* could not be stored */
 #define FAULT_CMD_UNKNOWN         4U  /* unknown command byte */
 #define FAULT_CMD_NOT_ACCEPTED    5U  /* modem did not accept the fPort 5 reply (0x12 up to 2.1.0) */
-#define FAULT_CMD_FAILED          6U  /* execution failed (0x11: SPS30 did not respond) */
+#define FAULT_CMD_FAILED          6U  /* execution failed (0x11: SPS30 did not respond; 0x12: no room in the fault queue) */
 
 /* Supply states (category 0x03). Standby shows up as 0x0540 reason 8. */
 #define FAULT_SUPPLY_SAVE         0x20U

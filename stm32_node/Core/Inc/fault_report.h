@@ -29,9 +29,12 @@ bool Fault_IsActive(uint16_t code);
 /* Status report (command 0x12, firmware 2.1.1): queues 0x0545 with the number
  * of open states, the firmware version (0x0541, detail as given), then every
  * open state again with the detail it was opened with. The backend takes the
- * report as the complete list: what it does not name is no longer open.
- * Returns the number of open states. */
-uint8_t Fault_QueueStatus(uint16_t version);
+ * report as the complete list: what it does not name is no longer open, so it
+ * goes out whole or not at all. False, nothing queued, when the queue lacks
+ * room for it plus `reserve` entries the caller adds after it. Until the
+ * report has left, a frame is due with every regular uplink and later entries
+ * cannot push it out of the queue. */
+bool Fault_QueueStatus(uint16_t version, uint8_t reserve);
 /* Events (categories 0x04-0x06): queued on every call. */
 void Fault_Event(uint16_t code, uint16_t detail);
 /* Counted events (0x0431, 0x0432): one entry per FAULT_COUNTER_PERIOD_S with

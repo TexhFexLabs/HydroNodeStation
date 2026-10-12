@@ -158,7 +158,7 @@ int main(void)
     /* Status report (command 0x12): marker with the number of open states,
      * version, then each open state with the detail it was opened with. */
     Fault_Reset();
-    assert(Fault_QueueStatus(0x0201U) == 0U);
+    assert(Fault_QueueStatus(0x0201U, 1U));
     assert(Fault_FrameDue() && Fault_BuildFrame(f) == 8U);
     assert(be(f, 0) == 0x0545 && be(f, 2) == 0U && be(f, 4) == 0x0541 && be(f, 6) == 0x0201);
     Fault_FrameAccepted();
@@ -172,7 +172,7 @@ int main(void)
     Fault_BuildFrame(f); Fault_FrameAccepted();
     Fault_BuildFrame(f); Fault_FrameAccepted();
     assert(Fault_Pending() == 0U);
-    assert(Fault_QueueStatus(0x0201U) == 3U);
+    assert(Fault_QueueStatus(0x0201U, 1U));
     assert(Fault_Pending() == 5U && Fault_BuildFrame(f) == 20U);
     assert(be(f, 0) == 0x0545 && be(f, 2) == 3U && be(f, 4) == 0x0541 && be(f, 6) == 0x0201);
     assert(be(f, 8) == 0x0104 && be(f, 10) == 0x62);
@@ -184,6 +184,94 @@ int main(void)
     Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE), false, 3660U);
     assert(Fault_BuildFrame(f) == 4U && be(f, 0) == 0x8320);
 
-    puts("Fault report: boot frame, state edges, 3-in-a-row read errors, 8-entry frames, overflow policy, reset flags, priorities, flap damping, daily counters and status report passed");
+    /* A state closed and opened again is reported with its new detail. */
+    Fault_ComponentResult(FAULT_COMP_SHT45, true, 0U);
+    Fault_Tick(t += 60U);
+    for (int i = 0; i < 3; i++) Fault_ComponentResult(FAULT_COMP_SHT45, false, 0x04U);
+    while (Fault_Pending()) { Fault_BuildFrame(f); Fault_FrameAccepted(); }
+    assert(Fault_QueueStatus(0x0201U, 0U));
+    Fault_BuildFrame(f);
+    assert(be(f, 2) == 2U && be(f, 12) == 0x0201 && be(f, 14) == 0x04);
+    Fault_FrameAccepted();
+
+    /* Edge: no room for the whole report plus what the caller adds after it:
+     * nothing is queued, the backend never sees half a list. */
+    Fault_Reset();
+    Fault_ComponentInit(FAULT_COMP_SCD41, false, 0x62);
+    Fault_ComponentInit(FAULT_COMP_SPS30, false, 0x69);
+    for (int i = 0; i < 11; i++) Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), (uint16_t)i);
+    assert(Fault_Pending() == 13U);
+    assert(!Fault_QueueStatus(0x0201U, 0U) && Fault_Pending() == 13U);   /* needs 4, 3 free */
+    Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), 99U);           /* 14 queued, 2 free */
+    assert(!Fault_QueueStatus(0x0201U, 1U));
+    Fault_BuildFrame(f); Fault_FrameAccepted();                             /* 6 queued */
+    assert(Fault_QueueStatus(0x0201U, 1U) && Fault_Pending() == 10U);       /* 4 + ack fit */
+
+    /* Edge: entries queued while the report waits never push it out; when only
+     * the report and the frame in flight are left, the new entry is lost and
+     * counted. Exactly full is fine. */
+    Fault_Reset();
+    Fault_ComponentInit(FAULT_COMP_SCD41, false, 0x62);
+    Fault_BuildFrame(f); Fault_FrameAccepted();
+    for (int i = 0; i < 13; i++) Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), (uint16_t)i);
+    assert(Fault_QueueStatus(0x0201U, 0U) && Fault_Pending() == 16U);      /* exactly full */
+    Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), 0x200U);       /* nowhere to go */
+    assert(Fault_Pending() == 17U);                                         /* 16 + overflow marker */
+    Fault_BuildFrame(f);                                                    /* marker + 7 */
+    assert(be(f, 0) == 0x054F && be(f, 2) == 1U && be(f, 28) == 0x0543 && be(f, 30) == 6U);
+    Fault_FrameAccepted();
+    Fault_BuildFrame(f);                                                    /* 6 + report start */
+    assert(be(f, 4 * 6) == 0x0545 && be(f, 4 * 6 + 2) == 1U && be(f, 4 * 7) == 0x0541);
+    Fault_FrameAccepted();
+    assert(Fault_BuildFrame(f) == 4U && be(f, 0) == 0x0104 && be(f, 2) == 0x62);
+    Fault_FrameAccepted();
+    assert(Fault_Pending() == 0U);
+    /* With room left, an entry after the report evicts another one queued
+     * after it, never the report or what is queued before it. */
+    Fault_Reset();
+    Fault_ComponentInit(FAULT_COMP_SCD41, false, 0x62);
+    Fault_BuildFrame(f); Fault_FrameAccepted();
+    for (int i = 0; i < 10; i++) Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), (uint16_t)i);
+    assert(Fault_QueueStatus(0x0201U, 0U));                                 /* 13 queued */
+    for (int i = 0; i < 4; i++) Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), 0x100U);
+    assert(Fault_Pending() == 17U);                                         /* 1 dropped + marker */
+    uint8_t seen = 0U;
+    while (Fault_Pending())
+    {
+        uint8_t n = Fault_BuildFrame(f);
+        for (uint8_t i = 0; i < n; i += 4) seen += be(f, i) == 0x0545 || be(f, i) == 0x0104;
+        Fault_FrameAccepted();
+    }
+    assert(seen == 2U);
+
+    /* Edge: a report over two frames whose rest is only read errors (normal
+     * priority) still leaves with the next uplink, not an hour later. After
+     * the report, normal entries wait again. */
+    Fault_Reset();
+    Fault_Tick(t = 1000U);
+    Fault_BuildFrame(f); Fault_FrameAccepted();   /* a frame went out just now */
+    for (uint8_t c = FAULT_COMP_SHT45; c <= FAULT_COMP_TEMP_SENSOR; ++c)
+    {
+        Fault_ComponentInit(c, true, 0x40);
+        for (int i = 0; i < 3; i++) Fault_ComponentResult(c, false, 0x04U);
+    }
+    while (Fault_Pending()) { Fault_BuildFrame(f); Fault_FrameAccepted(); }
+    Fault_Tick(t += 10U);
+    assert(Fault_QueueStatus(0x0201U, 1U));
+    Fault_Event(FAULT_CODE(FAULT_CAT_COMMAND, 0x12), 0U);
+    assert(Fault_Pending() == 12U && Fault_BuildFrame(f) == 32U && be(f, 0) == 0x0545 && be(f, 2) == 9U);
+    Fault_FrameAccepted();
+    Fault_Tick(t += 180U);
+    assert(Fault_FrameDue());                     /* 3 read errors + ack, within the hour */
+    assert(Fault_BuildFrame(f) == 16U && be(f, 0) == 0x0207 && be(f, 12) == 0x0612);
+    /* A state that resolves between the two frames follows its reported open. */
+    Fault_ComponentResult(FAULT_COMP_INA226, true, 0U);
+    Fault_FrameAccepted();
+    assert(Fault_BuildFrame(f) == 4U && be(f, 0) == 0x8207);
+    Fault_FrameAccepted();
+    Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NVM), 1U);
+    assert(!Fault_FrameDue());                    /* back to the hourly budget */
+
+    puts("Fault report: boot frame, state edges, 3-in-a-row read errors, 8-entry frames, overflow policy, reset flags, priorities, flap damping, daily counters and status report (whole or nothing, protected while queued, urgent over two frames) passed");
     return 0;
 }

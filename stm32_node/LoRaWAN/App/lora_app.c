@@ -1719,11 +1719,21 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
        * settings report on fPort 6 with the TXDONE after it. All through
        * the fault queue: a second request_uplink would replace a pending one
        * in LBM, which lost the fPort 5 diagnostic up to 2.1.0. */
-      (void)Fault_QueueStatus((uint16_t)((APP_VERSION_MAIN << 8) | APP_VERSION_SUB1));
-      if (!Standby_IwdgReady())
+    {
+      /* After the report: 0x0544 when it applies and the acknowledgement. */
+      bool iwdg_missing = !Standby_IwdgReady();
+      if (!Fault_QueueStatus((uint16_t)((APP_VERSION_MAIN << 8) | APP_VERSION_SUB1),
+                             (uint8_t)(1U + (iwdg_missing ? 1U : 0U))))
+      {
+        APP_LOG(TS_ON, VLEVEL_M, "STATUS: fault queue too full, try again later\r\n");
+        result = FAULT_CMD_FAILED;
+        break;
+      }
+      if (iwdg_missing)
         Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NO_IWDG_STDBY), 0U);
       APP_LOG(TS_ON, VLEVEL_M, "STATUS: report queued\r\n");
       break;
+    }
     case RX_CMD_SOFTWARE_RESET:
       APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger software reset\r\n");
       /* An acknowledgement queued now would die with the reset: the boot

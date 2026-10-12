@@ -4,6 +4,7 @@ static fault_entry_t queue[FAULT_QUEUE_LEN];
 static uint8_t head, count;
 static uint16_t dropped;
 static uint8_t frame_entries;
+static uint8_t status_end;   /* entries from head up to the end of a pending status report */
 static bool frame_has_marker;
 static uint64_t active[3];   /* categories 0x01..0x03, bit = id & 0x3F */
 static uint16_t active_detail[3][64];   /* detail an open state was opened with */
@@ -23,6 +24,7 @@ static fault_entry_t *at(uint8_t i) { return &queue[(uint8_t)(head + i) % FAULT_
 
 static void drop_at(uint8_t i)
 {
+    if (i < status_end) { status_end--; }
     for (; i + 1U < count; ++i) { *at(i) = *at((uint8_t)(i + 1U)); }
     count--;
     if (dropped < UINT16_MAX) { dropped++; }
@@ -33,9 +35,16 @@ static void push(uint16_t code, uint16_t detail)
     if (count == FAULT_QUEUE_LEN)
     {
         /* Full: the oldest "resolved" entry goes first, else the oldest.
-         * The entries of a frame in flight are kept. */
-        uint8_t victim = frame_entries;
-        for (uint8_t i = frame_entries; i < count; ++i)
+         * The entries of a frame in flight and a pending status report are
+         * kept; when nothing else is left, the new entry is the one lost. */
+        uint8_t keep = status_end > frame_entries ? status_end : frame_entries;
+        if (keep >= count)
+        {
+            if (dropped < UINT16_MAX) { dropped++; }
+            return;
+        }
+        uint8_t victim = keep;
+        for (uint8_t i = keep; i < count; ++i)
         {
             if ((at(i)->code & FAULT_RESOLVED) != 0U) { victim = i; break; }
         }
@@ -80,13 +89,14 @@ void Fault_Event(uint16_t code, uint16_t detail)
     push(code, detail);
 }
 
-uint8_t Fault_QueueStatus(uint16_t version)
+bool Fault_QueueStatus(uint16_t version, uint8_t reserve)
 {
     uint8_t open = 0U;
     for (uint8_t cat = 0U; cat < 3U; ++cat)
     {
         for (uint8_t id = 0U; id < 64U; ++id) { open += (uint8_t)((active[cat] >> id) & 1U); }
     }
+    if ((uint16_t)(2U + open + reserve) > (uint16_t)(FAULT_QUEUE_LEN - count)) { return false; }
     push(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_STATUS), open);
     push(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_VERSION), version);
     for (uint8_t cat = 0U; cat < 3U; ++cat)
@@ -99,7 +109,8 @@ uint8_t Fault_QueueStatus(uint16_t version)
             }
         }
     }
-    return open;
+    status_end = count;
+    return true;
 }
 
 void Fault_Count(uint16_t code)
@@ -145,6 +156,7 @@ bool Fault_IsUrgent(uint16_t code)
 bool Fault_FrameDue(void)
 {
     if (Fault_Pending() == 0U) { return false; }
+    if (status_end != 0U) { return true; }
     for (uint8_t i = 0U; i < count; ++i)
     {
         if (Fault_IsUrgent(at(i)->code)) { return true; }
@@ -228,6 +240,7 @@ void Fault_FrameAccepted(void)
 {
     head = (uint8_t)((head + frame_entries) % FAULT_QUEUE_LEN);
     count = (uint8_t)(count - frame_entries);
+    status_end = status_end > frame_entries ? (uint8_t)(status_end - frame_entries) : 0U;
     frame_entries = 0U;
     if (frame_has_marker) { dropped = 0U; }
     frame_has_marker = false;
@@ -255,7 +268,7 @@ uint8_t Fault_CompressResetFlags(uint32_t csr)
 
 void Fault_Reset(void)
 {
-    head = count = frame_entries = 0U;
+    head = count = frame_entries = status_end = 0U;
     dropped = 0U;
     frame_has_marker = false;
     active[0] = active[1] = active[2] = 0U;

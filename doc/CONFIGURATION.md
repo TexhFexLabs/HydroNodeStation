@@ -119,7 +119,7 @@ Every non-empty downlink on fPort 2 is acknowledged on fPort 99 as code `0x06CC`
 | 3 | could not be saved (`10`/`14`: nothing changes) |
 | 4 | unknown command |
 | 5 | the modem did not accept the fPort 5 reply (`12`, up to 2.1.0) |
-| 6 | execution failed (`11`: SPS30 did not respond or cleaning did not start) |
+| 6 | execution failed (`11`: SPS30 did not respond or cleaning did not start; `12`: no room in the fault queue, try again later) |
 
 ### Settings (`14`, firmware 2.1)
 
@@ -238,6 +238,6 @@ A RAM queue holds 16 entries; at most one fPort 99 frame per round, right after 
 
 The HydroNode backend shows every entry in the device console, keeps open states in the monitoring status and can mail them (off by default). Because nothing survives a reset, the boot entry `0x0540` closes all open states; what is still broken is reported again right after it, and a state back within 24 h counts as the same fault (same "since", no second mail).
 
-**Status report (`12`, firmware 2.1.1).** Fault frames are unconfirmed, so a lost frame leaves the backend with a wrong list until the next restart. Downlink `12` repairs it without a restart: the station queues `0x0545` (detail: number of open states), `0x0541`, every open state again with the detail it was opened with, `0x0544` if it applies, and last the acknowledgement `0x0612`. They leave in the fault frame after the uplink that fetched the downlink (more than 8 entries: the rest in the next round). The fPort 6 settings report follows with the TXDONE after it. The backend takes `0x0545` as the complete list: it closes every open state and reopens the ones named in the report without a new "since" or mail, like after a restart, but without a restart entry. On the station the report changes nothing: open states stay open and their exit is reported as usual.
+**Status report (`12`, firmware 2.1.1).** Fault frames are unconfirmed, so a lost frame leaves the backend with a wrong list until the next restart. Downlink `12` repairs it without a restart: the station queues `0x0545` (detail: number of open states), `0x0541`, every open state again with the detail it was opened with, `0x0544` if it applies, and last the acknowledgement `0x0612`. They leave in the fault frame after the uplink that fetched the downlink; with more than 8 entries the rest follows with the next uplink, also when it is only read errors. The report goes out whole or not at all: without room in the 16-entry queue the station queues nothing and answers `0x0612` with result 6. While it waits, later entries cannot push it out of the queue; when nothing else is left to drop, the new entry is the one lost (`0x054F`). The fPort 6 settings report follows with the TXDONE after it. The backend takes `0x0545` as the complete list: it closes every open state and reopens the ones named in the report without a new "since" or mail, like after a restart, but without a restart entry. On the station the report changes nothing: open states stay open and their exit is reported as usual.
 
 RF region is selected by `ACTIVE_REGION` in `lora_app.h`; the compiled region set is in `LoRaWAN/Target/lorawan_conf.h`.
