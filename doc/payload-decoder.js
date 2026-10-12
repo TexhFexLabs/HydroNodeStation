@@ -1,10 +1,12 @@
-/* HydroNodeStation decoder, firmware 2.1 (PCB 1.1).
+/* HydroNodeStation decoder, firmware 2.1.1 (PCB 1.1).
  * Every port has a fixed length. Ports 2 and 3 end in a 22-byte block
  * (solar, fuel gauge, board temperature, counters); port 4 is unchanged.
  * Firmware 1.x frames (port 2: 10 bytes, port 3: 12 bytes) still decode,
  * without the block, so a station keeping its DevEUI stays readable.
  * Port 99 carries 1 to 8 fault/event entries of 4 bytes (code u16 + detail
  * u16); the code table mirrors stm32_node/Core/Inc/fault_codes.h.
+ * Port 5 is the diagnostic answer to command 0x12 up to firmware 2.1.0;
+ * from 2.1.1 on, 0x12 answers with a status report on port 99 (0x0545).
  * Port 6 (firmware 2.1) is the settings report: interval and battery
  * thresholds in effect, 18 bytes (stm32_node/Core/Inc/device_settings.h). */
 const PARTS = {1: "SHT45", 2: "BMP390", 3: "LTR390", 4: "SCD41", 5: "SPS30", 6: "MAX17048",
@@ -40,6 +42,9 @@ function faultEntry(code, detail) {
   } else if (base === 0x0541) {
     entry.text = "Firmware version";
     entry.version = (detail >> 8) + "." + (detail & 0xff);
+  } else if (base === 0x0545) {
+    entry.text = "Status report, " + detail + " open " + (detail === 1 ? "problem follows" : "problems follow");
+    entry.open_states = detail;
   } else if (base === 0x0614) {
     entry.text = "Device settings " + (SETTINGS_RESULTS[detail] || "result " + detail);
   } else if (category === 6) {

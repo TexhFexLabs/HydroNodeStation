@@ -40,7 +40,7 @@
 #define FAULT_CMD_REFUSED         2U  /* refused because of battery or power mode */
 #define FAULT_CMD_SAVE_FAILED     3U  /* could not be stored */
 #define FAULT_CMD_UNKNOWN         4U  /* unknown command byte */
-#define FAULT_CMD_NOT_ACCEPTED    5U  /* modem did not accept the reply (0x12) */
+#define FAULT_CMD_NOT_ACCEPTED    5U  /* modem did not accept the fPort 5 reply (0x12 up to 2.1.0) */
 #define FAULT_CMD_FAILED          6U  /* execution failed (0x11: SPS30 did not respond) */
 
 /* Supply states (category 0x03). Standby shows up as 0x0540 reason 8. */
@@ -59,6 +59,7 @@
 #define FAULT_SYS_LSE_RETRY       0x42U  /* detail: attempts */
 #define FAULT_SYS_NVM             0x43U  /* detail: last NVM error code */
 #define FAULT_SYS_NO_IWDG_STDBY   0x44U  /* option byte IWDG_STDBY not cleared */
+#define FAULT_SYS_STATUS          0x45U  /* status report (command 0x12, 2.1.1); detail: open states that follow */
 #define FAULT_SYS_OVERFLOW        0x4FU  /* detail: dropped entries */
 
 /* 0x0540 detail high byte: restart reason from RTC backup DR6, see

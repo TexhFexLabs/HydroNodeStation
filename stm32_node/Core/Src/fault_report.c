@@ -6,6 +6,7 @@ static uint16_t dropped;
 static uint8_t frame_entries;
 static bool frame_has_marker;
 static uint64_t active[3];   /* categories 0x01..0x03, bit = id & 0x3F */
+static uint16_t active_detail[3][64];   /* detail an open state was opened with */
 static uint8_t consecutive[FAULT_COMPONENTS];
 static uint16_t failures[FAULT_COMPONENTS];
 static uint32_t now;
@@ -58,7 +59,12 @@ void Fault_SetState(uint16_t code, bool on, uint16_t detail)
     uint64_t *word = state_word((uint16_t)(code & ~FAULT_RESOLVED), &bit);
     if (word == 0) { return; }
     if (on == ((*word & bit) != 0U)) { return; }
-    if (on) { *word |= bit; push((uint16_t)(code & ~FAULT_RESOLVED), detail); }
+    if (on)
+    {
+        *word |= bit;
+        active_detail[word - active][code & 0x3FU] = detail;
+        push((uint16_t)(code & ~FAULT_RESOLVED), detail);
+    }
     else { *word &= ~bit; push((uint16_t)(code | FAULT_RESOLVED), detail); }
 }
 
@@ -72,6 +78,28 @@ bool Fault_IsActive(uint16_t code)
 void Fault_Event(uint16_t code, uint16_t detail)
 {
     push(code, detail);
+}
+
+uint8_t Fault_QueueStatus(uint16_t version)
+{
+    uint8_t open = 0U;
+    for (uint8_t cat = 0U; cat < 3U; ++cat)
+    {
+        for (uint8_t id = 0U; id < 64U; ++id) { open += (uint8_t)((active[cat] >> id) & 1U); }
+    }
+    push(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_STATUS), open);
+    push(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_VERSION), version);
+    for (uint8_t cat = 0U; cat < 3U; ++cat)
+    {
+        for (uint8_t id = 0U; id < 64U; ++id)
+        {
+            if (((active[cat] >> id) & 1U) != 0U)
+            {
+                push(FAULT_CODE(cat + FAULT_CAT_NOT_FOUND, id), active_detail[cat][id]);
+            }
+        }
+    }
+    return open;
 }
 
 void Fault_Count(uint16_t code)
@@ -110,6 +138,7 @@ bool Fault_IsUrgent(uint16_t code)
            base == FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_VERSION) ||
            base == FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_LSE_RETRY) ||
            base == FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NO_IWDG_STDBY) ||
+           base == FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_STATUS) ||
            base == FAULT_CODE(FAULT_CAT_RADIO, FAULT_RADIO_REJOIN);
 }
 

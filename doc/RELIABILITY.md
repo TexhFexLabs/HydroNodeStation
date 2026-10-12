@@ -47,19 +47,9 @@ The modem performs OTAA after a restart; this is not full session continuation. 
 
 Firmware 2.0 sends 32/34/32 bytes on fPort 2/3/4 (ports 2 and 3 end in the solar and fuel gauge block) and fault frames on fPort 99, see [CONFIGURATION.md](CONFIGURATION.md). Scaling of the base fields is unchanged. Missing unsigned fields are `0xFFFF`; missing signed fields are `0x8000`. Consumers must decode these as missing, not large numeric readings. Use [payload-decoder.js](payload-decoder.js); it still reads 1.x frames. The HydroNode backend marks such channels with a per-channel missing value and reads fPort 99 without a layout.
 
-Downlink `0x12` on fPort 2 requests a diagnostic uplink on fPort 5 (26 bytes, big-endian; byte 14 is the fault reason, byte 15 the failing step, bytes 22-23 the modem anomaly count, byte 24 the NVM error count and byte 25 the last NVM error). This optional response can be deferred/rejected by a busy modem; it is not sent automatically every cycle.
+Downlink `0x12` on fPort 2 asks for a status report (firmware 2.1.1): open problems, firmware version and option byte again on fPort 99 (`0x0545`, see [CONFIGURATION.md](CONFIGURATION.md)), then the settings report on fPort 6. Everything goes through the fault queue and the regular extra-uplink slot after TXDONE.
 
-| Offset | Field |
-|---|---|
-| 0 | Version = 1 (u8) |
-| 1 | Power mode: 0 normal, 1 save, 2 recovery (u8) |
-| 2 | MCU RTC seconds (u32; RTC can retain time across software resets) |
-| 6 | Boot count (u32, RTC backup retained while powered) |
-| 10 | RCC reset flags captured at boot (u32) |
-| 14 | Previous explicit fault: 0 none, 1 HAL, 2 CPU, 3 modem, 4 missing progress, 5 NVM, 6 LSE, 7 command FF, 8 Standby wake-up (u16) |
-| 16 | Uplink-request error count this boot (u16, saturating) |
-| 18 | Sensor error count this boot (u16, saturating) |
-| 20 | Last measurement validity bits: battery, T/RH, pressure, UV, CO2, PM (u16) |
+Up to 2.1.0, `0x12` requested a 26-byte diagnostic on fPort 5 straight from the downlink handler. LBM keeps one pending user uplink and `smtc_modem_request_uplink` returns OK even when it replaces it, so the fault frame queued at the following TXDONE overwrote the diagnostic: the acknowledgement said "executed", the frame never left. The decoder still reads port 5 for stations on 2.1.0 and older.
 
 ## Validation
 

@@ -155,6 +155,35 @@ int main(void)
     Fault_FrameAccepted();
     Fault_Tick(UINT32_MAX - 100U + 2U * FAULT_COUNTER_PERIOD_S); assert(Fault_Pending() == 0U);
 
-    puts("Fault report: boot frame, state edges, 3-in-a-row read errors, 8-entry frames, overflow policy, reset flags, priorities, flap damping and daily counters passed");
+    /* Status report (command 0x12): marker with the number of open states,
+     * version, then each open state with the detail it was opened with. */
+    Fault_Reset();
+    assert(Fault_QueueStatus(0x0201U) == 0U);
+    assert(Fault_FrameDue() && Fault_BuildFrame(f) == 8U);
+    assert(be(f, 0) == 0x0545 && be(f, 2) == 0U && be(f, 4) == 0x0541 && be(f, 6) == 0x0201);
+    Fault_FrameAccepted();
+    Fault_ComponentInit(FAULT_COMP_SCD41, false, 0x62);
+    Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE), true, 3480U);
+    Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE), true, 3400U);   /* keeps 3480 */
+    Fault_ComponentInit(FAULT_COMP_SHT45, true, 0x44);
+    for (int i = 0; i < 3; i++) Fault_ComponentResult(FAULT_COMP_SHT45, false, 0x20U);
+    Fault_ComponentInit(FAULT_COMP_BMP390, false, 0x77);
+    Fault_ComponentResult(FAULT_COMP_BMP390, true, 0U);   /* found again: not in the report */
+    Fault_BuildFrame(f); Fault_FrameAccepted();
+    Fault_BuildFrame(f); Fault_FrameAccepted();
+    assert(Fault_Pending() == 0U);
+    assert(Fault_QueueStatus(0x0201U) == 3U);
+    assert(Fault_Pending() == 5U && Fault_BuildFrame(f) == 20U);
+    assert(be(f, 0) == 0x0545 && be(f, 2) == 3U && be(f, 4) == 0x0541 && be(f, 6) == 0x0201);
+    assert(be(f, 8) == 0x0104 && be(f, 10) == 0x62);
+    assert(be(f, 12) == 0x0201 && be(f, 14) == 0x20);
+    assert(be(f, 16) == 0x0320 && be(f, 18) == 3480U);
+    Fault_FrameAccepted();
+    /* The report changes nothing: the states stay open, their exit still reports. */
+    assert(Fault_IsActive(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE)));
+    Fault_SetState(FAULT_CODE(FAULT_CAT_SUPPLY, FAULT_SUPPLY_SAVE), false, 3660U);
+    assert(Fault_BuildFrame(f) == 4U && be(f, 0) == 0x8320);
+
+    puts("Fault report: boot frame, state edges, 3-in-a-row read errors, 8-entry frames, overflow policy, reset flags, priorities, flap damping, daily counters and status report passed");
     return 0;
 }

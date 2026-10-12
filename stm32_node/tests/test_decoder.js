@@ -71,4 +71,7 @@ assert.ok(decodeUplink({fPort:6,bytes:hex(vectors.fport6Invalid[1].hex)}).errors
 const acks=decodeUplink({fPort:99,bytes:[6,20,0,0, 6,20,0,1, 6,20,0,3, 5,65,2,1]}).data.entries;
 assert.equal(acks[0].text,'Device settings applied');assert.equal(acks[1].text,'Device settings refused, values invalid');
 assert.equal(acks[2].text,'Device settings could not be saved');assert.equal(acks[3].version,'2.1');
-console.log('Decoder: negative temperatures, null sentinels, lengths, diagnostic uint32, split fault code and anomaly counters, 2.0 block on ports 2/3, 1.x lengths port 99 fault entries, port 6 settings report and 0x0614 answers passed');
+const status=decodeUplink({fPort:99,bytes:[0x05,0x45,0,2,0x05,0x41,2,1,0x01,0x04,0,0x62,0x06,0x12,0,0]}).data.entries;
+assert.equal(status[0].open_states,2);assert.equal(status[0].text,'Status report, 2 open problems follow');
+assert.equal(status[1].version,'2.1');assert.equal(status[2].i2c_address,0x62);assert.equal(status[3].text,'Command 0x12 executed');
+console.log('Decoder: negative temperatures, null sentinels, lengths, diagnostic uint32, split fault code and anomaly counters, 2.0 block on ports 2/3, 1.x lengths port 99 fault entries, port 6 settings report, 0x0614 answers and 0x0545 status report passed');

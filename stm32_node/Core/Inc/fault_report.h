@@ -26,6 +26,12 @@ typedef struct { uint16_t code, detail; } fault_entry_t;
  * (bit 15); repeated raises while active add nothing. */
 void Fault_SetState(uint16_t code, bool active, uint16_t detail);
 bool Fault_IsActive(uint16_t code);
+/* Status report (command 0x12, firmware 2.1.1): queues 0x0545 with the number
+ * of open states, the firmware version (0x0541, detail as given), then every
+ * open state again with the detail it was opened with. The backend takes the
+ * report as the complete list: what it does not name is no longer open.
+ * Returns the number of open states. */
+uint8_t Fault_QueueStatus(uint16_t version);
 /* Events (categories 0x04-0x06): queued on every call. */
 void Fault_Event(uint16_t code, uint16_t detail);
 /* Counted events (0x0431, 0x0432): one entry per FAULT_COUNTER_PERIOD_S with
@@ -35,7 +41,7 @@ void Fault_Count(uint16_t code);
 /* MCU monotonic seconds; call from the main loop before anything else here.
  * Also flushes the counted events when their period is over. */
 void Fault_Tick(uint32_t now_s);
-/* Urgent: boot info (0x0540-0x0542, 0x0544), rejoin 0x0430, part missing
+/* Urgent: boot info (0x0540-0x0542, 0x0544), status report 0x0545, rejoin 0x0430, part missing
  * (0x01), supply (0x03), command acknowledgements (0x06). */
 bool Fault_IsUrgent(uint16_t code);
 /* A frame should go now: something urgent is queued, or anything is queued

@@ -146,6 +146,7 @@ _Static_assert(NVM_CONFIG_OFFSET + sizeof(app_store_t) <= NVM_PAYLOAD_BYTES,
 #define RX_CMD_PORT                      LORAWAN_USER_APP_PORT
 #define RX_CMD_TRIGGER_SPS30_CLEANING    0x11U
 #define RX_CMD_SET_TX_INTERVAL           0x10U
+#define RX_CMD_STATUS_REPORT             0x12U
 #define RX_CMD_SOFTWARE_RESET            0xFFU
 
 /**
@@ -554,8 +555,6 @@ static uint32_t join_started_at, next_join_at, join_backoff_s = 300U;
 static bool join_attempt_active;
 static uint32_t tx_queued_at;
 static bool tx_pending;
-static uint16_t tx_failures, sensor_failures;
-static uint16_t last_valid_sensors;
 static uint8_t failed_uplinks;
 static bool shutdown_pending;
 static uint32_t next_measurement_at;
@@ -961,10 +960,7 @@ static void ProcessSensorEvents(void)
   if ((pending & EVENT_SPS_START) && power_policy.mode == POWER_NORMAL)
     result |= EnvSensors_StartPreMeasurement(SENSOR_FLAG_SPS30);
   if (result != 0)
-  {
-    if (sensor_failures != UINT16_MAX) sensor_failures++;
     (void)I2C2_RecoverBus();
-  }
 }
 
 static void SystemReset(void)
@@ -1337,14 +1333,6 @@ static void EventCallback(void)
 
 /* USER CODE END PB_Callbacks */
 
-static void append_u16_be(uint8_t *buffer, uint8_t *index, uint16_t value)
-{
-  buffer[*index] = (uint8_t)((value >> 8) & 0xFFU);
-  (*index)++;
-  buffer[*index] = (uint8_t)(value & 0xFFU);
-  (*index)++;
-}
-
 static void BuildBlock(payload_block_t *block)
 {
   solar_block_t solar;
@@ -1422,11 +1410,6 @@ static void SendTxData(uint8_t port)
 
   /* Read sensors */
   EnvSensors_Read(&sensor_data, sensor_flags);
-  last_valid_sensors = sensor_data.valid;
-  uint16_t expected = SENSOR_VALID_BATTERY | SENSOR_VALID_RHT | SENSOR_VALID_PRESSURE | SENSOR_VALID_UV;
-  if (sensor_flags & SENSOR_FLAG_CO2) expected |= SENSOR_VALID_CO2;
-  if (sensor_flags & SENSOR_FLAG_SPS30) expected |= SENSOR_VALID_PM;
-  if ((sensor_data.valid & expected) != expected) if (sensor_failures != UINT16_MAX) sensor_failures++;
 
   /* Log raw stored values (scaling noted in unit label). Receiver / human
    * reader converts: T/100 = degC, RH/100 = %, P/10 = hPa. */
@@ -1487,7 +1470,6 @@ static void SendTxData(uint8_t port)
     {
       if (SPS30_StopMeasurement() != SPS30_STATUS_OK || SPS30_Sleep() != SPS30_STATUS_OK)
       {
-        if (sensor_failures != UINT16_MAX) sensor_failures++;
         (void)I2C2_RecoverBus();
         (void)SPS30_Init();
       }
@@ -1528,7 +1510,6 @@ static void SendTxData(uint8_t port)
   }
   else
   {
-    if (tx_failures != UINT16_MAX) tx_failures++;
     /* Duty-cycle backpressure (BUSY/NO_TIME) is expected and not reported. */
     if (tx_status != SMTC_MODEM_RC_BUSY && tx_status != SMTC_MODEM_RC_NO_TIME)
     {
@@ -1733,24 +1714,16 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
       }
       break;
     }
-    case 0x12U:
-    {
-      uint8_t diagnostic[26] = {1U, (uint8_t)power_policy.mode};
-      uint8_t n = 2U;
-      uint32_t words[] = {SysTimeGetMcuTime().Seconds, Runtime_BootCount(), Runtime_ResetFlags()};
-      for (uint8_t i = 0; i < 3U; ++i)
-      { append_u16_be(diagnostic, &n, (uint16_t)(words[i] >> 16)); append_u16_be(diagnostic, &n, (uint16_t)words[i]); }
-      append_u16_be(diagnostic, &n, (uint16_t)((Runtime_LastFault() << 8) | Runtime_LastFaultDetail()));
-      append_u16_be(diagnostic, &n, tx_failures);
-      append_u16_be(diagnostic, &n, sensor_failures);
-      append_u16_be(diagnostic, &n, last_valid_sensors);
-      append_u16_be(diagnostic, &n, Runtime_PanicCount());
-      diagnostic[n++] = Runtime_NvmErrorCount();
-      diagnostic[n++] = Runtime_LastNvmError();
-      if (smtc_modem_request_uplink(STACK_ID, 5U, false, diagnostic, n) != SMTC_MODEM_RC_OK)
-        result = FAULT_CMD_NOT_ACCEPTED;
+    case RX_CMD_STATUS_REPORT:
+      /* Open problems, version and option byte again on fPort 99, the
+       * settings report on fPort 6 with the TXDONE after it. All through
+       * the fault queue: a second request_uplink would replace a pending one
+       * in LBM, which lost the fPort 5 diagnostic up to 2.1.0. */
+      (void)Fault_QueueStatus((uint16_t)((APP_VERSION_MAIN << 8) | APP_VERSION_SUB1));
+      if (!Standby_IwdgReady())
+        Fault_Event(FAULT_CODE(FAULT_CAT_SYSTEM, FAULT_SYS_NO_IWDG_STDBY), 0U);
+      APP_LOG(TS_ON, VLEVEL_M, "STATUS: report queued\r\n");
       break;
-    }
     case RX_CMD_SOFTWARE_RESET:
       APP_LOG(TS_ON, VLEVEL_M, "Message: Trigger software reset\r\n");
       /* An acknowledgement queued now would die with the reset: the boot
@@ -1765,7 +1738,8 @@ static void processRxData(const uint8_t *payload, uint8_t size, const smtc_modem
   /* Leaves with the next fPort 99 frame, not at once. */
   Fault_Event(FAULT_CODE(FAULT_CAT_COMMAND, command), result);
   /* Accepted or refused, the backend gets the values that are in effect. */
-  if (command == SETTINGS_CMD || command == RX_CMD_SET_TX_INTERVAL) settings_report_due = true;
+  if (command == SETTINGS_CMD || command == RX_CMD_SET_TX_INTERVAL || command == RX_CMD_STATUS_REPORT)
+    settings_report_due = true;
 }
 
 

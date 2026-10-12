@@ -335,7 +335,7 @@ Sent on fPort 2. Every command is acknowledged on fPort 99 with its result.
 |---|---|
 | `10 HH LL` | Set the transmit interval in seconds, 30 to 3600, persisted to flash and in effect at once |
 | `11` | Trigger an SPS30 fan cleaning cycle |
-| `12` | Request boot, reset and sensor diagnostics on fPort 5 |
+| `12` | Status report: open problems and version again on fPort 99, then the settings on fPort 6 (firmware 2.1.1) |
 | `14 …` | Set interval and the four battery thresholds (12 bytes, firmware 2.1); the station answers with its values on fPort 6 |
 | `FF` | Software reset |
 

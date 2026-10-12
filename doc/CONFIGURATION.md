@@ -106,7 +106,7 @@ With `PULSE_COUNTERS_ENABLED=1`, PA4 (counter 1, rain gauge, 50 ms lockout) and 
 | `10 HH LL` | Set the interval in seconds, 30 to 3600. Stored in flash, then the next round is scheduled from now. The settings revision stays. |
 | `14 RR II II SS SS CC CC BB BB UU UU` | Set interval and battery thresholds at once (firmware 2.1, 12 bytes, see below). |
 | `11` | SPS30 fan cleaning, only in NORMAL with a valid battery reading |
-| `12` | Diagnostic response on fPort 5 |
+| `12` | Status report: open problems, version and option byte on fPort 99 (`0x0545`), then the settings report on fPort 6 (firmware 2.1.1; up to 2.1.0 a diagnostic on fPort 5) |
 | `FF` | Restart. Stores reason 7 first; the acknowledgement is the `0x0540` entry with reason 7 after the boot. |
 
 Every non-empty downlink on fPort 2 is acknowledged on fPort 99 as code `0x06CC` (CC = command byte) with the result in the detail. Empty downlinks and other ports are ignored without an acknowledgement. The acknowledgement leaves with the next fPort 99 frame, not at once.
@@ -118,7 +118,7 @@ Every non-empty downlink on fPort 2 is acknowledged on fPort 99 as code `0x06CC`
 | 2 | refused because of battery or power mode |
 | 3 | could not be saved (`10`/`14`: nothing changes) |
 | 4 | unknown command |
-| 5 | the modem did not accept the reply (`12`) |
+| 5 | the modem did not accept the fPort 5 reply (`12`, up to 2.1.0) |
 | 6 | execution failed (`11`: SPS30 did not respond or cleaning did not start) |
 
 ### Settings (`14`, firmware 2.1)
@@ -221,20 +221,23 @@ Parts for `0x01`/`0x02`: `0x01` SHT45, `0x02` BMP390, `0x03` LTR390, `0x04` SCD4
 | `0x0542` | LSE started in the second attempt | attempts |
 | `0x0543` | NVM error | last NVM error code |
 | `0x0544` | Option byte IWDG_STDBY not cleared, no Standby | 0 |
+| `0x0545` | Status report (command `12`, firmware 2.1.1) | number of open states that follow |
 | `0x054F` | Queue overflow | dropped entries |
 
 Restart reasons (high byte of `0x0540`): 0 none, 1 HAL, 2 CPU, 3 modem, 4 missing progress, 5 NVM, 6 LSE, 7 command `FF`, 8 Standby wake-up. Reset flags (low byte): bit 0 pin, 1 brown-out, 2 software, 3 IWDG, 4 WWDG, 5 low-power, 6 option byte, bit 7 free.
 
-Examples: `0102 0077` = BMP390 not found at start; `0205 0004` = SPS30 read errors (NACK); `8205 0007` = SPS30 reads again after 7 failed attempts; `0540 0001` + `0541 0200` = boot after a pin reset, firmware 2.0.
+Examples: `0102 0077` = BMP390 not found at start; `0205 0004` = SPS30 read errors (NACK); `8205 0007` = SPS30 reads again after 7 failed attempts; `0540 0001` + `0541 0200` = boot after a pin reset, firmware 2.0; `0545 0001` + `0541 0201` + `0104 0062` + `0612 0000` = status report, firmware 2.1, SCD41 missing.
 
 **Sending.** States (`0x01`-`0x03`) are reported once on entry and once on exit; repeated errors while a state is active add nothing. Events are reported per occurrence, except `0x0431`/`0x0432`: they are counted and reported once a day, only when the count is not 0. After every boot, once after the join, `0x0540` and `0x0541` leave in one frame.
 
-Entries are urgent or normal. Urgent: boot info (`0x0540`-`0x0542`, `0x0544`), rejoin `0x0430`, part not found (`0x01`), supply (`0x03`) and command acknowledgements (`0x06`). They make a frame due with the next regular uplink. Everything else (read errors, NVM, the daily counters, overflow) waits until an hour has passed since the last fault frame, or rides along with an urgent one. A frame carries up to 8 entries, so a burst costs one uplink.
+Entries are urgent or normal. Urgent: boot info (`0x0540`-`0x0542`, `0x0544`), status report `0x0545`, rejoin `0x0430`, part not found (`0x01`), supply (`0x03`) and command acknowledgements (`0x06`). They make a frame due with the next regular uplink. Everything else (read errors, NVM, the daily counters, overflow) waits until an hour has passed since the last fault frame, or rides along with an urgent one. A frame carries up to 8 entries, so a burst costs one uplink.
 
 A part whose read errors open again within 6 h of its last report is flapping: the new open is reported, but "resolved" follows only after 6 h of good reads, and its detail counts every failed read since the open. One open and close per part and 6 h, at most one more open.
 
 A RAM queue holds 16 entries; at most one fPort 99 frame per round, right after the accepted regular uplink. The rest follows in a later round. On overflow the oldest resolved entries go first, then the oldest; `0x054F` reports the loss. Nothing survives a reset except the restart reason (RTC backup DR6/DR7). Each frame costs one extra uplink, and only when something happened.
 
 The HydroNode backend shows every entry in the device console, keeps open states in the monitoring status and can mail them (off by default). Because nothing survives a reset, the boot entry `0x0540` closes all open states; what is still broken is reported again right after it, and a state back within 24 h counts as the same fault (same "since", no second mail).
+
+**Status report (`12`, firmware 2.1.1).** Fault frames are unconfirmed, so a lost frame leaves the backend with a wrong list until the next restart. Downlink `12` repairs it without a restart: the station queues `0x0545` (detail: number of open states), `0x0541`, every open state again with the detail it was opened with, `0x0544` if it applies, and last the acknowledgement `0x0612`. They leave in the fault frame after the uplink that fetched the downlink (more than 8 entries: the rest in the next round). The fPort 6 settings report follows with the TXDONE after it. The backend takes `0x0545` as the complete list: it closes every open state and reopens the ones named in the report without a new "since" or mail, like after a restart, but without a restart entry. On the station the report changes nothing: open states stay open and their exit is reported as usual.
 
 RF region is selected by `ACTIVE_REGION` in `lora_app.h`; the compiled region set is in `LoRaWAN/Target/lorawan_conf.h`.
