@@ -659,7 +659,7 @@ void LoRaWAN_Init(void)
   UTIL_TIMER_Create(&ChargerSafetyTimer, BQ25185_SAFETY_RESET_INTERVAL_MS, UTIL_TIMER_PERIODIC, OnChargerSafetyTimerEvent, NULL);
   UTIL_TIMER_Start(&ChargerSafetyTimer);
 
-  /* Solar input: 30 s samples in NORMAL and SAVE (TD_2_0_10). */
+  /* Solar input: 8 s samples in NORMAL and SAVE (TD_2_2_1). */
   UTIL_TIMER_Create(&SolarTimer, SOLAR_SAMPLE_S * 1000U, UTIL_TIMER_PERIODIC, OnSolarTimerEvent, NULL);
   UTIL_TIMER_Start(&SolarTimer);
   Solar_Reset(&solar_acc);

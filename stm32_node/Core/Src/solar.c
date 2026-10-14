@@ -51,7 +51,7 @@ void Solar_Block(const solar_acc_t *acc, solar_block_t *out)
                                    : sat16((acc->sum_uw + 500U * acc->ina_n) / (1000U * (uint64_t)acc->ina_n));
     /* 0.1 mWh = 360000 uW s; each sample stands for SOLAR_SAMPLE_S. */
     out->e_01mwh = (acc->ina_n == 0U) ? (uint16_t)SOLAR_MISSING_U16
-                                      : sat16((acc->sum_uw * SOLAR_SAMPLE_S + 180000U) / 360000U);
+                                      : sat16(((uint64_t)acc->sum_uw * SOLAR_SAMPLE_S + 180000U) / 360000U);
     out->sun_ratio = (acc->any_n == 0U) ? (uint16_t)SOLAR_MISSING_U16
                                         : (uint16_t)(((uint64_t)acc->sun_n * 10000U) / acc->any_n);
     out->adc_mv = mean16(acc->sum_adc_mv, acc->adc_n);

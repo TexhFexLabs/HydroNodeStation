@@ -2,10 +2,20 @@
 #define SOLAR_H
 #include <stdint.h>
 #include <stdbool.h>
-/* Solar statistics between two payload blocks (TD_2_0_10/11/14). Pure
- * arithmetic, no hardware access: the 30 s sampler feeds it, the uplink
+/* Solar statistics between two payload blocks (TD_2_0_10/11/14, TD_2_2_1). Pure
+ * arithmetic, no hardware access: the periodic sampler feeds it, the uplink
  * reads a block from it and resets it once the modem accepted the block. */
-#define SOLAR_SAMPLE_S       30U
+/* Base watchdog wake-up slice in seconds (from RUNTIME_MAX_SLEEP_MS / 1000) */
+#define SOLAR_WATCHDOG_TICK_S        8U
+
+/* Multiplier for solar sampling interval:
+ * 1 = 8 s, 2 = 16 s, 3 = 24 s, 4 = 32 s ... */
+#ifndef SOLAR_SAMPLE_WATCHDOG_TICKS
+#define SOLAR_SAMPLE_WATCHDOG_TICKS  1U
+#endif
+
+/* Effective solar sampling interval in seconds */
+#define SOLAR_SAMPLE_S               (SOLAR_SAMPLE_WATCHDOG_TICKS * SOLAR_WATCHDOG_TICK_S)
 /* Sun: P above 12 % of the 570.8 mW panel rating (WMO 120 W/m2), or, when
  * a full battery leaves the charger idle, the panel near open circuit.
  * Starting values, +-20 % without a reference (POWER_ANALYSIS 9.42). */

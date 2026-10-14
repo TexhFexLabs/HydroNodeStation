@@ -11,12 +11,12 @@ int main(void)
     /* Nothing measured: every field is missing. */
     assert(b.v_mv == 0xFFFF && b.i_01ma == 0xFFFF && b.p_mw == 0xFFFF &&
            b.e_01mwh == 0xFFFF && b.sun_ratio == 0xFFFF && b.adc_mv == 0xFFFF);
-    /* 6 samples at 5000 mV / 200.0 mA = 1 W for 3 min: 50 mWh, all sunny. */
-    for (int i = 0; i < 6; i++)
+    /* 45 samples at 5000 mV / 200.0 mA = 1 W for 6 min (45 * 8 s): 100 mWh, all sunny. */
+    for (int i = 0; i < 45; i++)
         Solar_Add(&acc, &(solar_sample_t){ true, 5000U, 2000U, true, 5100U });
     Solar_Block(&acc, &b);
     assert(b.v_mv == 5000U && b.i_01ma == 2000U && b.p_mw == 1000U);
-    assert(b.e_01mwh == 500U && b.sun_ratio == 10000U && b.adc_mv == 5100U);
+    assert(b.e_01mwh == 1000U && b.sun_ratio == 10000U && b.adc_mv == 5100U);
     /* Shade: 4.2 V / 1.0 mA = 4.2 mW, below P_SUN; ADC below V_SUN. */
     Solar_Reset(&acc);
     Solar_Add(&acc, &(solar_sample_t){ true, 4200U, 10U, true, 4300U });
