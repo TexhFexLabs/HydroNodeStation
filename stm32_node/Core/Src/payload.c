@@ -38,7 +38,7 @@ uint8_t Payload_Encode(uint8_t port, const sensor_t *s, const payload_block_t *b
     put16(buf, &n, b->solar_01ma);
     put16(buf, &n, b->solar_mw);
     put16(buf, &n, b->solar_01mwh);
-    put16(buf, &n, b->sun_s);
+    put16(buf, &n, b->sun_ratio);
     put16(buf, &n, b->solar_adc_mv);
     put16(buf, &n, b->soc_x100);
     put16(buf, &n, (uint16_t)b->crate_x100);

@@ -24,7 +24,7 @@ typedef struct
     uint16_t solar_01ma;     /* INA226 mean, 0.1 mA */
     uint16_t solar_mw;       /* mean V x I, mW */
     uint16_t solar_01mwh;    /* energy since last block, 0.1 mWh */
-    uint16_t sun_s;          /* sunshine since last block, s */
+    uint16_t sun_ratio;      /* sunshine ratio since last block, 0.01 % */
     uint16_t solar_adc_mv;   /* PB2 divider mean, mV */
     uint16_t soc_x100;       /* MAX17048 SOC, 0.01 % */
     int16_t  crate_x100;     /* MAX17048 charge rate, 0.01 %/h */

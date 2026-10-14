@@ -1343,7 +1343,7 @@ static void BuildBlock(payload_block_t *block)
   block->solar_01ma = solar.i_01ma;
   block->solar_mw = solar.p_mw;
   block->solar_01mwh = solar.e_01mwh;
-  block->sun_s = solar.sun_s;
+  block->sun_ratio = solar.sun_ratio;
   block->solar_adc_mv = solar.adc_mv;
   /* Also re-acknowledges a pending MAX17048 alert; sentinels on failure. */
   (void)MAX17048_ReadGauge(&gauge);

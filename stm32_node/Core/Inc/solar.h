@@ -34,9 +34,9 @@ typedef struct
     uint16_t v_mv;     /* INA226 mean voltage, mV */
     uint16_t i_01ma;   /* INA226 mean current, 0.1 mA */
     uint16_t p_mw;     /* Mean power, mW */
-    uint16_t e_01mwh;  /* Energy since the last block, 0.1 mWh */
-    uint16_t sun_s;    /* Sunshine since the last block, s */
-    uint16_t adc_mv;   /* ADC mean voltage, mV */
+    uint16_t e_01mwh;    /* Energy since the last block, 0.1 mWh */
+    uint16_t sun_ratio;  /* Sunshine ratio since the last block, 0.01 % */
+    uint16_t adc_mv;     /* ADC mean voltage, mV */
 } solar_block_t;
 
 void Solar_Reset(solar_acc_t *acc);

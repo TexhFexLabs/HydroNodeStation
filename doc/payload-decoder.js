@@ -109,7 +109,7 @@ function decodeUplink(input) {
     data.solar_ma = value(b + 2, 10);
     data.solar_mw = value(b + 4);
     data.solar_mwh = value(b + 6, 10);
-    data.sun_s = value(b + 8);
+    data.sun_ratio = value(b + 8, 100);
     data.solar_adc_mv = value(b + 10);
     data.soc = value(b + 12, 100);
     data.charge_rate = signed(b + 14, 100);

@@ -24,7 +24,7 @@ const base=[254,12,17,168,39,148,15,147,1,94];
 const block=[20,3,4,210,2,120,0,77,14,16,20,60,34,61,254,191,9,41,0,12,255,255];
 const p2=decodeUplink({fPort:2,bytes:[...base,...block]}).data;
 assert.equal(p2.temperature,-5);assert.equal(p2.solar_mv,5123);assert.equal(p2.solar_ma,123.4);
-assert.equal(p2.solar_mw,632);assert.equal(p2.solar_mwh,7.7);assert.equal(p2.sun_s,3600);
+assert.equal(p2.solar_mw,632);assert.equal(p2.solar_mwh,7.7);assert.equal(p2.sun_ratio,36);
 assert.equal(p2.solar_adc_mv,5180);assert.equal(p2.soc,87.65);assert.equal(p2.charge_rate,-3.21);
 assert.equal(p2.board_temperature,23.45);assert.equal(p2.counter1,12);assert.equal(p2.counter2,null);
 const p3=decodeUplink({fPort:3,bytes:[...base,2,100,...block]}).data;
