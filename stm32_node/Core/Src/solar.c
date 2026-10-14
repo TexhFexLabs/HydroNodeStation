@@ -32,11 +32,25 @@ void Solar_Add(solar_acc_t *acc, const solar_sample_t *s)
         acc->adc_n++;
         acc->sum_adc_mv += s->adc_mv;
     }
+    bool is_sun = false;
+    if (s->ina_valid && s->current_01ma >= SOLAR_I_IDLE_01MA)
+    {
+        /* Akku laedt: reine Leistungsauswertung */
+        if (p_uw > (uint32_t)SOLAR_P_SUN_MW * 1000U)
+        {
+            is_sun = true;
+        }
+    }
+    else if (s->adc_valid && s->adc_mv > SOLAR_V_SUN_MV)
+    {
+        /* Akku voll / Leerlauf: nur bei echter Hochspannung durch direkte Einstrahlung */
+        is_sun = true;
+    }
+
     if (s->ina_valid || s->adc_valid)
     {
         acc->any_n++;
-        if ((s->ina_valid && p_uw > SOLAR_P_SUN_MW * 1000U) ||
-            (s->adc_valid && s->adc_mv > SOLAR_V_SUN_MV))
+        if (is_sun)
         {
             acc->sun_n++;
         }

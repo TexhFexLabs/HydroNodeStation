@@ -16,13 +16,24 @@
 
 /* Effective solar sampling interval in seconds */
 #define SOLAR_SAMPLE_S               (SOLAR_SAMPLE_WATCHDOG_TICKS * SOLAR_WATCHDOG_TICK_S)
-/* Sun: P above 12 % of the 570.8 mW panel rating (WMO 120 W/m2), or, when
- * a full battery leaves the charger idle, the panel near open circuit.
- * Starting values, +-20 % without a reference (POWER_ANALYSIS 9.42). */
-#define SOLAR_P_SUN_MW       68U
-#define SOLAR_V_SUN_MV       5500U
-#define SOLAR_MISSING_U16    0xFFFFU
-#define SOLAR_MAX_U16        0xFFFEU
+/* Nennleistung des montierten Solarpanels in mW (z. B. 571 für AnySolar, 3000 für 6V 3W) */
+#ifndef SOLAR_PANEL_RATING_MW
+#define SOLAR_PANEL_RATING_MW        3000U
+#endif
+
+/* WMO-Schwelle für direkten Sonnenschein: 12 % der Nennleistung (120 W/m² bei 1000 W/m² STC) */
+#define SOLAR_P_SUN_PERCENT          12U
+#define SOLAR_P_SUN_MW               ((SOLAR_PANEL_RATING_MW * SOLAR_P_SUN_PERCENT) / 100U)
+
+/* Leerlaufspannungsschwelle bei vollem Akku:
+ * Ein 6V-Panel liegt bei diffuser Bewölkung im Leerlauf bei ca. 5.8 - 6.2 V.
+ * Bei direkter ungetrübter Sonne steigt die Leerlaufspannung auf > 6.6 V. */
+#define SOLAR_V_SUN_MV               6500U
+
+/* Mindeststrom (in 0.1 mA) unter dem der Akku als voll/unbelastet gilt (z. B. 10 mA = 100 * 0.1 mA) */
+#define SOLAR_I_IDLE_01MA            100U
+#define SOLAR_MISSING_U16            0xFFFFU
+#define SOLAR_MAX_U16                0xFFFEU
 
 typedef struct
 {
