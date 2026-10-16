@@ -17,37 +17,37 @@ int main(void)
     Solar_Block(&acc, &b);
     assert(b.v_mv == 5000U && b.i_01ma == 2000U && b.p_mw == 1000U);
     assert(b.e_01mwh == 1000U && b.sun_ratio == 10000U && b.adc_mv == 5100U);
-    /* Diffuse clouds under load: 5.0 V / 40.0 mA = 200 mW (< 360 mW P_SUN), ADC 6.6 V (> V_SUN).
+    /* Diffuse clouds under load: 5.0 V / 10.0 mA = 50 mW (< 68 mW P_SUN), ADC 5.6 V (> V_SUN).
      * Under load, only power decides: no sunshine! */
     Solar_Reset(&acc);
-    Solar_Add(&acc, &(solar_sample_t){ true, 5000U, 400U, true, 6600U });
+    Solar_Add(&acc, &(solar_sample_t){ true, 5000U, 100U, true, 5600U });
     Solar_Block(&acc, &b);
-    assert(b.sun_ratio == 0U && b.p_mw == 200U);
-    /* Shade: 4.2 V / 1.0 mA = 4.2 mW (< 360 mW P_SUN); ADC 4.3 V (< 6.5 V V_SUN). */
+    assert(b.sun_ratio == 0U && b.p_mw == 50U);
+    /* Shade: 4.2 V / 1.0 mA = 4.2 mW (< 68 mW P_SUN); ADC 4.3 V (< 5.5 V V_SUN). */
     Solar_Reset(&acc);
     Solar_Add(&acc, &(solar_sample_t){ true, 4200U, 10U, true, 4300U });
     Solar_Block(&acc, &b);
     assert(b.sun_ratio == 0U && b.p_mw == 4U && b.e_01mwh == 0U);
-    /* Diffuse clouds in idle (full battery): 0 mA, ADC 6450 mV <= 6500 mV V_SUN: no sunshine! */
+    /* Diffuse clouds in idle (full battery): 0 mA, ADC 5400 mV <= 5500 mV V_SUN: no sunshine! */
     Solar_Reset(&acc);
-    Solar_Add(&acc, &(solar_sample_t){ true, 6400U, 0U, true, 6450U });
+    Solar_Add(&acc, &(solar_sample_t){ true, 5300U, 0U, true, 5400U });
     Solar_Block(&acc, &b);
     assert(b.sun_ratio == 0U && b.p_mw == 0U);
-    /* Full sun in idle (full battery): 0 mA, ADC 6750 mV > 6500 mV V_SUN: sunshine! */
+    /* Full sun in idle (full battery): 0 mA, ADC 5800 mV > 5500 mV V_SUN: sunshine! */
     Solar_Reset(&acc);
-    Solar_Add(&acc, &(solar_sample_t){ true, 6700U, 0U, true, 6750U });
+    Solar_Add(&acc, &(solar_sample_t){ true, 5700U, 0U, true, 5800U });
     Solar_Block(&acc, &b);
     assert(b.sun_ratio == 10000U && b.p_mw == 0U);
     /* INA226 missing: its fields are missing, ADC decides via V_SUN. */
     Solar_Reset(&acc);
-    Solar_Add(&acc, &(solar_sample_t){ false, 0U, 0U, true, 6000U });
+    Solar_Add(&acc, &(solar_sample_t){ false, 0U, 0U, true, 5400U });
     Solar_Block(&acc, &b);
     assert(b.v_mv == 0xFFFF && b.i_01ma == 0xFFFF && b.p_mw == 0xFFFF && b.e_01mwh == 0xFFFF);
-    assert(b.adc_mv == 6000U && b.sun_ratio == 0U);
+    assert(b.adc_mv == 5400U && b.sun_ratio == 0U);
     Solar_Reset(&acc);
-    Solar_Add(&acc, &(solar_sample_t){ false, 0U, 0U, true, 6800U });
+    Solar_Add(&acc, &(solar_sample_t){ false, 0U, 0U, true, 5800U });
     Solar_Block(&acc, &b);
-    assert(b.adc_mv == 6800U && b.sun_ratio == 10000U);
+    assert(b.adc_mv == 5800U && b.sun_ratio == 10000U);
     /* Long gap without an accepted block: sums saturate below the sentinel. */
     Solar_Reset(&acc);
     for (int i = 0; i < 3000; i++)

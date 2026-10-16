@@ -16,9 +16,9 @@
 
 /* Effective solar sampling interval in seconds */
 #define SOLAR_SAMPLE_S               (SOLAR_SAMPLE_WATCHDOG_TICKS * SOLAR_WATCHDOG_TICK_S)
-/* Nennleistung des montierten Solarpanels in mW (z. B. 571 für AnySolar, 3000 für 6V 3W) */
+/* Nennleistung des montierten Solarpanels in mW (z. B. 570 für AnySolar 5.7V 100mA, 3000 für 6V 3W) */
 #ifndef SOLAR_PANEL_RATING_MW
-#define SOLAR_PANEL_RATING_MW        3000U
+#define SOLAR_PANEL_RATING_MW        570U
 #endif
 
 /* WMO-Schwelle für direkten Sonnenschein: 12 % der Nennleistung (120 W/m² bei 1000 W/m² STC) */
@@ -26,9 +26,9 @@
 #define SOLAR_P_SUN_MW               ((SOLAR_PANEL_RATING_MW * SOLAR_P_SUN_PERCENT) / 100U)
 
 /* Leerlaufspannungsschwelle bei vollem Akku:
- * Ein 6V-Panel liegt bei diffuser Bewölkung im Leerlauf bei ca. 5.8 - 6.2 V.
- * Bei direkter ungetrübter Sonne steigt die Leerlaufspannung auf > 6.6 V. */
-#define SOLAR_V_SUN_MV               6500U
+ * Ein 5.7V-Panel liegt bei diffuser Bewölkung im Leerlauf bei ca. 4.8 - 5.4 V.
+ * Bei direkter ungetrübter Sonne steigt die Leerlaufspannung auf > 5.5 V. */
+#define SOLAR_V_SUN_MV               5500U
 
 /* Mindeststrom (in 0.1 mA) unter dem der Akku als voll/unbelastet gilt (z. B. 10 mA = 100 * 0.1 mA) */
 #define SOLAR_I_IDLE_01MA            100U
