@@ -1344,7 +1344,6 @@ static void BuildBlock(payload_block_t *block)
   block->solar_mw = solar.p_mw;
   block->solar_01mwh = solar.e_01mwh;
   block->sun_ratio = solar.sun_ratio;
-  block->solar_adc_mv = solar.adc_mv;
   /* Also re-acknowledges a pending MAX17048 alert; sentinels on failure. */
   (void)MAX17048_ReadGauge(&gauge);
   block->soc_x100 = gauge.soc_x100;
@@ -1476,11 +1475,9 @@ static void SendTxData(uint8_t port)
     }
   }
 
-  /* Ports 2 and 3 carry the block (solar, gauge, board temperature,
-   * counters); port 4 rounds leave it to the next block. */
+  /* Ports 2, 3 and 4 carry the block (solar, gauge, board temperature, counters). */
   payload_block_t block;
-  bool has_block = (uplink_port != PAYLOAD_PORT_FULL);
-  if (has_block) BuildBlock(&block);
+  BuildBlock(&block);
   bufferSize = Payload_Encode(uplink_port, &sensor_data, &block, AppDataBuffer);
 
   APP_LOG(TS_ON, VLEVEL_M, "Uplink payload: fPort=%u, %u bytes\r\n", (unsigned)uplink_port, (unsigned)bufferSize);
@@ -1498,7 +1495,7 @@ static void SendTxData(uint8_t port)
     tx_pending = true;
     failed_uplinks = 0U;
     /* The modem took the block: the next one starts from here. */
-    if (has_block) CommitBlock(&block);
+    CommitBlock(&block);
     fault_frame_due = true;
     if (installing)
     {

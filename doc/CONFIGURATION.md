@@ -143,16 +143,16 @@ All fields are big-endian. Every port has one fixed length. Missing unsigned val
 
 | fPort | Bytes | Content |
 |---|---|---|
-| 2 | 32 | Base (10) + block (22) |
-| 3 | 34 | Base (10) + CO2 (2) + block (22) |
-| 4 | 32 | Base + CO2 + PM, no block (as in 1.x) |
+| 2 | 30 | Base (10) + block (20) |
+| 3 | 32 | Base (10) + CO2 (2) + block (20) |
+| 4 | 50 | Base (10) + CO2 (2) + PM (18) + block (20) |
 | 5 | 26 | Diagnostics on request, layout in RELIABILITY.md |
 | 6 | 18 | Settings report (firmware 2.1), below |
 | 99 | 4 to 32 | Faults, events, command acknowledgements |
 
-Port 4 carries no block: 54 bytes would not fit DR0 to DR2 (51 bytes in EU868). Its block values flow into the next port 2 or 3 frame.
+All regular ports (2, 3, and 4) carry the 20-byte solar/battery block. Port 4 carries SPS30 PM1/2.5/4/10 and NC0.5..NC10 without typical size (50 bytes <= 51 bytes DR0-DR2 in EU868).
 
-**Base.** Temperature i16 0.01 °C, relative humidity u16 0.01 %, pressure u16 0.1 hPa, battery u16 mV, UV index u16 0.01. CO2 u16 ppm. Port 4 continues with PM1/2.5/4/10 u16 0.1 µg/m³, NC0.5/1/2.5/4/10 u16 0.1 #/cm³ and typical particle size u16 0.001 µm. Port 4 keeps its CO2 slot as missing when CO2 is disabled.
+**Base.** Temperature i16 0.01 °C, relative humidity u16 0.01 %, pressure u16 0.1 hPa, battery u16 mV, UV index u16 0.01. CO2 u16 ppm. Port 4 continues with PM1/2.5/4/10 u16 0.1 µg/m³ and NC0.5/1/2.5/4/10 u16 0.1 #/cm³ (9 fields, 18 bytes). Port 4 keeps its CO2 slot as missing when CO2 is disabled.
 
 **Block** (offset from the start of the block):
 
@@ -162,15 +162,14 @@ Port 4 carries no block: 54 bytes would not fit DR0 to DR2 (51 bytes in EU868). 
 | 2 | Solar current INA226, mean | u16 | 0.1 mA | `0xFFFF` |
 | 4 | Solar power, mean | u16 | mW | `0xFFFF` |
 | 6 | Solar energy since the last block | u16 | 0.1 mWh | `0xFFFF` |
-| 8 | Sunshine time since the last block | u16 | s | `0xFFFF` |
-| 10 | Solar voltage ADC PB2, mean | u16 | mV | `0xFFFF` |
-| 12 | State of charge | u16 | 0.01 % | `0xFFFF` |
-| 14 | Charge rate | i16 | 0.01 %/h | `0x8000` |
-| 16 | Board temperature | i16 | 0.01 °C | `0x8000` |
-| 18 | Counter 1 (PA4) since the last block | u16 | pulses | `0xFFFF` = off |
-| 20 | Counter 2 (PA5) since the last block | u16 | pulses | `0xFFFF` = off |
+| 8 | Sunshine ratio since the last block | u16 | 0.01 % | `0xFFFF` |
+| 10 | State of charge | u16 | 0.01 % | `0xFFFF` |
+| 12 | Charge rate | i16 | 0.01 %/h | `0x8000` |
+| 14 | Board temperature | i16 | 0.01 °C | `0x8000` |
+| 16 | Counter 1 (PA4) since the last block | u16 | pulses | `0xFFFF` = off |
+| 18 | Counter 2 (PA5) since the last block | u16 | pulses | `0xFFFF` = off |
 
-"Since the last block" means since the last block the modem accepted. Sums saturate at `0xFFFE`. Sunshine counts a 30-second sample when the panel delivers more than 68 mW or the ADC sees more than 5.5 V. Backend layouts may leave the counters out; surplus bytes are ignored.
+"Since the last block" means since the last block the modem accepted. Sums saturate at `0xFFFE`. Backend layouts may leave the counters out; surplus bytes are ignored.
 
 **Settings report** (fPort 6, unconfirmed, after every join behind the boot frame, after every `10`/`14` and otherwise daily, never in RECOVERY; one more uplink only when it is due):
 

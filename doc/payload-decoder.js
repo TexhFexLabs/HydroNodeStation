@@ -62,7 +62,7 @@ function faultEntry(code, detail) {
 function decodeUplink(input) {
   const bytes = input.bytes;
   const port = input.fPort;
-  const lengths = {2: [32, 10], 3: [34, 12], 4: [32], 5: [26], 6: [18],
+  const lengths = {2: [30, 32, 10], 3: [32, 34, 12], 4: [50, 32], 5: [26], 6: [18],
     99: [4, 8, 12, 16, 20, 24, 28, 32]};
   if (!Array.isArray(bytes) || !lengths[port] || !lengths[port].includes(bytes.length) ||
       bytes.some(b => !Number.isInteger(b) || b < 0 || b > 255)) {
@@ -102,20 +102,31 @@ function decodeUplink(input) {
   if (port === 4) {
     const names = ["pm1_0", "pm2_5", "pm4_0", "pm10", "nc0_5", "nc1_0", "nc2_5", "nc4_0", "nc10"];
     names.forEach((name, i) => { data[name] = value(12 + i * 2, 10); });
-    data.typ_size_um = value(30, 1000);
-  } else if (bytes.length > 12) {
-    const b = port === 2 ? 10 : 12;
+    if (bytes.length === 32) data.typ_size_um = value(30, 1000);
+  }
+  const blockOffset = port === 2 ? 10 : (port === 3 ? 12 : (port === 4 && bytes.length === 50 ? 30 : -1));
+  if (blockOffset >= 0 && bytes.length >= blockOffset + 20) {
+    const b = blockOffset;
     data.solar_mv = value(b);
     data.solar_ma = value(b + 2, 10);
     data.solar_mw = value(b + 4);
     data.solar_mwh = value(b + 6, 10);
     data.sun_ratio = value(b + 8, 100);
-    data.solar_adc_mv = value(b + 10);
-    data.soc = value(b + 12, 100);
-    data.charge_rate = signed(b + 14, 100);
-    data.board_temperature = signed(b + 16, 100);
-    data.counter1 = value(b + 18);
-    data.counter2 = value(b + 20);
+    const legacy22 = (bytes.length === 32 && port === 2) || (bytes.length === 34 && port === 3);
+    if (legacy22) {
+      data.solar_adc_mv = value(b + 10);
+      data.soc = value(b + 12, 100);
+      data.charge_rate = signed(b + 14, 100);
+      data.board_temperature = signed(b + 16, 100);
+      data.counter1 = value(b + 18);
+      data.counter2 = value(b + 20);
+    } else {
+      data.soc = value(b + 10, 100);
+      data.charge_rate = signed(b + 12, 100);
+      data.board_temperature = signed(b + 14, 100);
+      data.counter1 = value(b + 16);
+      data.counter2 = value(b + 18);
+    }
   }
   return {data};
 }

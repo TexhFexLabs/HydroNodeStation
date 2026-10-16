@@ -19,23 +19,30 @@ assert.equal(diag.last_fault,5);assert.equal(diag.last_fault_detail,9);
 assert.equal(diag.modem_panics,300);assert.equal(diag.nvm_errors,7);
 assert.equal(diag.last_nvm_error,3);
 assert.ok(decodeUplink({fPort:5,bytes:Array(22).fill(0)}).errors);
-/* Firmware 2.0: port 2 = 32 bytes, port 3 = 34 bytes with the block. */
+/* Firmware 2.2: port 2 = 30 bytes, port 3 = 32 bytes, port 4 = 50 bytes with 20-byte block. */
 const base=[254,12,17,168,39,148,15,147,1,94];
 const block=[20,3,4,210,2,120,0,77,14,16,20,60,34,61,254,191,9,41,0,12,255,255];
-const p2=decodeUplink({fPort:2,bytes:[...base,...block]}).data;
+const p2_leg=decodeUplink({fPort:2,bytes:[...base,...block]}).data;
+assert.equal(p2_leg.temperature,-5);assert.equal(p2_leg.solar_mv,5123);assert.equal(p2_leg.solar_adc_mv,5180);
+assert.equal(p2_leg.soc,87.65);
+const block20=[20,3,4,210,2,120,0,77,14,16,34,61,254,191,9,41,0,12,255,255];
+const p2=decodeUplink({fPort:2,bytes:[...base,...block20]}).data;
 assert.equal(p2.temperature,-5);assert.equal(p2.solar_mv,5123);assert.equal(p2.solar_ma,123.4);
 assert.equal(p2.solar_mw,632);assert.equal(p2.solar_mwh,7.7);assert.equal(p2.sun_ratio,36);
-assert.equal(p2.solar_adc_mv,5180);assert.equal(p2.soc,87.65);assert.equal(p2.charge_rate,-3.21);
+assert.equal(p2.soc,87.65);assert.equal(p2.charge_rate,-3.21);
 assert.equal(p2.board_temperature,23.45);assert.equal(p2.counter1,12);assert.equal(p2.counter2,null);
-const p3=decodeUplink({fPort:3,bytes:[...base,2,100,...block]}).data;
+const p3=decodeUplink({fPort:3,bytes:[...base,2,100,...block20]}).data;
 assert.equal(p3.co2_ppm,612);assert.equal(p3.solar_mv,5123);assert.equal(p3.counter2,null);
-const missing=[...base,...Array(22).fill(255)];missing[24]=128;missing[25]=0;missing[26]=128;missing[27]=0;
+const pm9=Array(18).fill(0);pm9[0]=0;pm9[1]=10;
+const p4=decodeUplink({fPort:4,bytes:[...base,2,100,...pm9,...block20]}).data;
+assert.equal(p4.co2_ppm,612);assert.equal(p4.pm1_0,1.0);assert.equal(p4.solar_mv,5123);assert.equal(p4.soc,87.65);
+const missing=[...base,...Array(20).fill(255)];missing[22]=128;missing[23]=0;missing[24]=128;missing[25]=0;
 const m=decodeUplink({fPort:2,bytes:missing}).data;
 assert.equal(m.solar_mv,null);assert.equal(m.charge_rate,null);assert.equal(m.board_temperature,null);
 assert.equal(m.soc,null);assert.equal(m.counter1,null);
 assert.equal(decodeUplink({fPort:2,bytes:[...base]}).data.solar_mv,undefined);
 assert.ok(decodeUplink({fPort:2,bytes:Array(31).fill(0)}).errors);
-assert.ok(decodeUplink({fPort:3,bytes:Array(32).fill(0)}).errors);
+assert.ok(decodeUplink({fPort:3,bytes:Array(33).fill(0)}).errors);
 assert.ok(decodeUplink({fPort:4,bytes:Array(34).fill(0)}).errors);
 /* Port 99: 1 to 8 entries of code + detail (TD_2_0_15). */
 const boot=decodeUplink({fPort:99,bytes:[5,64,2,11,5,65,2,0]}).data.entries;
